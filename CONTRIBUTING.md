@@ -45,19 +45,26 @@ cp backend/.env.example backend/.env
 pnpm install
 cp frontend/.env.example frontend/.env
 
-# 4. Banco + dados de demonstração
+# 4. Schema + dados de demonstração
 cd backend
-python -m app.infra.seed        # cria as tabelas e popula os incidentes de demonstração
+alembic upgrade head            # cria o schema a partir das migrações
+python -m app.infra.seed        # popula os incidentes de demonstração
 cd ..
 
 # 5. Subir API e web juntos
 pnpm dev
 ```
 
-> O schema é criado automaticamente na subida da API (`Base.metadata.create_all`
-> em `backend/app/main.py`), e o seed também garante as tabelas antes de inserir.
-> Migrações versionadas com Alembic são a issue **#11** e **ainda não estão
-> implementadas** — é por isso que este passo não tem `alembic upgrade head`.
+> O schema é versionado pelo **Alembic**; a aplicação não cria tabelas. Ao
+> alterar um modelo, gere a migração correspondente e revise o arquivo antes de
+> commitar:
+>
+> ```bash
+> cd backend && alembic revision --autogenerate -m "descricao da mudanca"
+> ```
+>
+> A CI roda `alembic upgrade head` e `alembic check`, então um modelo alterado
+> sem migração correspondente **reprova o pull request**.
 
 Serviços esperados após o `pnpm dev`:
 

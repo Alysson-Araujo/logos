@@ -53,14 +53,11 @@ segura conexão do pool sem necessidade.
 
 ## 4. Alembic
 
-> **Status: planejado, ainda não implementado** — issue
+> **Status: implementado** — issue
 > [#11](https://github.com/Alysson-Araujo/logos/issues/11), milestone
-> `M1 — Backend Core`.
->
-> Hoje o schema é criado por `Base.metadata.create_all()` na subida da
-> aplicação — exatamente a alternativa descrita abaixo. Esta seção registra a
-> decisão **a ser aplicada** quando a issue #11 entrar, e não uma capacidade
-> já existente no código.
+> `M1 — Backend Core`. A migração inicial está em
+> `backend/alembic/versions/0001_esquema_inicial.py`, a aplicação não cria mais
+> tabelas e a CI roda `alembic upgrade head` seguido de `alembic check`.
 
 |                      |                                                                                                                                                                                                                                                            |
 | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

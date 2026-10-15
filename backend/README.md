@@ -275,8 +275,9 @@ duplica esses rótulos.
   `postgresql+psycopg://`), com `pool_pre_ping`, `pool_size`, `max_overflow` e `pool_recycle`.
 - **SQLite** (alternativa sem container): `PRAGMA journal_mode=WAL`, `PRAGMA busy_timeout=5000`,
   `PRAGMA foreign_keys=ON` aplicados por _event listener_ na conexão.
-- Tabelas criadas por `Base.metadata.create_all` no `lifespan`. Alembic com migração versionada é
-  uma issue futura declarada no backlog.
+- Schema versionado pelo **Alembic** (`alembic/versions/`). A aplicação **não** cria tabelas: se o
+  banco estiver vazio, `ensure_schema_is_migrated()` para a subida com a instrução do comando que
+  falta. `alembic check` na CI acusa divergência entre os modelos e as migrações.
 - Índices: `UNIQUE(code)`, `(status, criticality, priority_score)`, `(category, created_at)`,
   `(deleted_at)`, `(sla_due_at)`, `(assigned_analyst)`.
 - Soft delete: toda leitura filtra `deleted_at IS NULL`; o `DELETE` incrementa `version`.
@@ -338,7 +339,6 @@ transição de status com lock otimista, soft delete, seed, logging JSON e suít
 - `Idempotency-Key` nas mutações;
 - circuit breaker, cache TTL e rate limit;
 - timeline de auditoria (`incident_events` já existe no schema; endpoints são issue futura);
-- Alembic com migração versionada;
 - autenticação real (por ora o ator é simulado por `assignedAnalyst` e headers de infraestrutura).
 
 Escolhas registradas: `409` para conflito de versão (comunica "alguém mexeu antes" e é tratável
