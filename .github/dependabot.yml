@@ -1,22 +1,54 @@
 version: 2
+
+# Politica de atualizacao de dependencias.
+#
+# Atualizacoes MAJOR sao ignoradas de proposito: elas mudam contrato e exigem
+# migracao (React 19, Zod 4, Vite 8, actions/checkout 7). Um PR automatico que
+# quebra o build nao ajuda ninguem — a atualizacao de major e uma decisao
+# consciente, feita a mao, com a CI verde e a migracao documentada.
+#
+# Minor e patch vem agrupados, em um unico PR por ecossistema, uma vez por mes.
 updates:
   - package-ecosystem: pip
     directory: /backend
     schedule:
-      interval: weekly
-    open-pull-requests-limit: 5
+      interval: monthly
+    open-pull-requests-limit: 2
+    groups:
+      backend-menores:
+        patterns:
+          - '*'
+        update-types:
+          - minor
+          - patch
+    ignore:
+      - dependency-name: '*'
+        update-types:
+          - version-update:semver-major
     commit-message:
       prefix: 'chore'
       include: scope
     labels:
       - 'type:chore'
       - 'area:api'
+      - 'area:db'
 
   - package-ecosystem: npm
     directory: /frontend
     schedule:
-      interval: weekly
-    open-pull-requests-limit: 5
+      interval: monthly
+    open-pull-requests-limit: 2
+    groups:
+      frontend-menores:
+        patterns:
+          - '*'
+        update-types:
+          - minor
+          - patch
+    ignore:
+      - dependency-name: '*'
+        update-types:
+          - version-update:semver-major
     commit-message:
       prefix: 'chore'
       include: scope
@@ -28,6 +60,18 @@ updates:
     directory: /
     schedule:
       interval: monthly
+    open-pull-requests-limit: 1
+    groups:
+      actions-menores:
+        patterns:
+          - '*'
+        update-types:
+          - minor
+          - patch
+    ignore:
+      - dependency-name: '*'
+        update-types:
+          - version-update:semver-major
     commit-message:
       prefix: 'ci'
     labels:
