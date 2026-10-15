@@ -50,6 +50,9 @@ versionamento segue o [Semantic Versioning](https://semver.org/lang/pt-BR/).
 - **Timeout de conexão** de 5 s no engine PostgreSQL (#29).
 - **Cache da listagem** com _stale-while-revalidate_, exposto em
   `X-Cache-Status`, que mantém a lista na tela durante uma degradação (#30).
+- **Timeouts de sessão no PostgreSQL**: `statement_timeout` (teto por consulta) e
+  `idle_in_transaction_session_timeout` (teto com a transação ociosa), aplicados
+  como opção de servidor para valerem desde a primeira consulta (#28).
 - `docs/10-registro-de-execucao.md`: registro do que foi construído, com o
   raciocínio e a evidência de cada decisão.
 - Documentação do projeto:

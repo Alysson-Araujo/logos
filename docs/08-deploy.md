@@ -141,7 +141,8 @@ mal configurado e banco sem dados.
 | `RATE_LIMIT_ENABLED`                | `true`                                   | Desligar só para rodar carga local.                                          |
 | `RATE_LIMIT_READ_PER_MINUTE`        | `60`                                     | Leituras por cliente.                                                        |
 | `RATE_LIMIT_WRITE_PER_MINUTE`       | `20`                                     | Escritas por cliente.                                                        |
-| `DB_STATEMENT_TIMEOUT_MS`           | `5000`                                   | Query não pode pendurar o worker.                                            |
+| `DB_STATEMENT_TIMEOUT_MS`           | `5000`                                   | Teto por **consulta**; cancelada com SQLSTATE `57014`.                       |
+| `DB_IDLE_TRANSACTION_TIMEOUT_MS`    | `10000`                                  | Teto com a **transação ociosa**: libera locks de worker interrompido.        |
 | `RETRY_MAX_ATTEMPTS`                | `3`                                      | Retry interno, contando a primeira tentativa.                                |
 | `RETRY_BASE_DELAY_SECONDS`          | `1.0`                                    | Teto do backoff da primeira espera; dobra até 8s.                            |
 | `CIRCUIT_BREAKER_ENABLED`           | `true`                                   | Desligar só para observar a falha crua.                                      |
