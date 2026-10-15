@@ -123,7 +123,10 @@ jobs:
 
   commits:
     name: conventional commits
-    if: github.event_name == 'pull_request'
+    # Fica de fora dos PRs do Dependabot: a mensagem do commit e gerada pela
+    # ferramenta (e inclui o nome do grupo de atualizacao), estourando o limite
+    # de 72 caracteres do cabecalho — algo que o autor do PR nao controla.
+    if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

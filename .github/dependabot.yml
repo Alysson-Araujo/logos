@@ -34,7 +34,10 @@ updates:
       - 'area:db'
 
   - package-ecosystem: npm
-    directory: /frontend
+    # Atencao: num workspace pnpm existe UM unico lockfile, na raiz. Apontar o
+    # Dependabot para /frontend fazia ele alterar o package.json sem atualizar
+    # o pnpm-lock.yaml, e a CI barrava com ERR_PNPM_OUTDATED_LOCKFILE.
+    directory: /
     schedule:
       interval: monthly
     open-pull-requests-limit: 2
