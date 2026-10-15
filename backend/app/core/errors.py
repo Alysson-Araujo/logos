@@ -82,6 +82,37 @@ class PreconditionFailedError(DomainError):
     default_message = "If-Match malformado."
 
 
+class IdempotencyKeyReusedError(DomainError):
+    """A mesma Idempotency-Key chegou com um corpo diferente."""
+
+    code = "IDEMPOTENCY_KEY_REUSED"
+    status_code = 409
+    default_message = "Esta Idempotency-Key já foi usada com um corpo diferente."
+
+
+class IdempotencyKeyInProgressError(DomainError):
+    """Ainda existe uma requisição em execução com esta chave.
+
+    Não é erro do cliente: significa que o reenvio chegou antes de a primeira
+    tentativa terminar. Repetir com a mesma chave resolve.
+    """
+
+    code = "IDEMPOTENCY_KEY_IN_PROGRESS"
+    status_code = 409
+    default_message = (
+        "Uma requisição com esta Idempotency-Key ainda está em processamento. "
+        "Repita com a mesma chave."
+    )
+
+
+class InvalidIdempotencyKeyError(DomainError):
+    """Idempotency-Key vazia, longa demais ou com caracteres fora do permitido."""
+
+    code = "INVALID_IDEMPOTENCY_KEY"
+    status_code = 422
+    default_message = "Idempotency-Key inválida."
+
+
 class InvalidFilterError(DomainError):
     """Valor de filtro desconhecido na query string."""
 
