@@ -142,7 +142,8 @@ mal configurado e banco sem dados.
 | `RATE_LIMIT_READ_PER_MINUTE`  | `60`                                     | Leituras por cliente.                                                        |
 | `RATE_LIMIT_WRITE_PER_MINUTE` | `20`                                     | Escritas por cliente.                                                        |
 | `DB_STATEMENT_TIMEOUT_MS`     | `5000`                                   | Query não pode pendurar o worker.                                            |
-| `RETRY_MAX_ATTEMPTS`          | `3`                                      | Retry interno com backoff e jitter.                                          |
+| `RETRY_MAX_ATTEMPTS`          | `3`                                      | Retry interno, contando a primeira tentativa.                                |
+| `RETRY_BASE_DELAY_SECONDS`    | `1.0`                                    | Teto do backoff da primeira espera; dobra até 8s.                            |
 | `CACHE_TTL_SECONDS`           | `30`                                     | TTL da listagem com _stale-while-revalidate_.                                |
 | `SEED_ON_STARTUP`             | `false`                                  | Dados de demonstração são carregados uma vez, pelo Shell, não a cada deploy. |
 
