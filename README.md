@@ -101,7 +101,7 @@ interface estão sendo construídos.
 | Listagem paginada por cursor com filtros combináveis                           | ⏳ planejado          |
 | Transições de status validadas no servidor                                     | ⏳ planejado          |
 | **Lock otimista** (`version` + `If-Match`) com `409` e payload do estado atual | ⏳ planejado          |
-| **Idempotência** via `Idempotency-Key` nas mutações                            | ⏳ planejado          |
+| **Idempotência** via `Idempotency-Key` nas mutações                            | ✅ pronto             |
 | **Priority score** determinístico, calculado e persistido no servidor          | ⏳ planejado          |
 | SLA com contagem regressiva e alerta visual progressivo                        | ⏳ planejado          |
 | Lista virtualizada (100+ incidentes) com modo compacto e confortável           | ⏳ planejado          |

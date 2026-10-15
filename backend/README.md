@@ -331,12 +331,12 @@ sobrescrita silenciosa.
 ## 8. Escopo declarado
 
 Implementado: health, meta/enums, criação, listagem com filtros e cursor, detalhe com ETag,
-transição de status com lock otimista, soft delete, seed, logging JSON e suíte de testes.
+transição de status com lock otimista, **idempotência das mutações**, soft delete, **schema
+versionado por migrações**, seed, logging JSON e suíte de testes.
 
 **Fora deste vertical slice** (issues futuras, já mapeadas no plano):
 
 - SSE `/incidents/stream`;
-- `Idempotency-Key` nas mutações;
 - circuit breaker, cache TTL e rate limit;
 - timeline de auditoria (`incident_events` já existe no schema; endpoints são issue futura);
 - autenticação real (por ora o ator é simulado por `assignedAnalyst` e headers de infraestrutura).
