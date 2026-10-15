@@ -528,14 +528,42 @@ precondição que o `UPDATE ... WHERE version = :expected` vai avaliar.
 | Códigos de erro       | **Estáveis.** Um `code` nunca muda de significado; adicionar código novo é compatível, renomear não é. |
 | Depreciação           | Anunciada no `CHANGELOG.md` e nos cabeçalhos de resposta da rota afetada.                              |
 
+### 13.4 Cabeçalhos de segurança
+
+Toda resposta — de sucesso ou de erro — traz os cabeçalhos abaixo.
+
+| Cabeçalho                   | Valor                                                  | Por quê                                                                                     |
+| --------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| `X-Content-Type-Options`    | `nosniff`                                              | Impede o navegador de adivinhar o tipo e tratar um JSON como script                         |
+| `Referrer-Policy`           | `no-referrer`                                          | Não vaza a URL da API, que carrega o id do incidente, para sites de terceiros               |
+| `X-Frame-Options`           | `DENY`                                                 | A API não é feita para ser embutida em iframe                                               |
+| `Permissions-Policy`        | `camera=(), microphone=(), geolocation=(), payment=()` | Nada aqui usa esses recursos; declarar tira o acesso das páginas que consomem a API         |
+| `Strict-Transport-Security` | `max-age=31536000; includeSubDomains`                  | **Só em produção**: em HTTP o navegador ignora, e localmente fixaria `https` em `localhost` |
+
+Eles são aplicados por middleware, e não por rota, justamente para valerem também
+nas respostas de erro — que é onde um tipo de conteúdo mal interpretado faria
+mais estrago. O middleware fica **fora** do limitador de taxa, então a resposta
+`429` também sai com eles.
+
 ## 14. Limites de uso
 
-| Operação                            | Limite padrão                 | Configuração                        |
-| ----------------------------------- | ----------------------------- | ----------------------------------- |
-| Leitura (`GET`)                     | 60 req/min por IP             | `RATE_LIMIT_PER_MINUTE`             |
-| Escrita (`POST`, `PATCH`, `DELETE`) | Limite menor que o de leitura | Definido no token bucket de escrita |
+| Operação                            | Padrão     | Configuração                  |
+| ----------------------------------- | ---------- | ----------------------------- |
+| Leitura (`GET`, `HEAD`)             | 60 req/min | `RATE_LIMIT_READ_PER_MINUTE`  |
+| Escrita (`POST`, `PATCH`, `DELETE`) | 20 req/min | `RATE_LIMIT_WRITE_PER_MINUTE` |
+| Desligar o teto                     | —          | `RATE_LIMIT_ENABLED=false`    |
 
-Excedido o limite, a resposta é `429` com `Retry-After`. O limite existe tanto
-para proteger o serviço quanto para conter um cliente com retry mal
-configurado — que é exatamente o cenário de rede instável que o produto precisa
-suportar.
+A cota é **por cliente**: o `X-Forwarded-For` quando há proxy à frente, e o IP da
+conexão caso contrário. A janela é **deslizante** — os últimos 60 segundos são
+contados a cada requisição —, então o teto vale a qualquer momento e o
+`Retry-After` sai exato, em vez de "até o fim do minuto".
+
+`/health/live` e `/health/ready` **não consomem cota**, e o preflight de CORS
+(`OPTIONS`) também não. Recusar o healthcheck faria a plataforma marcar o serviço
+como doente e reiniciar o deploy.
+
+Excedido o limite, a resposta é `429` com `Retry-After` e o envelope de erro
+habitual, trazendo `details.retryAfterSeconds` e `details.limitPerMinute`. O
+limite existe tanto para proteger o serviço quanto para conter um cliente com
+retry mal configurado — que é exatamente o cenário de rede instável que o produto
+precisa suportar.

@@ -75,7 +75,7 @@ de método interno.
 | `test_errors.py`          | O envelope de erro é idêntico em todos os códigos; `VALIDATION_ERROR` traz `details.fields`; nenhuma resposta de erro vaza _stack trace_.                                                           |
 | `test_meta.py`            | `GET /meta/enums` devolve exatamente as 5 categorias, 3 criticidades, 4 status e o mapa de transições.                                                                                              |
 | `test_health.py`          | `GET /health/live` responde `200`; `GET /health/ready` responde `200` com o banco no ar e `503` quando ele está indisponível.                                                                       |
-| `test_rate_limit.py`      | Excesso de requisições devolve `429` com `Retry-After`.                                                                                                                                             |
+| `test_security.py`        | Cabeçalhos de segurança no sucesso e no erro; CORS libera só a origem configurada; `429` com `Retry-After`; health e preflight isentos de cota.                                                     |
 
 ```bash
 cd backend
