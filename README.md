@@ -555,6 +555,7 @@ logos/
 │   ├── 07-testes.md
 │   ├── 08-deploy.md
 │   ├── 09-escolhas-tecnicas.md
+│   ├── 10-registro-de-execucao.md    # o que foi feito, com evidência
 │   ├── adr/                          # 14 registros de decisão de arquitetura
 │   └── assets/                       # prints, gifs e diagramas
 │

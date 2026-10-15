@@ -51,6 +51,7 @@ from alembic.config import Config
 from fastapi.testclient import TestClient
 
 from alembic import command
+from app.core.cache import get_listing_cache
 from app.core.database import create_session
 from app.main import app
 from app.repositories.idempotency_repository import IdempotencyRepository
@@ -86,14 +87,19 @@ def client() -> Iterator[TestClient]:
 
 @pytest.fixture(autouse=True)
 def clean_database() -> Iterator[None]:
-    """Zera a base antes de cada teste para garantir isolamento.
+    """Zera a base e o cache antes de cada teste para garantir isolamento.
 
     O schema já foi criado pelas migrações na importação deste módulo; aqui só
     removemos as linhas, sem recriar tabela nenhuma.
+
+    O cache da listagem entra na limpeza porque vive no processo e é indexado
+    pelos filtros: dois testes que pedem `GET /incidents` sem filtro usam a
+    **mesma chave**, então sem isto o segundo receberia a página do primeiro.
     """
     with create_session() as session:
         IncidentRepository(session).clear()
         IdempotencyRepository(session).clear()
+    get_listing_cache().clear()
     yield
 
 

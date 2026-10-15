@@ -50,6 +50,10 @@ class Settings(BaseSettings):
     #: Segundos de espera antes de autorizar a sondagem de recuperação.
     circuit_breaker_cooldown_seconds: float = 30.0
 
+    # --- Cache da listagem -------------------------------------------------
+    #: Tempo em que a cópia da listagem é considerada fresca.
+    cache_ttl_seconds: float = 30.0
+
     @property
     def cors_origin_list(self) -> list[str]:
         """Devolve as origens de CORS como lista, ignorando entradas vazias."""
