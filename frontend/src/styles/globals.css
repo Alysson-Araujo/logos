@@ -1,0 +1,76 @@
+@import './tokens.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-bg font-sans text-base text-fg antialiased;
+  }
+
+  /* Foco visível em todo interativo (seção 9.6). */
+  :focus-visible {
+    outline: 2px solid var(--color-focus-ring);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background-color: var(--color-accent);
+    color: var(--color-accent-fg);
+  }
+
+  * {
+    scrollbar-color: var(--color-border-strong) transparent;
+    scrollbar-width: thin;
+  }
+
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background-color: var(--color-border-strong);
+    border: 3px solid transparent;
+    border-radius: var(--radius-full);
+    background-clip: content-box;
+  }
+}
+
+@layer utilities {
+  /* Timers, contadores e códigos sempre com dígitos de largura fixa. */
+  .nums {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Movimento respeita a preferência do sistema (seção 9.3). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Barra indeterminada do carregamento incremental. */
+@keyframes logos-indeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
+
+.logos-indeterminate {
+  animation: logos-indeterminate 1100ms linear infinite;
+}

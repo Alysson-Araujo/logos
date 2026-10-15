@@ -1,0 +1,153 @@
+/**
+ * Tokens do Logos (seção 9.3 do plano).
+ * Toda cor usada na interface nasce aqui; nenhum componente tem cor literal.
+ * Bloco `.dark` sobrescreve os mesmos nomes para o tema escuro.
+ * Contraste verificado em WCAG AA nos dois temas (ver README, seção Acessibilidade).
+ */
+:root {
+  color-scheme: light;
+
+  /* Superfícies */
+  --color-bg: #f5f6f8;
+  --color-surface: #ffffff;
+  --color-surface-raised: #ffffff;
+  --color-surface-sunken: #eceff3;
+  --color-border: #d5dae2;
+  --color-border-strong: #aeb7c4;
+  --color-overlay: rgba(8, 12, 18, 0.5);
+
+  /* Texto */
+  --color-fg: #12171f;
+  --color-fg-muted: #55606f;
+  --color-fg-subtle: #6b7684;
+
+  /* Marca / foco */
+  --color-accent: #1d4ed8;
+  --color-accent-fg: #ffffff;
+  --color-focus-ring: #1d4ed8;
+
+  /* Criticidade — valores exatos do plano (9.3) */
+  --color-crit-alta: #dc2626;
+  --color-crit-alta-soft: #fee2e2;
+  --color-crit-alta-text: #b91c1c;
+  --color-crit-media: #d97706;
+  --color-crit-media-soft: #fef3c7;
+  --color-crit-media-text: #b45309;
+  --color-crit-baixa: #2563eb;
+  --color-crit-baixa-soft: #dbeafe;
+  --color-crit-baixa-text: #1d4ed8;
+
+  /* Status */
+  --color-status-aberto: #d97706;
+  --color-status-aberto-soft: #fef3c7;
+  --color-status-aberto-text: #b45309;
+  --color-status-investigacao: #2563eb;
+  --color-status-investigacao-soft: #dbeafe;
+  --color-status-investigacao-text: #1d4ed8;
+  --color-status-fechado: #16a34a;
+  --color-status-fechado-soft: #dcfce7;
+  --color-status-fechado-text: #166534;
+  --color-status-inconclusivo: #64748b;
+  --color-status-inconclusivo-soft: #e9edf2;
+  --color-status-inconclusivo-text: #475569;
+
+  /* Semânticos */
+  --color-danger: #dc2626;
+  --color-danger-soft: #fee2e2;
+  --color-danger-text: #b91c1c;
+  --color-danger-fg: #ffffff;
+  --color-success: #16a34a;
+  --color-success-soft: #dcfce7;
+  --color-success-text: #166534;
+  --color-warning: #d97706;
+  --color-warning-soft: #fef3c7;
+  --color-warning-text: #b45309;
+  --color-info: #2563eb;
+  --color-info-soft: #dbeafe;
+  --color-info-text: #1d4ed8;
+
+  /* Movimento */
+  --motion-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --motion-hover: 150ms;
+  --motion-panel: 200ms;
+
+  /* Raios */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-full: 999px;
+
+  /* Sombras (3 níveis) */
+  --shadow-e1: 0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 1px rgba(15, 23, 42, 0.04);
+  --shadow-e2: 0 4px 12px rgba(15, 23, 42, 0.1);
+  --shadow-e3: 0 16px 40px rgba(15, 23, 42, 0.18);
+
+  /* Densidade (modo confortável) */
+  --row-py: 10px;
+}
+
+.dark {
+  color-scheme: dark;
+
+  --color-bg: #0b0f14;
+  --color-surface: #121821;
+  --color-surface-raised: #161d27;
+  --color-surface-sunken: #0e141b;
+  --color-border: #242e3b;
+  --color-border-strong: #3a4756;
+  --color-overlay: rgba(2, 4, 8, 0.72);
+
+  --color-fg: #e9eef5;
+  --color-fg-muted: #a7b3c2;
+  --color-fg-subtle: #8b98a8;
+
+  --color-accent: #60a5fa;
+  --color-accent-fg: #08111c;
+  --color-focus-ring: #93c5fd;
+
+  --color-crit-alta: #f87171;
+  --color-crit-alta-soft: #3a1416;
+  --color-crit-alta-text: #fca5a5;
+  --color-crit-media: #fbbf24;
+  --color-crit-media-soft: #3a2a0c;
+  --color-crit-media-text: #fcd34d;
+  --color-crit-baixa: #60a5fa;
+  --color-crit-baixa-soft: #12233d;
+  --color-crit-baixa-text: #93c5fd;
+
+  --color-status-aberto: #fbbf24;
+  --color-status-aberto-soft: #3a2a0c;
+  --color-status-aberto-text: #fcd34d;
+  --color-status-investigacao: #60a5fa;
+  --color-status-investigacao-soft: #12233d;
+  --color-status-investigacao-text: #93c5fd;
+  --color-status-fechado: #4ade80;
+  --color-status-fechado-soft: #0d2b18;
+  --color-status-fechado-text: #86efac;
+  --color-status-inconclusivo: #94a3b8;
+  --color-status-inconclusivo-soft: #1b232d;
+  --color-status-inconclusivo-text: #cbd5e1;
+
+  --color-danger: #f87171;
+  --color-danger-soft: #3a1416;
+  --color-danger-text: #fca5a5;
+  --color-danger-fg: #1f0a0a;
+  --color-success: #4ade80;
+  --color-success-soft: #0d2b18;
+  --color-success-text: #86efac;
+  --color-warning: #fbbf24;
+  --color-warning-soft: #3a2a0c;
+  --color-warning-text: #fcd34d;
+  --color-info: #60a5fa;
+  --color-info-soft: #12233d;
+  --color-info-text: #93c5fd;
+
+  --shadow-e1: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-e2: 0 4px 14px rgba(0, 0, 0, 0.55);
+  --shadow-e3: 0 18px 44px rgba(0, 0, 0, 0.65);
+
+  --row-py: 10px;
+}
+
+[data-density='compact'] {
+  --row-py: 6px;
+}

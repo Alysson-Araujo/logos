@@ -1,0 +1,23 @@
+# Dependências e artefatos de build
+node_modules/
+dist/
+coverage/
+.vite/
+*.tsbuildinfo
+
+# Ambiente
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# IDE / SO
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
