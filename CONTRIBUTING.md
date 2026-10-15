@@ -201,7 +201,23 @@ mensagem com `commitlint`; mensagem fora do padrão é rejeitada localmente.
 | Comprimento máximo da linha do corpo | 100 caracteres                                  |
 | `subject-case`                       | Não pode começar em maiúscula nem em PascalCase |
 
-### 4.5 Exemplos reais
+### 4.5 Referências de issue ficam no rodapé
+
+Um `#<número>` **dentro do corpo** faz o `commitlint` reprovar o commit. O
+analisador de Conventional Commits trata qualquer `#42` como referência de
+rodapé, e a divisão entre corpo e rodapé se perde — o commit é rejeitado com
+`footer must have leading blank line`, mesmo com o texto corretamente separado
+por linhas em branco.
+
+Escreva a referência apenas no rodapé, que é onde a própria convenção manda:
+
+```
+Corpo explicando o porquê da mudança, sem citar o número da issue.
+
+Closes #42
+```
+
+### 4.6 Exemplos reais
 
 ```
 feat(api): adiciona lock otimista na transição de status
