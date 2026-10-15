@@ -13,12 +13,13 @@
 .PARAMETER SkipFrontend
     Nao instala as dependencias do frontend.
 
-.PARAMETER WithPostgres
-    Sobe o PostgreSQL 16 via Podman, para rodar os testes contra o banco real.
+.PARAMETER SkipDatabase
+    Nao sobe o container do PostgreSQL. O backend/.env passa a apontar para
+    SQLite, para o projeto rodar sem container nenhum.
 
 .EXAMPLE
     powershell -ExecutionPolicy Bypass -File .\scripts\setup-local.ps1
-    powershell -ExecutionPolicy Bypass -File .\scripts\setup-local.ps1 -WithPostgres
+    powershell -ExecutionPolicy Bypass -File .\scripts\setup-local.ps1 -SkipDatabase
 
 .NOTES
     Salvo em UTF-8 COM BOM para leitura correta no Windows PowerShell 5.1.
@@ -27,7 +28,7 @@
 param(
     [switch]$SkipBackend,
     [switch]$SkipFrontend,
-    [switch]$WithPostgres
+    [switch]$SkipDatabase
 )
 
 $ErrorActionPreference = 'Stop'
@@ -151,13 +152,32 @@ if (-not $SkipFrontend) {
 }
 
 # --------------------------------------------------------------------------- #
-# 4. PostgreSQL via Podman (opcional)
+# 4. Banco de dados
+#
+# Padrao: PostgreSQL 16 em container, pelo compose.yaml da raiz. E a mesma
+# fonte que `pnpm db:up` usa — nada de `podman run` solto, que criava um
+# container com outro nome e em outra porta e divergia da documentacao.
 # --------------------------------------------------------------------------- #
-if ($WithPostgres) {
-    Escrever-Passo 'Subindo o PostgreSQL 16 via Podman'
+$envBackend = Join-Path $raiz 'backend\.env'
+
+if ($SkipDatabase) {
+    Escrever-Passo 'Banco de dados: SQLite (sem container)'
+
+    if (Test-Path $envBackend) {
+        $conteudo = Get-Content $envBackend -Raw
+        $conteudo = $conteudo -replace '(?m)^DATABASE_URL=.*$', 'DATABASE_URL=sqlite:///./logos.db'
+        [System.IO.File]::WriteAllText($envBackend, $conteudo, (New-Object System.Text.UTF8Encoding($false)))
+        Escrever-Ok 'backend/.env apontando para SQLite'
+    }
+    else {
+        Escrever-Aviso 'backend/.env ainda nao existe; rode a etapa do backend primeiro.'
+    }
+}
+else {
+    Escrever-Passo 'Banco de dados: PostgreSQL 16 em container'
 
     if (-not (Testar-Comando 'podman')) {
-        Escrever-Aviso 'Podman nao encontrado. Pule esta etapa ou instale o Podman Desktop.'
+        Escrever-Aviso 'Podman nao encontrado. Rode de novo com -SkipDatabase para usar SQLite.'
     }
     else {
         $maquinas = (& podman machine list --format '{{.Name}}' 2>&1) -join ''
@@ -168,28 +188,35 @@ if ($WithPostgres) {
 
         $emExecucao = (& podman machine list --format '{{.Running}}' 2>&1) -join ''
         if ($emExecucao -notmatch 'true') {
-            Write-Host '    Iniciando a maquina virtual do Podman...'
+            Write-Host '    Iniciando a maquina virtual do Podman (pode levar um minuto)...'
             & podman machine start
         }
 
-        $jaExiste = (& podman ps -a --filter 'name=logos-pg' --format '{{.Names}}' 2>&1) -join ''
-        if ($jaExiste -match 'logos-pg') {
-            & podman start logos-pg | Out-Null
-            Escrever-Ok 'Container logos-pg ja existia e foi iniciado'
+        Push-Location $raiz
+        try {
+            & podman compose up -d db
+            if ($LASTEXITCODE -ne 0) {
+                throw 'Falha ao subir o container do banco (podman compose up -d db).'
+            }
         }
-        else {
-            & podman run -d --name logos-pg `
-                -e POSTGRES_USER=logos `
-                -e POSTGRES_PASSWORD=logos `
-                -e POSTGRES_DB=logos `
-                -p 5432:5432 `
-                postgres:16-alpine | Out-Null
-            Escrever-Ok 'PostgreSQL criado na porta 5432'
+        finally {
+            Pop-Location
         }
 
-        Write-Host ''
-        Write-Host '    Use esta DATABASE_URL no backend/.env:' -ForegroundColor DarkGray
-        Write-Host '    postgresql+psycopg://logos:logos@localhost:5432/logos' -ForegroundColor DarkGray
+        Write-Host '    Aguardando o banco ficar saudavel...'
+        $saudavel = $false
+        for ($i = 1; $i -le 20; $i++) {
+            $status = (& podman inspect logos-db --format '{{.State.Health.Status}}' 2>&1) -join ''
+            if ($status -match 'healthy') { $saudavel = $true; break }
+            Start-Sleep -Seconds 3
+        }
+
+        if ($saudavel) {
+            Escrever-Ok 'PostgreSQL pronto em localhost:5433 (container logos-db)'
+        }
+        else {
+            Escrever-Aviso 'O banco nao ficou saudavel a tempo. Investigue com: podman compose logs db'
+        }
     }
 }
 
@@ -198,11 +225,13 @@ if ($WithPostgres) {
 # --------------------------------------------------------------------------- #
 Escrever-Passo 'Ambiente pronto'
 Write-Host ''
-Write-Host '    Subir tudo:      pnpm dev' -ForegroundColor White
-Write-Host '    Popular o banco: pnpm seed' -ForegroundColor White
-Write-Host '    Rodar a suite:   pnpm verify' -ForegroundColor White
+Write-Host '    Subir o banco:    pnpm db:up' -ForegroundColor White
+Write-Host '    Popular o banco:  pnpm seed' -ForegroundColor White
+Write-Host '    Subir tudo:       pnpm dev' -ForegroundColor White
+Write-Host '    Rodar a suite:    pnpm verify' -ForegroundColor White
 Write-Host ''
-Write-Host '    API:  http://localhost:8000' -ForegroundColor DarkGray
-Write-Host '    Docs: http://localhost:8000/docs' -ForegroundColor DarkGray
-Write-Host '    Web:  http://localhost:5173' -ForegroundColor DarkGray
+Write-Host '    API:   http://localhost:8000' -ForegroundColor DarkGray
+Write-Host '    Docs:  http://localhost:8000/docs' -ForegroundColor DarkGray
+Write-Host '    Web:   http://localhost:5173' -ForegroundColor DarkGray
+Write-Host '    Banco: localhost:5433 (container logos-db)' -ForegroundColor DarkGray
 Write-Host ''

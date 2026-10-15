@@ -380,18 +380,21 @@ Quando algo funciona em produção e não localmente (ou o contrário), este é 
 caminho mais curto para a diferença aparecer:
 
 ```bash
-# 1. Banco igual ao de produção
-podman run -d --name logos-pg -e POSTGRES_USER=logos -e POSTGRES_PASSWORD=logos \
-  -e POSTGRES_DB=logos -p 5432:5432 docker.io/library/postgres:16
+# 1. Banco igual ao de produção (container definido na raiz do projeto)
+pnpm db:up
 
 # 2. Backend com as variáveis de produção
 cd backend
 export ENVIRONMENT=production
-export DATABASE_URL="postgresql+psycopg://logos:logos@localhost:5432/logos"
+export DATABASE_URL="postgresql+psycopg://logos:logos@localhost:5433/logos"
 export CORS_ORIGINS="http://localhost:5173"
 python -m app.infra.seed
 uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
+
+A porta do host é a **5433** porque a 5432 costuma estar ocupada por um
+PostgreSQL nativo da máquina. Dentro da rede do compose o banco continua na
+5432, que é a porta usada pela CI.
 
 ```bash
 # 3. Frontend com a mesma configuração de API do deploy

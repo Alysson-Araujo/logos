@@ -252,24 +252,24 @@ ninguém olhar. A interface mostra o motivo em _tooltip_, termo a termo:
 
 ## Stack
 
-| Camada             | Tecnologia                                    | Por que esta e não outra                                                                                                                                                                                                                                          |
-| ------------------ | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| API                | **FastAPI** + Pydantic v2                     | Validação declarativa e OpenAPI automático; `async` para I/O; é o "Python" pedido pelo briefing com o melhor custo/benefício. Flask exigiria montar validação e documentação à mão.                                                                               |
-| Persistência       | **SQLAlchemy 2.0 + Alembic**                  | O lock otimista exige `UPDATE` condicional atômico, que um JSON estruturado não oferece de forma confiável. O versionamento de schema com Alembic é a issue #11 e ainda não está implementado — hoje o schema é criado por `Base.metadata.create_all` no startup. |
-| Banco              | **SQLite** local / **PostgreSQL** em produção | SQLite elimina atrito de setup; Postgres dá o comportamento real de concorrência e os índices `GIN` para busca textual.                                                                                                                                           |
-| Frontend           | **React 18 + TypeScript `strict`**            | SPA que consome API. TypeScript estrito transforma o contrato da API em erro de compilação em vez de bug em produção.                                                                                                                                             |
-| Build              | **Vite**                                      | Build quase instantâneo e HMR rápido. Next.js traria SSR desnecessário e acoplaria o deploy do front ao do back.                                                                                                                                                  |
-| Estado de servidor | **TanStack Query**                            | Retry, cache, `staleTime`, `onMutate` otimista e rollback vêm de fábrica — são exatamente os critérios de resiliência. Redux seria boilerplate.                                                                                                                   |
-| Estado de UI       | **Zustand**                                   | Tema, densidade e filtros efêmeros sem re-render global. Context sozinho faria a árvore inteira re-renderizar.                                                                                                                                                    |
-| Estilo             | **Tailwind CSS**                              | Tokens controláveis e dark mode por classe, sem CSS morto.                                                                                                                                                                                                        |
-| Componentes        | **shadcn/ui sobre Radix**                     | Acessibilidade (foco, teclado, ARIA) por padrão e o código no repositório, sem caixa preta.                                                                                                                                                                       |
-| Lista              | **TanStack Virtual**                          | 100+ incidentes renderizando ~20 linhas, DOM estável e scroll fluido.                                                                                                                                                                                             |
-| Contrato runtime   | **Zod**                                       | O front não confia cegamente no JSON: os schemas espelham o contrato e falham cedo.                                                                                                                                                                               |
-| Testes             | **pytest** + **Vitest** + Playwright          | Um por nível da pirâmide, incluindo o teste de corrida com `ThreadPoolExecutor`.                                                                                                                                                                                  |
-| Qualidade Python   | **Ruff + mypy `strict`**                      | Um binário que formata e faz lint, muito mais rápido que flake8 + black + isort; mypy garante que o contrato de tipos é real.                                                                                                                                     |
-| Qualidade TS       | **ESLint 9 + Prettier**                       | Regras de hooks, `jsx-a11y` e `no-floating-promises` pegam bugs de UI antes do runtime.                                                                                                                                                                           |
-| Automação          | **Husky + lint-staged + commitlint**          | Padrão de commit aplicado no `commit-msg`; formatação apenas do que mudou.                                                                                                                                                                                        |
-| Deploy             | **Render + Vercel + Neon**                    | Free tier real, deploy via GitHub e Postgres gerenciado. Alternativas avaliadas no [ADR 0012](docs/adr/0012-render-vercel-neon.md).                                                                                                                               |
+| Camada             | Tecnologia                                     | Por que esta e não outra                                                                                                                                                                                                                                          |
+| ------------------ | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| API                | **FastAPI** + Pydantic v2                      | Validação declarativa e OpenAPI automático; `async` para I/O; é o "Python" pedido pelo briefing com o melhor custo/benefício. Flask exigiria montar validação e documentação à mão.                                                                               |
+| Persistência       | **SQLAlchemy 2.0 + Alembic**                   | O lock otimista exige `UPDATE` condicional atômico, que um JSON estruturado não oferece de forma confiável. O versionamento de schema com Alembic é a issue #11 e ainda não está implementado — hoje o schema é criado por `Base.metadata.create_all` no startup. |
+| Banco              | **PostgreSQL** local (container) e em produção | É o mesmo banco nos dois ambientes, então o comportamento de concorrência e os índices `GIN` são exercidos de verdade. O SQLite segue suportado como alternativa sem container, para rodar em qualquer máquina.                                                   |
+| Frontend           | **React 18 + TypeScript `strict`**             | SPA que consome API. TypeScript estrito transforma o contrato da API em erro de compilação em vez de bug em produção.                                                                                                                                             |
+| Build              | **Vite**                                       | Build quase instantâneo e HMR rápido. Next.js traria SSR desnecessário e acoplaria o deploy do front ao do back.                                                                                                                                                  |
+| Estado de servidor | **TanStack Query**                             | Retry, cache, `staleTime`, `onMutate` otimista e rollback vêm de fábrica — são exatamente os critérios de resiliência. Redux seria boilerplate.                                                                                                                   |
+| Estado de UI       | **Zustand**                                    | Tema, densidade e filtros efêmeros sem re-render global. Context sozinho faria a árvore inteira re-renderizar.                                                                                                                                                    |
+| Estilo             | **Tailwind CSS**                               | Tokens controláveis e dark mode por classe, sem CSS morto.                                                                                                                                                                                                        |
+| Componentes        | **shadcn/ui sobre Radix**                      | Acessibilidade (foco, teclado, ARIA) por padrão e o código no repositório, sem caixa preta.                                                                                                                                                                       |
+| Lista              | **TanStack Virtual**                           | 100+ incidentes renderizando ~20 linhas, DOM estável e scroll fluido.                                                                                                                                                                                             |
+| Contrato runtime   | **Zod**                                        | O front não confia cegamente no JSON: os schemas espelham o contrato e falham cedo.                                                                                                                                                                               |
+| Testes             | **pytest** + **Vitest** + Playwright           | Um por nível da pirâmide, incluindo o teste de corrida com `ThreadPoolExecutor`.                                                                                                                                                                                  |
+| Qualidade Python   | **Ruff + mypy `strict`**                       | Um binário que formata e faz lint, muito mais rápido que flake8 + black + isort; mypy garante que o contrato de tipos é real.                                                                                                                                     |
+| Qualidade TS       | **ESLint 9 + Prettier**                        | Regras de hooks, `jsx-a11y` e `no-floating-promises` pegam bugs de UI antes do runtime.                                                                                                                                                                           |
+| Automação          | **Husky + lint-staged + commitlint**           | Padrão de commit aplicado no `commit-msg`; formatação apenas do que mudou.                                                                                                                                                                                        |
+| Deploy             | **Render + Vercel + Neon**                     | Free tier real, deploy via GitHub e Postgres gerenciado. Alternativas avaliadas no [ADR 0012](docs/adr/0012-render-vercel-neon.md).                                                                                                                               |
 
 ## Setup local
 
@@ -282,8 +282,9 @@ ninguém olhar. A interface mostra o motivo em _tooltip_, termo a termo:
 | pnpm       | 12     | `pnpm --version`   |
 | Git        | 2.40+  | `git --version`    |
 
-Nenhum container é necessário: o backend sobe com SQLite. Podman/Docker só
-entram em cena para validar o comportamento contra PostgreSQL (ver adiante).
+O banco de desenvolvimento é um **PostgreSQL em container**, subido com um
+comando (`pnpm db:up`). Podman ou Docker é o único pré-requisito extra — e sem
+ele o projeto também roda em SQLite, como explicado na seção de banco de dados.
 
 ### 1. Clonar e instalar dependências JavaScript
 
@@ -349,48 +350,54 @@ pnpm dev
 
 Sobe API e frontend em paralelo, com reload nos dois lados.
 
-### Caminho alternativo: PostgreSQL com Podman
+### Banco de dados: PostgreSQL em container
 
-Útil para reproduzir o comportamento real de concorrência e os índices `GIN`
-de busca textual, que o SQLite não tem.
+O banco de desenvolvimento roda em container, para reproduzir o comportamento
+real de concorrência e os índices `GIN` de busca textual que o SQLite não tem.
 
 ```bash
-podman run -d --name logos-pg \
-  -e POSTGRES_USER=logos \
-  -e POSTGRES_PASSWORD=logos \
-  -e POSTGRES_DB=logos \
-  -p 5432:5432 \
-  docker.io/library/postgres:16
+pnpm db:up        # sobe o PostgreSQL 16 (container logos-db)
+pnpm seed         # cria as tabelas e popula os 120 incidentes
 ```
 
-Ajuste `backend/.env`:
+A porta exposta no host é a **5433**, e não a 5432, porque a 5432 costuma estar
+ocupada por um PostgreSQL instalado nativamente. Dentro da rede do compose o
+banco continua na 5432 — a mesma porta que a CI usa.
+
+O `backend/.env` já vem apontando para ele:
 
 ```dotenv
-DATABASE_URL=postgresql+psycopg://logos:logos@localhost:5432/logos
+DATABASE_URL=postgresql+psycopg://logos:logos@localhost:5433/logos
 ```
 
-E rode o seed novamente — ele garante as tabelas no banco novo antes de inserir
-os dados de demonstração:
+Outros comandos úteis:
 
 ```bash
-cd backend && python -m app.infra.seed
+pnpm db:logs      # acompanha os logs do banco
+pnpm db:shell     # abre o psql dentro do container
+pnpm db:reset     # derruba e recria o banco do zero
+pnpm stack:up     # sobe banco E API em container (perfil full)
 ```
+
+**Sem container?** Para rodar tudo em SQLite, use
+`DATABASE_URL=sqlite:///./logos.db` no `backend/.env` — é o que a CI usa no job
+principal, e o que `scripts/setup-local.ps1 -SkipDatabase` configura sozinho.
 
 ## Variáveis de ambiente
 
 ### Backend (`backend/.env`)
 
-| Variável                  | Padrão                  | Descrição                                                                            |
-| ------------------------- | ----------------------- | ------------------------------------------------------------------------------------ |
-| `ENVIRONMENT`             | `development`           | `development`, `staging` ou `production`. Muda o nível de log e a política de CORS.  |
-| `DATABASE_URL`            | `sqlite:///./logos.db`  | String de conexão SQLAlchemy. Em produção: `postgresql+psycopg://…?sslmode=require`. |
-| `CORS_ORIGINS`            | `http://localhost:5173` | Origens permitidas, separadas por vírgula. Nunca `*` em produção.                    |
-| `LOG_LEVEL`               | `INFO`                  | Nível do log estruturado em JSON.                                                    |
-| `RATE_LIMIT_PER_MINUTE`   | `60`                    | Teto de leitura por IP; escrita usa um limite menor.                                 |
-| `DB_STATEMENT_TIMEOUT_MS` | `5000`                  | Timeout de statement no banco, para query não pendurar o worker.                     |
-| `RETRY_MAX_ATTEMPTS`      | `3`                     | Tentativas do retry interno com backoff e jitter.                                    |
-| `CACHE_TTL_SECONDS`       | `30`                    | TTL do cache da listagem com _stale-while-revalidate_.                               |
-| `SEED_ON_STARTUP`         | `true`                  | Popula dados de demonstração ao subir em ambiente de desenvolvimento.                |
+| Variável                  | Padrão                                                  | Descrição                                                                                                                                                           |
+| ------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ENVIRONMENT`             | `development`                                           | `development`, `staging` ou `production`. Muda o nível de log e a política de CORS.                                                                                 |
+| `DATABASE_URL`            | `postgresql+psycopg://logos:logos@localhost:5433/logos` | String de conexão SQLAlchemy. O padrão aponta para o container do `pnpm db:up`. Para rodar sem container: `sqlite:///./logos.db`. Em produção, `…?sslmode=require`. |
+| `CORS_ORIGINS`            | `http://localhost:5173`                                 | Origens permitidas, separadas por vírgula. Nunca `*` em produção.                                                                                                   |
+| `LOG_LEVEL`               | `INFO`                                                  | Nível do log estruturado em JSON.                                                                                                                                   |
+| `RATE_LIMIT_PER_MINUTE`   | `60`                                                    | Teto de leitura por IP; escrita usa um limite menor.                                                                                                                |
+| `DB_STATEMENT_TIMEOUT_MS` | `5000`                                                  | Timeout de statement no banco, para query não pendurar o worker.                                                                                                    |
+| `RETRY_MAX_ATTEMPTS`      | `3`                                                     | Tentativas do retry interno com backoff e jitter.                                                                                                                   |
+| `CACHE_TTL_SECONDS`       | `30`                                                    | TTL do cache da listagem com _stale-while-revalidate_.                                                                                                              |
+| `SEED_ON_STARTUP`         | `true`                                                  | Popula dados de demonstração ao subir em ambiente de desenvolvimento.                                                                                               |
 
 ### Frontend (`frontend/.env`)
 
@@ -410,6 +417,13 @@ pnpm --filter web test:run                   # apenas frontend
 cd backend && pytest tests/concurrency -v    # teste de corrida de status
 ```
 
+Contra o PostgreSQL do container, em vez de SQLite (o banco `logos_test` é
+criado uma vez com `podman exec logos-db psql -U logos -d logos -c "CREATE DATABASE logos_test;"`):
+
+```bash
+TEST_DATABASE_URL="postgresql+psycopg://logos:logos@localhost:5433/logos_test" pnpm test:api
+```
+
 | Nível                              | O que cobre                                                                                                                                                                                                                 |
 | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Unitário (`tests/unit`)            | Máquina de estados (`assert_transition_allowed`), cálculo do priority score por faixa, validadores de schema, normalização de placa.                                                                                        |
@@ -421,10 +435,12 @@ Cobertura mínima exigida no backend: **80%**, verificada na CI com
 `--cov-fail-under=80`. No frontend ainda não há coleta de cobertura (o script
 não existe em `frontend/package.json`); ela está planejada na issue **#60**
 (`ci: adiciona cobertura, badge e checagem de bundle`, milestone
-`M4 — Qualidade`). O teste de concorrência roda contra SQLite com `WAL` e
-`busy_timeout`; quando um PostgreSQL está disponível via `DATABASE_URL`, ele
-passa a rodar contra o Postgres, que é onde o comportamento de produção é
-exercido de verdade. A justificativa dessa escolha está em
+`M4 — Qualidade`).
+
+A suíte roda em SQLite por padrão e **em PostgreSQL quando `TEST_DATABASE_URL`
+está definida** — é exatamente o que o job `backend-postgres` da CI faz, e é
+assim que o lock otimista é exercido sob concorrência real, e não apenas
+descrito. A justificativa está em
 [`docs/07-testes.md`](docs/07-testes.md).
 
 ## Deploy

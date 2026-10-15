@@ -1,0 +1,94 @@
+# ---------------------------------------------------------------------------
+# Logos — ambiente de containers
+#
+# Fonte unica de verdade para subir a infraestrutura local.
+# Compativel com `podman compose` e `docker compose`.
+#
+#   pnpm db:up      sobe o PostgreSQL (uso normal no dia a dia)
+#   pnpm stack:up   sobe o PostgreSQL E a API em container
+#
+# A API e o frontend rodam no host durante o desenvolvimento, para manter o
+# recarregamento automatico. O servico `api` existe para reproduzir o ambiente
+# completo em container e fica atras do perfil `full`.
+# ---------------------------------------------------------------------------
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: logos-db
+
+    environment:
+      POSTGRES_USER: logos
+      POSTGRES_PASSWORD: logos
+      POSTGRES_DB: logos
+      # Locale e encoding fixos: sem isto o initdb herda o locale do host e o
+      # banco pode nascer com ordenacao diferente da usada na CI.
+      POSTGRES_INITDB_ARGS: '--encoding=UTF8 --locale=C'
+
+    ports:
+      # Dentro da rede do compose o Postgres continua na 5432 — e isso que os
+      # testes e a CI usam. No host a porta exposta e a 5433, porque a 5432 ja
+      # e ocupada pelo servico nativo `postgresql-x64-15` desta maquina.
+      # Expor em portas diferentes evita a disputa e o cenario confuso de o
+      # backend conectar no banco errado e falhar com erro de autenticacao.
+      #
+      # A DATABASE_URL do backend/.env aponta para localhost:5433.
+      - '5433:5432'
+
+    volumes:
+      - logos-pgdata:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U logos -d logos']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+    restart: unless-stopped
+
+  api:
+    # Perfil `full`: so sobe quando pedido explicitamente.
+    #   podman compose --profile full up -d
+    profiles:
+      - full
+
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+
+    container_name: logos-api
+
+    environment:
+      # Dentro da rede do compose o banco responde pelo nome do servico.
+      DATABASE_URL: postgresql+psycopg://logos:logos@db:5432/logos
+      SEED_ON_STARTUP: 'true'
+      CORS_ORIGINS: 'http://localhost:5173,http://127.0.0.1:5173'
+      LOG_LEVEL: 'INFO'
+      ENVIRONMENT: 'local'
+
+    ports:
+      - '8000:8000'
+
+    depends_on:
+      - db
+
+    # O HEALTHCHECK declarado no Dockerfile e ignorado quando o Podman gera a
+    # imagem em formato OCI ("HEALTHCHECK is not supported for OCI image
+    # format"). Declarar aqui garante o mesmo comportamento nos dois runtimes.
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health/live', timeout=3)"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+    restart: unless-stopped
+
+volumes:
+  logos-pgdata:
+    name: logos-pgdata

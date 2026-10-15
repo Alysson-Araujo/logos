@@ -25,9 +25,10 @@ python -m venv .venv
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000
 ```
 
-`SQLite` é o padrão (`DATABASE_URL=sqlite:///./logos.db`): **não é preciso instalar banco nenhum**.
-Com `SEED_ON_STARTUP=true` (padrão) a API cria os 120 incidentes de demonstração na primeira
-subida, de forma idempotente.
+`PostgreSQL` em container é o padrão: suba com `pnpm db:up` na raiz do projeto.
+Sem Podman, use `DATABASE_URL=sqlite:///./logos.db` — nenhum banco precisa ser
+instalado. Com `SEED_ON_STARTUP=true` (padrão) a API cria os 120 incidentes de
+demonstração na primeira subida, de forma idempotente.
 
 - Swagger: <http://127.0.0.1:8000/docs>
 - ReDoc: <http://127.0.0.1:8000/redoc>
@@ -35,15 +36,15 @@ subida, de forma idempotente.
 
 Variáveis de ambiente: copie `.env.example` para `.env`.
 
-| Variável | Padrão | Uso |
-|---|---|---|
-| `DATABASE_URL` | `sqlite:///./logos.db` | Aceita `postgresql+psycopg://...` |
-| `ENVIRONMENT` | `local` | `local`, `staging`, `production` |
-| `LOG_LEVEL` | `INFO` | Logs JSON em stdout |
-| `CORS_ORIGINS` | `http://localhost:5173,...` | Lista separada por vírgula |
-| `SEED_ON_STARTUP` | `true` | Cria 120 incidentes se a base estiver vazia |
-| `SQL_ECHO` | `false` | Eco das queries do SQLAlchemy |
-| `DOCS_ENABLED` | `true` | Habilita `/docs` e `/redoc` |
+| Variável          | Padrão                                                  | Uso                                                      |
+| ----------------- | ------------------------------------------------------- | -------------------------------------------------------- |
+| `DATABASE_URL`    | `postgresql+psycopg://logos:logos@localhost:5433/logos` | Container do `pnpm db:up`. Aceita `sqlite:///./logos.db` |
+| `ENVIRONMENT`     | `local`                                                 | `local`, `staging`, `production`                         |
+| `LOG_LEVEL`       | `INFO`                                                  | Logs JSON em stdout                                      |
+| `CORS_ORIGINS`    | `http://localhost:5173,...`                             | Lista separada por vírgula                               |
+| `SEED_ON_STARTUP` | `true`                                                  | Cria 120 incidentes se a base estiver vazia              |
+| `SQL_ECHO`        | `false`                                                 | Eco das queries do SQLAlchemy                            |
+| `DOCS_ENABLED`    | `true`                                                  | Habilita `/docs` e `/redoc`                              |
 
 Seed manual (útil quando `SEED_ON_STARTUP=false`):
 
@@ -53,13 +54,23 @@ Seed manual (útil quando `SEED_ON_STARTUP=false`):
 
 ### PostgreSQL / containers
 
+O `compose.yaml` fica na **raiz do projeto**, não nesta pasta, e sobe o
+PostgreSQL 16 como container `logos-db`:
+
 ```powershell
-podman compose up -d      # ou: docker compose up -d
+pnpm db:up        # sobe o banco, exposto no host na porta 5433
+pnpm seed         # cria as tabelas e popula os dados de demonstração
 ```
 
-O `compose.yaml` sobe o **PostgreSQL 16** e a API apontando para ele
-(`postgresql+psycopg://logos:logos@db:5432/logos`). No Postgres o engine usa
-`pool_pre_ping=True`, `pool_size=5`, `max_overflow=10`, `pool_recycle=1800`.
+A porta do host é a **5433** porque a 5432 costuma estar ocupada por um
+PostgreSQL nativo. O serviço `api` do mesmo compose constrói esta pasta e
+conecta em `postgresql+psycopg://logos:logos@db:5432/logos` — 5432 porque ali
+os dois estão na mesma rede.
+
+No Postgres o engine usa `pool_pre_ping=True`, `pool_size=5`,
+`max_overflow=10`, `pool_recycle=1800`.
+
+Para subir banco e API juntos em container: `pnpm stack:up`.
 
 ---
 
@@ -85,16 +96,16 @@ configuração, engine, logging e os handlers globais de erro.
 
 ## 3. Contrato da API (`/api/v1`)
 
-| Método | Rota | Descrição | Códigos |
-|---|---|---|---|
-| `GET` | `/health/live` | Processo vivo | `200` |
-| `GET` | `/health/ready` | Valida o banco | `200`, `503` |
-| `GET` | `/meta/enums` | 5 categorias, 3 criticidades, 4 status com rótulo/cor/ícone | `200` |
-| `GET` | `/incidents` | Lista com filtros, ordenação e cursor | `200`, `400`, `422` |
-| `POST` | `/incidents` | Cria incidente | `201`, `422` |
-| `GET` | `/incidents/{id}` | Detalhe + header `ETag: "N"` | `200`, `404`, `422` |
-| `POST` | `/incidents/{id}/status` | Transição com lock otimista | `200`, `404`, `409`, `412`, `422`, `428` |
-| `DELETE` | `/incidents/{id}` | Soft delete | `204`, `404`, `409`, `412` |
+| Método   | Rota                     | Descrição                                                   | Códigos                                  |
+| -------- | ------------------------ | ----------------------------------------------------------- | ---------------------------------------- |
+| `GET`    | `/health/live`           | Processo vivo                                               | `200`                                    |
+| `GET`    | `/health/ready`          | Valida o banco                                              | `200`, `503`                             |
+| `GET`    | `/meta/enums`            | 5 categorias, 3 criticidades, 4 status com rótulo/cor/ícone | `200`                                    |
+| `GET`    | `/incidents`             | Lista com filtros, ordenação e cursor                       | `200`, `400`, `422`                      |
+| `POST`   | `/incidents`             | Cria incidente                                              | `201`, `422`                             |
+| `GET`    | `/incidents/{id}`        | Detalhe + header `ETag: "N"`                                | `200`, `404`, `422`                      |
+| `POST`   | `/incidents/{id}/status` | Transição com lock otimista                                 | `200`, `404`, `409`, `412`, `422`, `428` |
+| `DELETE` | `/incidents/{id}`        | Soft delete                                                 | `204`, `404`, `409`, `412`               |
 
 ### 3.1 Envelope de erro único
 
@@ -112,19 +123,19 @@ Nenhuma resposta de erro usa o `{"detail": ...}` padrão do FastAPI.
 }
 ```
 
-| `error.code` | HTTP | Quando |
-|---|---|---|
-| `VALIDATION_ERROR` | 422 | Payload/query inválidos (Pydantic) |
-| `INVALID_FILTER` | 422 | Valor desconhecido em `status`/`criticality`/`category` |
-| `INVALID_CURSOR` | 400 | Cursor ilegível |
-| `INVALID_STATUS_TRANSITION` | 422 | Transição proibida pela máquina de estados |
-| `RESOLUTION_NOTES_REQUIRED` | 422 | `FECHADO`/`INCONCLUSIVO` sem justificativa |
-| `VERSION_CONFLICT` | 409 | Lock otimista falhou (traz o estado atual em `details.current`) |
-| `PRECONDITION_REQUIRED` | 428 | Sem `If-Match` e sem `expectedVersion` |
-| `PRECONDITION_FAILED` | 412 | `If-Match` malformado |
-| `INCIDENT_NOT_FOUND` | 404 | Id inexistente ou removido |
-| `DATABASE_UNAVAILABLE` | 503 | Readiness falhou |
-| `INTERNAL_ERROR` | 500 | Exceção não tratada (ainda no envelope) |
+| `error.code`                | HTTP | Quando                                                          |
+| --------------------------- | ---- | --------------------------------------------------------------- |
+| `VALIDATION_ERROR`          | 422  | Payload/query inválidos (Pydantic)                              |
+| `INVALID_FILTER`            | 422  | Valor desconhecido em `status`/`criticality`/`category`         |
+| `INVALID_CURSOR`            | 400  | Cursor ilegível                                                 |
+| `INVALID_STATUS_TRANSITION` | 422  | Transição proibida pela máquina de estados                      |
+| `RESOLUTION_NOTES_REQUIRED` | 422  | `FECHADO`/`INCONCLUSIVO` sem justificativa                      |
+| `VERSION_CONFLICT`          | 409  | Lock otimista falhou (traz o estado atual em `details.current`) |
+| `PRECONDITION_REQUIRED`     | 428  | Sem `If-Match` e sem `expectedVersion`                          |
+| `PRECONDITION_FAILED`       | 412  | `If-Match` malformado                                           |
+| `INCIDENT_NOT_FOUND`        | 404  | Id inexistente ou removido                                      |
+| `DATABASE_UNAVAILABLE`      | 503  | Readiness falhou                                                |
+| `INTERNAL_ERROR`            | 500  | Exceção não tratada (ainda no envelope)                         |
 
 ### 3.2 Parâmetros de `GET /incidents`
 
@@ -142,13 +153,16 @@ Resposta:
 
 ```json
 {
-  "items": [ { "id": "...", "code": "INC-2026-000123", "priorityScore": 800, "...": "..." } ],
+  "items": [{ "id": "...", "code": "INC-2026-000123", "priorityScore": 800, "...": "..." }],
   "pageInfo": { "nextCursor": "eyJwIjo1MDAsImlkIjoiLi4uIn0", "hasNextPage": true, "limit": 2 },
   "meta": {
     "total": 42,
     "appliedFilters": {
-      "status": [], "criticality": ["ALTA"], "category": [],
-      "search": null, "sort": "priority_desc"
+      "status": [],
+      "criticality": ["ALTA"],
+      "category": [],
+      "search": null,
+      "sort": "priority_desc"
     }
   }
 }
@@ -162,11 +176,11 @@ não pula nem repete registros quando a lista muda entre as páginas.
 
 `p` é a chave de ordenação vigente:
 
-| `sort` | `p` |
-|---|---|
-| `priority_desc` | `priority_score` |
-| `created_desc` / `created_asc` | microssegundos desde a epoch (comparação exata, sem float) |
-| `criticality_desc` | `rank(criticidade) * 100000 + priority_score`, com rank `ALTA=3, MEDIA=2, BAIXA=1` |
+| `sort`                         | `p`                                                                                |
+| ------------------------------ | ---------------------------------------------------------------------------------- |
+| `priority_desc`                | `priority_score`                                                                   |
+| `created_desc` / `created_asc` | microssegundos desde a epoch (comparação exata, sem float)                         |
+| `criticality_desc`             | `rank(criticidade) * 100000 + priority_score`, com rank `ALTA=3, MEDIA=2, BAIXA=1` |
 
 O `id` é sempre o desempate, o que torna a ordenação total e estável.
 
@@ -244,7 +258,7 @@ SLA:         ALTA +2h · MEDIA +8h · BAIXA +24h
 O score é **persistido**. O aging depende do relógio, então a listagem recalcula os scores vivos
 antes de montar a página (um único `UPDATE` em lote, sem tocar em `version` nem em `updated_at`),
 garantindo que a ordem vista no cursor seja a ordem real e estável.
-Escala maior: trocar por *job* periódico ou coluna gerada — anotado como evolução.
+Escala maior: trocar por _job_ periódico ou coluna gerada — anotado como evolução.
 
 ### 4.3 Enums e categorias
 
@@ -257,10 +271,10 @@ duplica esses rótulos.
 
 ## 5. Banco de dados
 
-- **SQLite** (padrão): `PRAGMA journal_mode=WAL`, `PRAGMA busy_timeout=5000`,
-  `PRAGMA foreign_keys=ON` aplicados por *event listener* na conexão.
-- **PostgreSQL**: `psycopg 3` (`postgresql://` é reescrito para `postgresql+psycopg://`), com
-  `pool_pre_ping`, `pool_size`, `max_overflow` e `pool_recycle`.
+- **PostgreSQL** (padrão, em container): `psycopg 3` (`postgresql://` é reescrito para
+  `postgresql+psycopg://`), com `pool_pre_ping`, `pool_size`, `max_overflow` e `pool_recycle`.
+- **SQLite** (alternativa sem container): `PRAGMA journal_mode=WAL`, `PRAGMA busy_timeout=5000`,
+  `PRAGMA foreign_keys=ON` aplicados por _event listener_ na conexão.
 - Tabelas criadas por `Base.metadata.create_all` no `lifespan`. Alembic com migração versionada é
   uma issue futura declarada no backlog.
 - Índices: `UNIQUE(code)`, `(status, criticality, priority_score)`, `(category, created_at)`,
@@ -295,19 +309,21 @@ Idempotente: base não vazia → não cria nada.
 .\.venv\Scripts\python.exe -m mypy app
 ```
 
-| Arquivo | Cobertura |
-|---|---|
-| `tests/unit/test_rules.py` | Todas as transições válidas e inválidas, terminalidade, justificativa obrigatória |
-| `tests/unit/test_priority.py` | Pesos, aging com teto, pressão de SLA, ordenação vítimas+ALTA antes de mecânico+BAIXA |
-| `tests/unit/test_schemas.py` | HTML no título, tamanhos, placa, coordenadas, tipos inesperados |
-| `tests/integration/test_incidents_api.py` | Health, meta, CRUD, ETag, transições, soft delete, seed |
-| `tests/integration/test_filters.py` | Filtros combinados, busca, ordenações, cursor, erros de query |
-| `tests/integration/test_errors.py` | Envelope de erro, 404/405/412/428/409/422, requestId |
-| `tests/concurrency/test_status_conflict.py` | **10 threads com a mesma `expected_version` → 1×`200` e 9×`409`** |
+| Arquivo                                     | Cobertura                                                                             |
+| ------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `tests/unit/test_rules.py`                  | Todas as transições válidas e inválidas, terminalidade, justificativa obrigatória     |
+| `tests/unit/test_priority.py`               | Pesos, aging com teto, pressão de SLA, ordenação vítimas+ALTA antes de mecânico+BAIXA |
+| `tests/unit/test_schemas.py`                | HTML no título, tamanhos, placa, coordenadas, tipos inesperados                       |
+| `tests/integration/test_incidents_api.py`   | Health, meta, CRUD, ETag, transições, soft delete, seed                               |
+| `tests/integration/test_filters.py`         | Filtros combinados, busca, ordenações, cursor, erros de query                         |
+| `tests/integration/test_errors.py`          | Envelope de erro, 404/405/412/428/409/422, requestId                                  |
+| `tests/concurrency/test_status_conflict.py` | **10 threads com a mesma `expected_version` → 1×`200` e 9×`409`**                     |
 
-O teste de concorrência usa `ThreadPoolExecutor` + `TestClient` e um **banco SQLite em arquivo**
-(`:memory:` não compartilha conexão entre threads). Ele prova, na prática, que o CAS no banco
-impede sobrescrita silenciosa.
+O teste de concorrência usa `ThreadPoolExecutor` + `TestClient` e roda contra **SQLite em
+arquivo** por padrão (`:memory:` não compartilha conexão entre threads) ou contra
+**PostgreSQL** quando `TEST_DATABASE_URL` está definida — é o que o job
+`backend-postgres` da CI faz. Ele prova, na prática, que o CAS no banco impede
+sobrescrita silenciosa.
 
 ---
 
