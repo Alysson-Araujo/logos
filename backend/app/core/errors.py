@@ -29,11 +29,16 @@ class DomainError(Exception):
     default_message: str = "Erro de domínio."
 
     def __init__(
-        self, message: str | None = None, *, details: dict[str, Any] | None = None
+        self,
+        message: str | None = None,
+        *,
+        details: dict[str, Any] | None = None,
+        retry_after: int | None = None,
     ) -> None:
-        """Guarda mensagem e detalhes para o envelope de erro."""
+        """Guarda mensagem, detalhes e, quando houver, o Retry-After a sugerir."""
         self.message = message or self.default_message
         self.details = details
+        self.retry_after = retry_after
         super().__init__(self.message)
 
 
@@ -154,6 +159,20 @@ class CodeGenerationError(DomainError):
     default_message = "Não foi possível gerar o código do incidente."
 
 
+class ServiceUnavailableError(DomainError):
+    """Serviço temporariamente indisponível: o disjuntor está aberto.
+
+    Distinto de um erro interno. Aqui não há defeito a corrigir: há
+    indisponibilidade temporária e conhecida, que passa sozinha. Por isso o
+    cliente recebe `Retry-After` e é convidado a tentar de novo, em vez de
+    receber um `500` que sugeriria bug na aplicação.
+    """
+
+    code = "SERVICE_UNAVAILABLE"
+    status_code = 503
+    default_message = "Serviço temporariamente indisponível. Tente novamente em instantes."
+
+
 def resolve_request_id(request: Request) -> str:
     """Recupera o request id da requisição ou cria um novo."""
     candidate = getattr(request.state, "request_id", None)
@@ -191,7 +210,7 @@ def register_exception_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(DomainError)
     async def _handle_domain_error(request: Request, exc: DomainError) -> JSONResponse:
-        return JSONResponse(
+        response = JSONResponse(
             status_code=exc.status_code,
             content=build_error_payload(
                 exc.code,
@@ -200,6 +219,11 @@ def register_exception_handlers(app: FastAPI) -> None:
                 request_id=resolve_request_id(request),
             ),
         )
+        # Só o 503 do disjuntor carrega espera; os demais erros de domínio não
+        # têm o que o cliente aguardar.
+        if exc.retry_after is not None:
+            response.headers["Retry-After"] = str(exc.retry_after)
+        return response
 
     @app.exception_handler(RequestValidationError)
     async def _handle_validation_error(
@@ -277,9 +301,9 @@ def register_exception_handlers(app: FastAPI) -> None:
 
         retry_after = max(1, int(get_settings().retry_base_delay_seconds))
         return JSONResponse(
-            status_code=503,
+            status_code=ServiceUnavailableError.status_code,
             content=build_error_payload(
-                "SERVICE_UNAVAILABLE",
+                ServiceUnavailableError.code,
                 "O banco de dados está instável. Tente novamente em instantes.",
                 details={"retryAfterSeconds": retry_after},
                 request_id=resolve_request_id(request),

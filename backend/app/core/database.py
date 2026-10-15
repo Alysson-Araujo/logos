@@ -17,6 +17,14 @@ SQLITE_BUSY_TIMEOUT_MS = 5000
 POSTGRES_POOL_SIZE = 5
 POSTGRES_MAX_OVERFLOW = 10
 POSTGRES_POOL_RECYCLE_SECONDS = 1800
+#: Segundos que o driver espera por uma conexão antes de desistir.
+#:
+#: O padrão do libpq é 0: esperar para sempre. Com o banco inalcançável, a
+#: requisição não falha — fica pendurada —, então nenhuma falha chega ao
+#: disjuntor e o circuito nunca abre, que é justamente o cenário em que ele
+#: deveria agir. Medido com o container parado: a requisição ficou mais de 12
+#: minutos pendurada em vez de devolver 503.
+POSTGRES_CONNECT_TIMEOUT_SECONDS = 5
 
 _engine: Engine | None = None
 _engine_lock = Lock()
@@ -66,6 +74,8 @@ def _build_engine(url: str, *, echo: bool) -> Engine:
         pool_size=POSTGRES_POOL_SIZE,
         max_overflow=POSTGRES_MAX_OVERFLOW,
         pool_recycle=POSTGRES_POOL_RECYCLE_SECONDS,
+        # Sem isto o disjuntor não tem o que contar: a requisição nunca falha.
+        connect_args={"connect_timeout": POSTGRES_CONNECT_TIMEOUT_SECONDS},
     )
 
 

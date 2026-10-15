@@ -445,17 +445,74 @@ stateDiagram-v2
     OPEN --> HALF_OPEN : após o cooldown
     HALF_OPEN --> CLOSED : requisição de sondagem bem-sucedida
     HALF_OPEN --> OPEN : sondagem falha
-    OPEN --> OPEN : responde 503 + Retry-After + cache
+    OPEN --> OPEN : responde 503 + Retry-After
 ```
 
-Com o circuito aberto, a API não tenta o banco: responde `503` com
-`Retry-After` e, quando há cache disponível, **entrega o cache** junto. Isso
-transforma um incidente de infraestrutura em uma degradação visível em vez de
-uma fila de timeouts.
+Com o circuito aberto, a API não tenta o banco: responde `503` com `Retry-After`
+imediatamente. Isso transforma um incidente de infraestrutura em uma degradação
+visível em vez de uma fila de timeouts — e libera o pool, dando ao banco espaço
+para se recuperar.
 
-Do lado da interface, `503` não é tratado como erro fatal: o card de erro
-mantém o cache na tela, mostra _"Instável — vamos tentar de novo"_ e o retry
-com backoff assume.
+| Parâmetro                      | Padrão | Configuração                        |
+| ------------------------------ | ------ | ----------------------------------- |
+| Falhas consecutivas para abrir | 5      | `CIRCUIT_BREAKER_FAILURE_THRESHOLD` |
+| Espera antes da sondagem       | 30 s   | `CIRCUIT_BREAKER_COOLDOWN_SECONDS`  |
+| Desligar o disjuntor           | —      | `CIRCUIT_BREAKER_ENABLED=false`     |
+
+Três decisões que valem registro:
+
+- **Uma sondagem de cada vez.** Vencido o cooldown, o circuito vai para
+  `HALF_OPEN` e autoriza **uma** requisição. Liberar tráfego em massa para um
+  banco que talvez não tenha voltado o derrubaria de novo — seria o disjuntor
+  causando a segunda queda.
+- **A sonda que falha reabre na hora**, sem esperar o limiar de novo: o banco já
+  provou que não voltou, e contar outra vez só atrasaria a proteção.
+- **Falha é a unidade de trabalho, não a tentativa interna.** Cinco requisições
+  que falharam, e não as quinze tentativas de cinco requisições — assim o limiar
+  não muda de significado quando alguém ajusta a política de retentativa.
+
+Erro de negócio **não** conta como falha. Um `404` que chega rápido prova que o
+banco respondeu; contá-lo como doença faria o disjuntor abrir por causa de
+tráfego normal.
+
+O liveness (`/health/live`) continua respondendo `200` com o circuito aberto. Se
+ele caísse junto, a plataforma reiniciaria o serviço — o que não conserta o banco
+e ainda derruba o processo que estava de pé.
+
+### O que faz o disjuntor funcionar de verdade
+
+Um disjuntor só age sobre falhas que **acontecem**. Com o `connect_timeout`
+padrão do driver — que é zero, ou seja, esperar para sempre —, uma requisição
+contra um banco inalcançável não falha: fica pendurada. Nenhuma falha chega ao
+contador, o circuito nunca abre, e o resultado é exatamente a fila de timeouts
+que o disjuntor deveria evitar.
+
+Medido com o container do banco parado:
+
+| Momento                               | Antes                      | Com o `connect_timeout`              |
+| ------------------------------------- | -------------------------- | ------------------------------------ |
+| 1ª requisição                         | pendurada por **> 12 min** | `503` em ~21 s                       |
+| 2ª requisição                         | —                          | `503` em ~21 s (abre o circuito)     |
+| 3ª requisição                         | —                          | `503` em **10 ms**, `Retry-After: 5` |
+| `/health/live` e `/meta/enums`        | —                          | `200` em 38 ms                       |
+| Após o cooldown, com o banco de volta | —                          | `200` em 157 ms                      |
+
+É por isso que o `connect_timeout` entrou nesta issue e não na #28: sem ele o
+critério "falhar rápido" não é atingível. O `statement_timeout` — limite por
+**consulta**, e não por conexão — continua na #28.
+
+A entrega do cache junto com o `503` faz parte da issue #30
+(_stale-while-revalidate_); aqui o `503` já carrega o `Retry-After`.
+
+Do lado da interface, `503` não é tratado como erro fatal: o card de erro mantém
+o cache na tela, mostra _"Instável — vamos tentar de novo"_ e o retry com backoff
+assume.
+
+**Limite honesto desta implementação:** o estado vive na memória do processo. Com
+N workers há N disjuntores, e cada um abre por conta própria — o banco precisa de
+N vezes mais falhas para que todos abram. Guardar o estado em Redis adicionaria
+uma dependência que cai junto com o banco, e o disjuntor existe justamente para o
+momento em que as coisas caem.
 
 ### 7.6 Rate limit
 

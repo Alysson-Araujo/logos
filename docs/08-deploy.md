@@ -132,20 +132,23 @@ mal configurado e banco sem dados.
 
 ### 3.1 Backend (Render)
 
-| Variável                      | Valor em produção                        | Observação                                                                   |
-| ----------------------------- | ---------------------------------------- | ---------------------------------------------------------------------------- |
-| `ENVIRONMENT`                 | `production`                             | Muda nível de log e política de CORS.                                        |
-| `DATABASE_URL`                | `postgresql+psycopg://…?sslmode=require` | Do Neon, endpoint com `-pooler` para a aplicação.                            |
-| `CORS_ORIGINS`                | `https://<projeto>.vercel.app`           | Lista separada por vírgula. Nunca `*`.                                       |
-| `LOG_LEVEL`                   | `INFO`                                   | `DEBUG` só em investigação pontual.                                          |
-| `RATE_LIMIT_ENABLED`          | `true`                                   | Desligar só para rodar carga local.                                          |
-| `RATE_LIMIT_READ_PER_MINUTE`  | `60`                                     | Leituras por cliente.                                                        |
-| `RATE_LIMIT_WRITE_PER_MINUTE` | `20`                                     | Escritas por cliente.                                                        |
-| `DB_STATEMENT_TIMEOUT_MS`     | `5000`                                   | Query não pode pendurar o worker.                                            |
-| `RETRY_MAX_ATTEMPTS`          | `3`                                      | Retry interno, contando a primeira tentativa.                                |
-| `RETRY_BASE_DELAY_SECONDS`    | `1.0`                                    | Teto do backoff da primeira espera; dobra até 8s.                            |
-| `CACHE_TTL_SECONDS`           | `30`                                     | TTL da listagem com _stale-while-revalidate_.                                |
-| `SEED_ON_STARTUP`             | `false`                                  | Dados de demonstração são carregados uma vez, pelo Shell, não a cada deploy. |
+| Variável                            | Valor em produção                        | Observação                                                                   |
+| ----------------------------------- | ---------------------------------------- | ---------------------------------------------------------------------------- |
+| `ENVIRONMENT`                       | `production`                             | Muda nível de log e política de CORS.                                        |
+| `DATABASE_URL`                      | `postgresql+psycopg://…?sslmode=require` | Do Neon, endpoint com `-pooler` para a aplicação.                            |
+| `CORS_ORIGINS`                      | `https://<projeto>.vercel.app`           | Lista separada por vírgula. Nunca `*`.                                       |
+| `LOG_LEVEL`                         | `INFO`                                   | `DEBUG` só em investigação pontual.                                          |
+| `RATE_LIMIT_ENABLED`                | `true`                                   | Desligar só para rodar carga local.                                          |
+| `RATE_LIMIT_READ_PER_MINUTE`        | `60`                                     | Leituras por cliente.                                                        |
+| `RATE_LIMIT_WRITE_PER_MINUTE`       | `20`                                     | Escritas por cliente.                                                        |
+| `DB_STATEMENT_TIMEOUT_MS`           | `5000`                                   | Query não pode pendurar o worker.                                            |
+| `RETRY_MAX_ATTEMPTS`                | `3`                                      | Retry interno, contando a primeira tentativa.                                |
+| `RETRY_BASE_DELAY_SECONDS`          | `1.0`                                    | Teto do backoff da primeira espera; dobra até 8s.                            |
+| `CIRCUIT_BREAKER_ENABLED`           | `true`                                   | Desligar só para observar a falha crua.                                      |
+| `CIRCUIT_BREAKER_FAILURE_THRESHOLD` | `5`                                      | Falhas consecutivas que abrem o circuito.                                    |
+| `CIRCUIT_BREAKER_COOLDOWN_SECONDS`  | `30.0`                                   | Espera antes da sondagem de recuperação.                                     |
+| `CACHE_TTL_SECONDS`                 | `30`                                     | TTL da listagem com _stale-while-revalidate_.                                |
+| `SEED_ON_STARTUP`                   | `false`                                  | Dados de demonstração são carregados uma vez, pelo Shell, não a cada deploy. |
 
 ### 3.2 Frontend (Vercel)
 

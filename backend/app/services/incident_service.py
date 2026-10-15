@@ -8,9 +8,11 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID, uuid4
 
+from app.core.circuit_breaker import CircuitBreaker, get_circuit_breaker
 from app.core.errors import (
     IncidentNotFoundError,
     InvalidStatusTransitionError,
+    ServiceUnavailableError,
     VersionConflictError,
 )
 from app.domain.enums import IncidentStatus
@@ -21,7 +23,7 @@ from app.domain.rules import (
     predecessors_of,
     validate_resolution_notes,
 )
-from app.infra.retry import RetryConfig, RetryPolicy, run_with_retry
+from app.infra.retry import RetryConfig, RetryPolicy, is_transient, run_with_retry
 from app.models.base import utcnow
 from app.models.incident import INITIAL_VERSION, Incident
 from app.repositories.incident_repository import (
@@ -57,14 +59,44 @@ class IncidentService:
         *,
         now_provider: Callable[[], datetime] = utcnow,
         retry: RetryConfig | None = None,
+        breaker: CircuitBreaker | None = None,
     ) -> None:
-        """Recebe o repositório, a fonte de tempo (injetável) e a política de retentativa."""
+        """Recebe o repositório, a fonte de tempo, a política de retentativa e o disjuntor."""
         self._repository = repository
         self._now_provider = now_provider
         self._retry = retry or RetryConfig()
+        self._breaker = breaker or get_circuit_breaker()
 
     def _execute[T](self, operation: Callable[[], T], *, policy: RetryPolicy) -> T:
-        """Executa a unidade de trabalho, repetindo se a falha for transitória.
+        """Executa a unidade de trabalho sob o disjuntor e com retentativa.
+
+        A ordem importa: o disjuntor decide **antes** de qualquer tentativa. Com
+        o circuito aberto, a requisição é recusada sem tocar no banco — nem para
+        tentar, que é o ponto de falhar rápido.
+        """
+        retry_after = self._breaker.check()
+        if retry_after is not None:
+            raise ServiceUnavailableError(
+                details={"retryAfterSeconds": retry_after},
+                retry_after=retry_after,
+            )
+
+        try:
+            result = self._run(operation, policy=policy)
+        except Exception as exc:
+            if is_transient(exc):
+                self._breaker.record_failure()
+            else:
+                # Erro de negócio, de validação ou violação de constraint: o
+                # banco respondeu. Um 404 rápido é sinal de saúde, não de
+                # doença, então não pode alimentar o contador de falhas.
+                self._breaker.record_success()
+            raise
+        self._breaker.record_success()
+        return result
+
+    def _run[T](self, operation: Callable[[], T], *, policy: RetryPolicy) -> T:
+        """Aplica a política de retentativa à unidade de trabalho.
 
         A unidade é o método inteiro, e não cada consulta: repetir uma consulta
         isolada deixaria a operação pela metade, com parte das escritas já
