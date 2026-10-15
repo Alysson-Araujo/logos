@@ -94,9 +94,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # A versao do pnpm vem do campo packageManager do package.json.
+      # Declarar tambem aqui causa ERR_PNPM_BAD_PM_VERSION por conflito.
       - uses: pnpm/action-setup@v4
-        with:
-          version: 12
 
       - uses: actions/setup-node@v4
         with:
@@ -130,9 +130,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      # A versao do pnpm vem do campo packageManager do package.json.
+      # Declarar tambem aqui causa ERR_PNPM_BAD_PM_VERSION por conflito.
       - uses: pnpm/action-setup@v4
-        with:
-          version: 12
 
       - uses: actions/setup-node@v4
         with:

@@ -430,6 +430,7 @@ o FastAPI não devolve o formato padrão `{"detail": [...]}` nesta API.
 | `INCIDENT_DELETED` | `410` | Incidente com soft delete. | Remover da lista e informar que foi removido. |
 | `VERSION_CONFLICT` | `409` | CAS falhou: `version` no banco difere da esperada. | **Rollback da UI otimista** e abrir o modal de conflito com `details.serverState`. |
 | `PRECONDITION_FAILED` | `412` | `If-Match` com ETag que nunca existiu para o recurso (malformado ou de outra entidade). | Recarregar o recurso e pedir nova confirmação. |
+| `PRECONDITION_REQUIRED` | `428` | A mudança de status chegou sem `If-Match` e sem `expectedVersion`. | Enviar a versão conhecida do recurso. A API recusa para não desligar o lock. |
 | `IDEMPOTENCY_KEY_REUSED` | `409` | Mesma `Idempotency-Key` reenviada com corpo diferente. | Erro de programação do cliente: gerar chave nova por operação. |
 | `IDEMPOTENCY_KEY_IN_PROGRESS` | `409` | Mesma chave ainda em processamento. | Aguardar e repetir com a **mesma** chave. |
 | `RATE_LIMIT_EXCEEDED` | `429` | Teto de requisições por IP excedido. | Respeitar `Retry-After` e reduzir a frequência. |
@@ -457,6 +458,21 @@ diz "há um bug aqui"; `503` diz "tente de novo em instantes", que é a
 informação verdadeira e acionável. A interface reage de forma diferente a cada
 um: mantém o cache e agenda repetição no `503`; mostra card de erro fatal no
 `500`.
+
+### 12.3 Por que `428` quando a versão não é enviada
+
+`428 Precondition Required` (RFC 6585) é a resposta para uma mudança de status
+que chega **sem** `If-Match` e **sem** `expectedVersion`.
+
+A alternativa seria assumir "última escrita vence" quando o cliente omite a
+versão. Isso parece conveniente e é justamente o que anula a proteção: bastaria
+não enviar o cabeçalho para sobrescrever a decisão de outro analista sem
+qualquer detecção de conflito. Exigir a precondição transforma o esquecimento
+em erro explícito (`428`) em vez de perda silenciosa de dados.
+
+O recurso continua legível e atualizável por outros caminhos: `GET` não exige
+precondição, e a versão necessária vem no `ETag` da resposta e no campo
+`version` do corpo.
 
 ## 13. Versionamento e cabeçalhos
 
