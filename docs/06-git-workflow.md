@@ -18,14 +18,14 @@ main ──●──●──────────●────────
 
 ### 1.1 Regras
 
-| Regra | Motivo |
-| --- | --- |
-| Uma issue por branch | Torna o PR revisável e o histórico rastreável. |
+| Regra                                  | Motivo                                                           |
+| -------------------------------------- | ---------------------------------------------------------------- |
+| Uma issue por branch                   | Torna o PR revisável e o histórico rastreável.                   |
 | Branch com vida útil de horas a 2 dias | Branch longa esconde conflito até o fim, quando resolver é caro. |
-| Sem push direto na `main` | A branch é protegida; toda mudança entra por PR. |
-| Rebase em `main` em vez de merge | Mantém o histórico linear e legível. |
-| Merge por **Squash and merge** | Um commit por issue na `main`; o título do PR vira a mensagem. |
-| Branch apagada após o merge | O repositório não acumula branches mortas. |
+| Sem push direto na `main`              | A branch é protegida; toda mudança entra por PR.                 |
+| Rebase em `main` em vez de merge       | Mantém o histórico linear e legível.                             |
+| Merge por **Squash and merge**         | Um commit por issue na `main`; o título do PR vira a mensagem.   |
+| Branch apagada após o merge            | O repositório não acumula branches mortas.                       |
 
 ### 1.2 Desenvolvimento em trunk-based com tudo na `main`
 
@@ -44,15 +44,15 @@ importa em um projeto com 72 issues e prazo curto: não existe caminho em que um
 <tipo>/<numero-da-issue>-<slug-curto-em-kebab-case>
 ```
 
-| Prefixo | Uso | Exemplo |
-| --- | --- | --- |
-| `feat/` | Nova funcionalidade | `feat/20-optimistic-lock` |
-| `fix/` | Correção de defeito | `fix/31-cursor-pagination-off-by-one` |
+| Prefixo     | Uso                                    | Exemplo                                |
+| ----------- | -------------------------------------- | -------------------------------------- |
+| `feat/`     | Nova funcionalidade                    | `feat/20-optimistic-lock`              |
+| `fix/`      | Correção de defeito                    | `fix/31-cursor-pagination-off-by-one`  |
 | `refactor/` | Reestruturação sem mudar comportamento | `refactor/22-extract-priority-service` |
-| `test/` | Apenas testes | `test/26-concurrency-test` |
-| `docs/` | Apenas documentação | `docs/70-adrs` |
-| `chore/` | Build, dependências e configuração | `chore/3-husky` |
-| `perf/` | Performance | `perf/43-virtual-list` |
+| `test/`     | Apenas testes                          | `test/26-concurrency-test`             |
+| `docs/`     | Apenas documentação                    | `docs/70-adrs`                         |
+| `chore/`    | Build, dependências e configuração     | `chore/3-husky`                        |
+| `perf/`     | Performance                            | `perf/43-virtual-list`                 |
 
 O número da issue no nome é o que liga branch, PR e issue sem depender de
 memória ou de busca no GitHub.
@@ -78,19 +78,19 @@ git switch -c feat/20-optimistic-lock
 
 ### 3.2 Tipos permitidos
 
-| Tipo | Quando usar |
-| --- | --- |
-| `feat` | Funcionalidade nova para quem usa o produto. |
-| `fix` | Correção de defeito. |
-| `docs` | Apenas documentação. |
-| `style` | Formatação, espaços, ponto e vírgula — sem mudança de comportamento. |
-| `refactor` | Reestruturação que não altera comportamento observável. |
-| `perf` | Melhoria de desempenho. |
-| `test` | Adição ou ajuste de testes. |
-| `build` | Sistema de build ou dependências. |
-| `ci` | Configuração e scripts de integração contínua. |
-| `chore` | Manutenção que não se encaixa nas anteriores. |
-| `revert` | Reversão de commit anterior. |
+| Tipo       | Quando usar                                                          |
+| ---------- | -------------------------------------------------------------------- |
+| `feat`     | Funcionalidade nova para quem usa o produto.                         |
+| `fix`      | Correção de defeito.                                                 |
+| `docs`     | Apenas documentação.                                                 |
+| `style`    | Formatação, espaços, ponto e vírgula — sem mudança de comportamento. |
+| `refactor` | Reestruturação que não altera comportamento observável.              |
+| `perf`     | Melhoria de desempenho.                                              |
+| `test`     | Adição ou ajuste de testes.                                          |
+| `build`    | Sistema de build ou dependências.                                    |
+| `ci`       | Configuração e scripts de integração contínua.                       |
+| `chore`    | Manutenção que não se encaixa nas anteriores.                        |
+| `revert`   | Reversão de commit anterior.                                         |
 
 ### 3.3 Escopos permitidos
 
@@ -179,10 +179,10 @@ commit resultante da `main`.
 
 Os tipos têm efeito direto na versão:
 
-| Commit | Efeito na versão |
-| --- | --- |
-| `fix` | `PATCH` (`0.1.0` → `0.1.1`) |
-| `feat` | `MINOR` (`0.1.0` → `0.2.0`) |
+| Commit                                  | Efeito na versão            |
+| --------------------------------------- | --------------------------- |
+| `fix`                                   | `PATCH` (`0.1.0` → `0.1.1`) |
+| `feat`                                  | `MINOR` (`0.1.0` → `0.2.0`) |
 | `feat!` ou `BREAKING CHANGE:` no footer | `MAJOR` (`0.1.0` → `1.0.0`) |
 
 Enquanto o projeto estiver em `0.x`, uma quebra de compatibilidade pode ocorrer
@@ -231,14 +231,14 @@ gh pr merge --squash --delete-branch
 Paleta organizada por grupo, para permitir filtro por `label:type:feat
 label:area:api` na busca do GitHub.
 
-| Grupo | Labels |
-| --- | --- |
-| Tipo | `type:feat` `type:fix` `type:refactor` `type:test` `type:docs` `type:chore` `type:perf` |
-| Área | `area:api` `area:web` `area:db` `area:ux` `area:ci` `area:infra` |
-| Prioridade | `prio:critical` `prio:high` `prio:medium` `prio:low` |
-| Esforço | `size:XS` `size:S` `size:M` `size:L` `size:XL` |
-| Estado | `status:blocked` `status:needs-review` `status:wontfix` `good first issue` |
-| Diferencial | `diferencial` `documentação` `resiliência` `performance` |
+| Grupo       | Labels                                                                                  |
+| ----------- | --------------------------------------------------------------------------------------- |
+| Tipo        | `type:feat` `type:fix` `type:refactor` `type:test` `type:docs` `type:chore` `type:perf` |
+| Área        | `area:api` `area:web` `area:db` `area:ux` `area:ci` `area:infra`                        |
+| Prioridade  | `prio:critical` `prio:high` `prio:medium` `prio:low`                                    |
+| Esforço     | `size:XS` `size:S` `size:M` `size:L` `size:XL`                                          |
+| Estado      | `status:blocked` `status:needs-review` `status:wontfix` `good first issue`              |
+| Diferencial | `diferencial` `documentação` `resiliência` `performance`                                |
 
 Cada issue recebe no mínimo: um `type:*`, um `area:*`, um `prio:*` e um
 `size:*`. Sem isso, a issue não entra em uma milestone.
@@ -248,14 +248,14 @@ Cada issue recebe no mínimo: um `type:*`, um `area:*`, um `prio:*` e um
 Uma milestone por épico. Elas dão a leitura de progresso por bloco de trabalho,
 e não por contagem bruta de issues.
 
-| Milestone | Épico | Objetivo resumido |
-| --- | --- | --- |
-| `M0 — Fundação` | E0 | Repositório, workspaces, lint, hooks, CI, templates |
-| `M1 — Backend Core` | E1 | Domínio, ORM, migrações, CRUD, seed |
-| `M2 — Concorrência & Resiliência` | E2, E3 | Máquina de estados, lock otimista, idempotência, retry, cache |
-| `M3 — Frontend UX` | E4, E5, E6 | Fundação do front, triagem, ciclo de vida e conflito |
-| `M4 — Qualidade` | E7 | Testes unitários, integração, componente e E2E |
-| `M5 — Deploy & Entrega` | E8, E9 | Publicação, observabilidade, documentação e vídeo |
+| Milestone                         | Épico      | Objetivo resumido                                             |
+| --------------------------------- | ---------- | ------------------------------------------------------------- |
+| `M0 — Fundação`                   | E0         | Repositório, workspaces, lint, hooks, CI, templates           |
+| `M1 — Backend Core`               | E1         | Domínio, ORM, migrações, CRUD, seed                           |
+| `M2 — Concorrência & Resiliência` | E2, E3     | Máquina de estados, lock otimista, idempotência, retry, cache |
+| `M3 — Frontend UX`                | E4, E5, E6 | Fundação do front, triagem, ciclo de vida e conflito          |
+| `M4 — Qualidade`                  | E7         | Testes unitários, integração, componente e E2E                |
+| `M5 — Deploy & Entrega`           | E8, E9     | Publicação, observabilidade, documentação e vídeo             |
 
 ### 6.1 Quadro de trabalho
 
@@ -269,14 +269,14 @@ automático de PR vinculado.
 
 Todo PR preenche o `PULL_REQUEST_TEMPLATE.md`, que exige:
 
-| Item | Conteúdo esperado |
-| --- | --- |
-| Issue vinculada | `Closes #N` no corpo. |
-| Tipo de mudança | Feature, correção, refatoração, documentação ou infraestrutura. |
-| O porquê | Duas a três frases sobre o motivo, não sobre a implementação. |
-| Como testar | Passos objetivos de reprodução. |
-| Evidência visual | Print ou GIF sempre que a interface mudar. |
-| Checklist de DoD | Os dez itens de qualidade, marcados pelo autor. |
+| Item             | Conteúdo esperado                                               |
+| ---------------- | --------------------------------------------------------------- |
+| Issue vinculada  | `Closes #N` no corpo.                                           |
+| Tipo de mudança  | Feature, correção, refatoração, documentação ou infraestrutura. |
+| O porquê         | Duas a três frases sobre o motivo, não sobre a implementação.   |
+| Como testar      | Passos objetivos de reprodução.                                 |
+| Evidência visual | Print ou GIF sempre que a interface mudar.                      |
+| Checklist de DoD | Os dez itens de qualidade, marcados pelo autor.                 |
 
 ### 7.2 Tamanho
 
@@ -293,16 +293,16 @@ código comentado, `TODO` solto e tratamento de erro faltando.
 
 ## 8. Proteção da branch `main`
 
-| Regra | Valor |
-| --- | --- |
-| Require a pull request before merging | Ativado |
-| Require approvals | 1 (o próprio autor, no self-review) |
-| Require status checks to pass | `ci / backend`, `ci / frontend`, `ci / commits` |
-| Require branches to be up to date before merging | Ativado |
-| Require linear history | Ativado (o squash garante) |
-| Require conversation resolution | Ativado |
-| Allow force pushes | **Proibido** |
-| Allow deletions | **Proibido** |
+| Regra                                            | Valor                                           |
+| ------------------------------------------------ | ----------------------------------------------- |
+| Require a pull request before merging            | Ativado                                         |
+| Require approvals                                | 1 (o próprio autor, no self-review)             |
+| Require status checks to pass                    | `ci / backend`, `ci / frontend`, `ci / commits` |
+| Require branches to be up to date before merging | Ativado                                         |
+| Require linear history                           | Ativado (o squash garante)                      |
+| Require conversation resolution                  | Ativado                                         |
+| Allow force pushes                               | **Proibido**                                    |
+| Allow deletions                                  | **Proibido**                                    |
 
 A `main` ser linear também tem uma consequência prática: `git log --oneline`
 mostra a evolução do produto como uma sequência de decisões, e não como uma
@@ -321,11 +321,11 @@ concurrency:
   cancel-in-progress: true
 ```
 
-| Job | Etapas |
-| --- | --- |
-| `backend` | `ruff check .` · `ruff format --check .` · `mypy app` · `pytest -q` |
-| `frontend` | `pnpm --filter web lint` · `typecheck` · `test:run` · `build` |
-| `commits` | `commitlint --from <base.sha> --to <sha>` (apenas em PR) |
+| Job        | Etapas                                                              |
+| ---------- | ------------------------------------------------------------------- |
+| `backend`  | `ruff check .` · `ruff format --check .` · `mypy app` · `pytest -q` |
+| `frontend` | `pnpm --filter web lint` · `typecheck` · `test:run` · `build`       |
+| `commits`  | `commitlint --from <base.sha> --to <sha>` (apenas em PR)            |
 
 O `concurrency` com `cancel-in-progress` cancela execuções antigas quando um
 push novo chega na mesma branch — economiza minutos de CI e mostra o resultado
@@ -335,11 +335,11 @@ do código mais recente primeiro.
 
 ### 10.1 Tags previstas
 
-| Tag | Marco | Critério para criar |
-| --- | --- | --- |
-| `v0.1.0` | API publicada e funcional | Backend no ar, CRUD completo, lock otimista e teste de concorrência verdes. |
-| `v0.2.0` | Frontend integrado | Fluxo de triagem completo em produção: listar, filtrar, abrir, mudar status. |
-| `v1.0.0` | Entrega final | Documentação, testes, deploy e vídeo publicados. |
+| Tag      | Marco                     | Critério para criar                                                          |
+| -------- | ------------------------- | ---------------------------------------------------------------------------- |
+| `v0.1.0` | API publicada e funcional | Backend no ar, CRUD completo, lock otimista e teste de concorrência verdes.  |
+| `v0.2.0` | Frontend integrado        | Fluxo de triagem completo em produção: listar, filtrar, abrir, mudar status. |
+| `v1.0.0` | Entrega final             | Documentação, testes, deploy e vídeo publicados.                             |
 
 ### 10.2 Criando uma release
 

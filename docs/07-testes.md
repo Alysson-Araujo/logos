@@ -22,13 +22,13 @@ flowchart TB
     FE --> UNIT
 ```
 
-| Nível | Ferramenta | Volume | Tempo alvo |
-| --- | --- | --- | --- |
-| Unitário | pytest | Maioria | Milissegundos por teste |
-| Integração | pytest + `TestClient` | Moderado | Décimos de segundo |
-| Concorrência | pytest + `ThreadPoolExecutor` | Alguns, marcados | Segundos |
-| Frontend | Vitest + Testing Library | Moderado | Décimos de segundo |
-| E2E | Playwright | 3 fluxos | Minutos |
+| Nível        | Ferramenta                    | Volume           | Tempo alvo              |
+| ------------ | ----------------------------- | ---------------- | ----------------------- |
+| Unitário     | pytest                        | Maioria          | Milissegundos por teste |
+| Integração   | pytest + `TestClient`         | Moderado         | Décimos de segundo      |
+| Concorrência | pytest + `ThreadPoolExecutor` | Alguns, marcados | Segundos                |
+| Frontend     | Vitest + Testing Library      | Moderado         | Décimos de segundo      |
+| E2E          | Playwright                    | 3 fluxos         | Minutos                 |
 
 ### 1.1 O desvio deliberado da pirâmide
 
@@ -43,15 +43,15 @@ que, se falhar em produção, custa dados.
 Rodam sem banco, sem servidor e sem rede. São possíveis porque a camada
 `domain/` é pura.
 
-| Arquivo | O que cobre |
-| --- | --- |
-| `test_rules.py` | Todas as transições da máquina de estados: as válidas passam, as proibidas levantam `InvalidStatusTransition`. Inclui `FECHADO` como terminal e "reabrir" recusado. |
-| `test_rules.py` | Exigência de `resolution_notes` em `FECHADO` e `INCONCLUSIVO`, incluindo o limite mínimo de 10 caracteres e a rejeição de string só com espaços. |
+| Arquivo            | O que cobre                                                                                                                                                                                                                            |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `test_rules.py`    | Todas as transições da máquina de estados: as válidas passam, as proibidas levantam `InvalidStatusTransition`. Inclui `FECHADO` como terminal e "reabrir" recusado.                                                                    |
+| `test_rules.py`    | Exigência de `resolution_notes` em `FECHADO` e `INCONCLUSIVO`, incluindo o limite mínimo de 10 caracteres e a rejeição de string só com espaços.                                                                                       |
 | `test_priority.py` | Cálculo do score **por faixa**: acidente com vítimas sempre acima de bloqueio de pista; `ALTA` acima de `MEDIA` com mesma categoria; aging saturando no teto de 400; pressão de SLA somando 200 apenas dentro da janela de 60 minutos. |
-| `test_priority.py` | `test_priority_score_orders_victims_accident_first`: garante a propriedade que dá sentido à fila — a ordem produzida é a ordem esperada pela operação. |
-| `test_schemas.py` | Validadores Pydantic: `title` sem HTML e com trim, faixa de latitude e longitude, normalização da placa para maiúsculas, rejeição de enum fora do contrato. |
-| `test_retry.py` | Distribuição do backoff com jitter: os atrasos ficam dentro do teto exponencial e não são constantes (o que reintroduziria o *thundering herd*). |
-| `test_backoff.py` | O teto (`cap`) limita o atraso mesmo com `attempt` alto. |
+| `test_priority.py` | `test_priority_score_orders_victims_accident_first`: garante a propriedade que dá sentido à fila — a ordem produzida é a ordem esperada pela operação.                                                                                 |
+| `test_schemas.py`  | Validadores Pydantic: `title` sem HTML e com trim, faixa de latitude e longitude, normalização da placa para maiúsculas, rejeição de enum fora do contrato.                                                                            |
+| `test_retry.py`    | Distribuição do backoff com jitter: os atrasos ficam dentro do teto exponencial e não são constantes (o que reintroduziria o _thundering herd_).                                                                                       |
+| `test_backoff.py`  | O teto (`cap`) limita o atraso mesmo com `attempt` alto.                                                                                                                                                                               |
 
 ```bash
 cd backend
@@ -64,18 +64,18 @@ Exercitam a API real contra um banco real, via `TestClient` do FastAPI. O que
 eles cobrem é o **contrato**, não a implementação: nenhum teste verifica nomes
 de método interno.
 
-| Arquivo | O que cobre |
-| --- | --- |
-| `test_incidents_crud.py` | `POST` cria com `201`, `Location` e `ETag: "1"`; `GET` por id devolve o recurso completo; `DELETE` responde `204` e a leitura seguinte devolve `410`. |
-| `test_filters.py` | Filtros combináveis: status múltiplo, criticidade múltipla, categoria múltipla, busca textual, intervalo de datas. Inclui o caso de combinação sem resultado. |
-| `test_pagination.py` | Paginação por cursor: a primeira página não tem cursor de entrada; `nextCursor` avança e **não repete nem pula** itens; `hasNextPage` é coerente; cursor inválido devolve `400 INVALID_CURSOR`. |
-| `test_status_machine.py` | Transição válida devolve `200`; transição proibida devolve `422 INVALID_STATUS_TRANSITION` com `details.allowed` correto; `FECHADO` sem `resolution_notes` devolve `422 RESOLUTION_NOTES_REQUIRED`. |
-| `test_optimistic_lock.py` | Versão correta avança e devolve `ETag` novo; versão defasada devolve `409 VERSION_CONFLICT` com `details.serverState` preenchido; `If-Match` malformado devolve `412`. |
-| `test_idempotency.py` | Mesma chave com mesmo corpo devolve a resposta original sem criar um segundo recurso; mesma chave com corpo diferente devolve `409 IDEMPOTENCY_KEY_REUSED`. |
-| `test_errors.py` | O envelope de erro é idêntico em todos os códigos; `VALIDATION_ERROR` traz `details.fields`; nenhuma resposta de erro vaza *stack trace*. |
-| `test_meta.py` | `GET /meta/enums` devolve exatamente as 5 categorias, 3 criticidades, 4 status e o mapa de transições. |
-| `test_health.py` | `GET /health/live` responde `200`; `GET /health/ready` responde `200` com o banco no ar e `503` quando ele está indisponível. |
-| `test_rate_limit.py` | Excesso de requisições devolve `429` com `Retry-After`. |
+| Arquivo                   | O que cobre                                                                                                                                                                                         |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `test_incidents_crud.py`  | `POST` cria com `201`, `Location` e `ETag: "1"`; `GET` por id devolve o recurso completo; `DELETE` responde `204` e a leitura seguinte devolve `410`.                                               |
+| `test_filters.py`         | Filtros combináveis: status múltiplo, criticidade múltipla, categoria múltipla, busca textual, intervalo de datas. Inclui o caso de combinação sem resultado.                                       |
+| `test_pagination.py`      | Paginação por cursor: a primeira página não tem cursor de entrada; `nextCursor` avança e **não repete nem pula** itens; `hasNextPage` é coerente; cursor inválido devolve `400 INVALID_CURSOR`.     |
+| `test_status_machine.py`  | Transição válida devolve `200`; transição proibida devolve `422 INVALID_STATUS_TRANSITION` com `details.allowed` correto; `FECHADO` sem `resolution_notes` devolve `422 RESOLUTION_NOTES_REQUIRED`. |
+| `test_optimistic_lock.py` | Versão correta avança e devolve `ETag` novo; versão defasada devolve `409 VERSION_CONFLICT` com `details.serverState` preenchido; `If-Match` malformado devolve `412`.                              |
+| `test_idempotency.py`     | Mesma chave com mesmo corpo devolve a resposta original sem criar um segundo recurso; mesma chave com corpo diferente devolve `409 IDEMPOTENCY_KEY_REUSED`.                                         |
+| `test_errors.py`          | O envelope de erro é idêntico em todos os códigos; `VALIDATION_ERROR` traz `details.fields`; nenhuma resposta de erro vaza _stack trace_.                                                           |
+| `test_meta.py`            | `GET /meta/enums` devolve exatamente as 5 categorias, 3 criticidades, 4 status e o mapa de transições.                                                                                              |
+| `test_health.py`          | `GET /health/live` responde `200`; `GET /health/ready` responde `200` com o banco no ar e `503` quando ele está indisponível.                                                                       |
+| `test_rate_limit.py`      | Excesso de requisições devolve `429` com `Retry-After`.                                                                                                                                             |
 
 ```bash
 cd backend
@@ -136,20 +136,20 @@ def test_concurrent_status_update_returns_conflict(client, incident_factory):
 
 Três asserções, três garantias distintas:
 
-| Asserção | Garantia |
-| --- | --- |
-| `statuses.count(200) == 1` | Ninguém foi sobrescrito em silêncio. |
-| `statuses.count(409) == 9` | O conflito é **reportado**, não engolido. |
-| `version == expected + 1` | A versão avançou exatamente uma vez, mesmo com dez tentativas. |
+| Asserção                   | Garantia                                                       |
+| -------------------------- | -------------------------------------------------------------- |
+| `statuses.count(200) == 1` | Ninguém foi sobrescrito em silêncio.                           |
+| `statuses.count(409) == 9` | O conflito é **reportado**, não engolido.                      |
+| `version == expected + 1`  | A versão avançou exatamente uma vez, mesmo com dez tentativas. |
 
 ### 4.2 Outros cenários do diretório
 
-| Teste | O que prova |
-| --- | --- |
-| `test_concurrent_create_is_unique` | Criações simultâneas geram códigos `INC-…` únicos, sem colisão na sequência. |
-| `test_concurrent_reads_during_write` | Leituras concorrentes durante uma escrita não veem estado parcial nem erro de transação. |
-| `test_concurrent_idempotent_retry` | Dez requisições com a **mesma** `Idempotency-Key` produzem um único recurso. |
-| `test_lost_update_is_impossible` | A regressão específica: simula o cenário Marina/Rafael e prova que a nota de resolução do primeiro não é apagada pelo segundo. |
+| Teste                                | O que prova                                                                                                                    |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
+| `test_concurrent_create_is_unique`   | Criações simultâneas geram códigos `INC-…` únicos, sem colisão na sequência.                                                   |
+| `test_concurrent_reads_during_write` | Leituras concorrentes durante uma escrita não veem estado parcial nem erro de transação.                                       |
+| `test_concurrent_idempotent_retry`   | Dez requisições com a **mesma** `Idempotency-Key` produzem um único recurso.                                                   |
+| `test_lost_update_is_impossible`     | A regressão específica: simula o cenário Marina/Rafael e prova que a nota de resolução do primeiro não é apagada pelo segundo. |
 
 ```bash
 cd backend
@@ -181,10 +181,10 @@ timeout e reavaliação do predicado sob concorrência.
 
 ### 4.4 O ambiente usado de fato
 
-| Ambiente | Quando é usado | Configuração |
-| --- | --- | --- |
-| **PostgreSQL** | Sempre que `DATABASE_URL` aponta para um Postgres (local via Podman ou o Neon de *staging*) | É o cenário de produção: MVCC real, isolamento real, contenção real. |
-| **SQLite em arquivo** | Padrão quando não há Postgres disponível | Banco em arquivo temporário, `PRAGMA journal_mode=WAL` e `PRAGMA busy_timeout=5000`, para que a escrita concorrente seja serializada pelo banco em vez de falhar com `database is locked`. |
+| Ambiente              | Quando é usado                                                                              | Configuração                                                                                                                                                                               |
+| --------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **PostgreSQL**        | Sempre que `DATABASE_URL` aponta para um Postgres (local via Podman ou o Neon de _staging_) | É o cenário de produção: MVCC real, isolamento real, contenção real.                                                                                                                       |
+| **SQLite em arquivo** | Padrão quando não há Postgres disponível                                                    | Banco em arquivo temporário, `PRAGMA journal_mode=WAL` e `PRAGMA busy_timeout=5000`, para que a escrita concorrente seja serializada pelo banco em vez de falhar com `database is locked`. |
 
 O banco é criado em arquivo temporário por sessão de teste e removido ao final.
 Cada teste de concorrência recebe uma base limpa, o que evita que a ordem de
@@ -197,27 +197,32 @@ registrada aqui em vez de escondida.
 
 ## 5. Testes de frontend — `frontend/src/test/`
 
-Vitest com Testing Library, servidor de mock de API (MSW) e *factories* de
+Vitest com Testing Library, servidor de mock de API (MSW) e _factories_ de
 incidentes.
 
-| Alvo | O que é verificado |
-| --- | --- |
-| `CriticalityBadge` | Renderiza cor, ícone, forma e rótulo. Com a classe de cor removida, ícone e texto continuam presentes (a regra de redundância de canais). |
-| `StatusBadge` | Rótulo textual presente em todos os quatro status. |
-| `SlaTimer` | Formata `mm:ss`, muda de faixa conforme o prazo e anuncia a mudança com `aria-live`. |
-| `PriorityPill` | O tooltip mostra a decomposição do score termo a termo. |
-| `IncidentRow` | Só re-renderiza quando `version` ou `priorityScore` mudam. |
-| `useIncidents` | Aplica filtros como query key; trocar de filtro reusa o cache quando a combinação já foi vista. |
-| `useIncidentMutations` | `onMutate` aplica o otimista; `onError` com `409` faz rollback e abre o diálogo com o `serverState`. |
-| `http.ts` | Respeita o timeout com `AbortController`; não repete mutação sem `Idempotency-Key`; repete `GET` conforme a política; envia `If-Match` quando informado. |
-| `ConflictDialog` | Lista campo a campo o que o cliente tentou e o que está no servidor; não oferece ação de sobrescrever. |
-| `FiltersBar` | Escreve o estado dos filtros na URL e restaura a partir dela. |
+| Alvo                   | O que é verificado                                                                                                                                       |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CriticalityBadge`     | Renderiza cor, ícone, forma e rótulo. Com a classe de cor removida, ícone e texto continuam presentes (a regra de redundância de canais).                |
+| `StatusBadge`          | Rótulo textual presente em todos os quatro status.                                                                                                       |
+| `SlaTimer`             | Formata `mm:ss`, muda de faixa conforme o prazo e anuncia a mudança com `aria-live`.                                                                     |
+| `PriorityPill`         | O tooltip mostra a decomposição do score termo a termo.                                                                                                  |
+| `IncidentRow`          | Só re-renderiza quando `version` ou `priorityScore` mudam.                                                                                               |
+| `useIncidents`         | Aplica filtros como query key; trocar de filtro reusa o cache quando a combinação já foi vista.                                                          |
+| `useIncidentMutations` | `onMutate` aplica o otimista; `onError` com `409` faz rollback e abre o diálogo com o `serverState`.                                                     |
+| `http.ts`              | Respeita o timeout com `AbortController`; não repete mutação sem `Idempotency-Key`; repete `GET` conforme a política; envia `If-Match` quando informado. |
+| `ConflictDialog`       | Lista campo a campo o que o cliente tentou e o que está no servidor; não oferece ação de sobrescrever.                                                   |
+| `FiltersBar`           | Escreve o estado dos filtros na URL e restaura a partir dela.                                                                                            |
 
 ```bash
 pnpm --filter web test          # modo watch
 pnpm --filter web test:run      # execução única, usada na CI
-pnpm --filter web test:coverage
 ```
+
+A cobertura do frontend ainda **não é coletada**: não existe script de cobertura
+em `frontend/package.json`. O portão de 80% vale para o backend (ver
+[seção 7](#7-cobertura)) e a cobertura do frontend está planejada na issue
+**#60** (`ci: adiciona cobertura, badge e checagem de bundle`, milestone
+`M4 — Qualidade`).
 
 ## 6. Testes ponta a ponta — `frontend/e2e/`
 
@@ -225,27 +230,29 @@ Playwright, com **três fluxos** e nada além disso. E2E é caro, lento e frági
 ele só se paga quando cobre um caminho que, se quebrar, quebra o produto
 inteiro.
 
-| Fluxo | Roteiro |
-| --- | --- |
-| **Triagem** | Abrir a lista, filtrar por `ALTA` + `Acidente com Vítimas`, conferir que a URL muda, que a lista reflete o filtro e que o estado vazio filtrado aparece com o botão de limpar. |
-| **Ciclo de vida** | Abrir o drawer de um incidente, mudar o status para `EM_INVESTIGACAO`, fechar o caso com nota de resolução e conferir a timeline de auditoria. |
-| **Conflito** | Abrir o mesmo incidente em dois contextos, fechar em um, tentar mudar o status no outro e verificar que o modal de conflito aparece com o diff. |
+| Fluxo             | Roteiro                                                                                                                                                                        |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Triagem**       | Abrir a lista, filtrar por `ALTA` + `Acidente com Vítimas`, conferir que a URL muda, que a lista reflete o filtro e que o estado vazio filtrado aparece com o botão de limpar. |
+| **Ciclo de vida** | Abrir o drawer de um incidente, mudar o status para `EM_INVESTIGACAO`, fechar o caso com nota de resolução e conferir a timeline de auditoria.                                 |
+| **Conflito**      | Abrir o mesmo incidente em dois contextos, fechar em um, tentar mudar o status no outro e verificar que o modal de conflito aparece com o diff.                                |
 
-```bash
-pnpm --filter web exec playwright install --with-deps
-pnpm --filter web e2e
-```
+A suíte E2E ainda **não existe no repositório**: não há `frontend/e2e/`, nem
+script `e2e` em `frontend/package.json`, nem Playwright instalado. A
+implementação está planejada na issue **#59**
+(`test(web): adiciona E2E dos fluxos de triagem e conflito`, milestone
+`M4 — Qualidade`). Quando ela entrar, os comandos serão
+`pnpm --filter web exec playwright install --with-deps` e `pnpm --filter web e2e`.
 
 ### 6.1 O que fica de fora do E2E, e por quê
 
-| Fora do E2E | Onde é coberto |
-| --- | --- |
-| Validação de campos e mensagens de erro | Testes unitários de schema e de componente. |
-| Todas as combinações de filtro | Testes de integração da API. |
-| Estados de loading, erro e offline | Testes de componente com MSW, controlando a resposta. |
-| Corrida de status com threads | `tests/concurrency` — E2E não consegue produzir simultaneidade confiável no browser. |
-| Paginação por cursor completa | Integração da API; o E2E só confirma que o scroll infinito carrega a segunda página. |
-| Tema claro/escuro | Teste de componente; a persistência é verificada manualmente. |
+| Fora do E2E                             | Onde é coberto                                                                       |
+| --------------------------------------- | ------------------------------------------------------------------------------------ |
+| Validação de campos e mensagens de erro | Testes unitários de schema e de componente.                                          |
+| Todas as combinações de filtro          | Testes de integração da API.                                                         |
+| Estados de loading, erro e offline      | Testes de componente com MSW, controlando a resposta.                                |
+| Corrida de status com threads           | `tests/concurrency` — E2E não consegue produzir simultaneidade confiável no browser. |
+| Paginação por cursor completa           | Integração da API; o E2E só confirma que o scroll infinito carrega a segunda página. |
+| Tema claro/escuro                       | Teste de componente; a persistência é verificada manualmente.                        |
 
 Colocar qualquer um desses no E2E aumentaria o tempo de execução e a taxa de
 falha intermitente sem aumentar a confiança no produto.
@@ -260,12 +267,12 @@ testpaths = ["tests"]
 markers = ["concurrency: testes de corrida com threads"]
 ```
 
-| Regra | Valor |
-| --- | --- |
-| Cobertura mínima do backend | **80%** (falha o build abaixo disso) |
-| `--strict-markers` | Marcador não declarado é erro, não aviso — evita teste que "não roda" sem ninguém notar |
-| Cobertura do frontend | Reportada, sem portão obrigatório |
-| Meta qualitativa | 100% das transições da máquina de estados e 100% dos códigos do catálogo de erro cobertos |
+| Regra                       | Valor                                                                                                                                        |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Cobertura mínima do backend | **80%** (falha o build abaixo disso)                                                                                                         |
+| `--strict-markers`          | Marcador não declarado é erro, não aviso — evita teste que "não roda" sem ninguém notar                                                      |
+| Cobertura do frontend       | Ainda **não coletada** — não existe script de cobertura em `frontend/package.json`; planejada na issue #60, sem portão definido por enquanto |
+| Meta qualitativa            | 100% das transições da máquina de estados e 100% dos códigos do catálogo de erro cobertos                                                    |
 
 ### 7.1 Cobertura não é meta, é piso
 
@@ -297,8 +304,8 @@ pytest --cov-report=html        # relatório navegável em htmlcov/
 # Frontend
 pnpm --filter web test          # watch
 pnpm --filter web test:run      # execução única
-pnpm --filter web test:coverage
-pnpm --filter web e2e           # Playwright
+# Cobertura do frontend: ainda não coletada (planejada na issue #60)
+# pnpm --filter web e2e         # Playwright (planejado — issue #59)
 
 # Tudo (o que a CI roda)
 pnpm verify
@@ -306,11 +313,11 @@ pnpm verify
 
 ## 9. Convenções
 
-| Convenção | Regra |
-| --- | --- |
-| Nome de teste | Descreve o comportamento observável: `test_concurrent_status_update_returns_conflict`, e não `test_update_2`. |
-| Estrutura | Dado / quando / então, com comentário apenas onde a intenção não é óbvia pelo código. |
-| Dados | Sempre por *factory*. Nenhum teste depende de outro nem da ordem de execução. |
-| Banco | Criado e destruído por teste, em arquivo temporário ou Postgres. |
-| Tempo | Nenhum teste depende de `sleep` para sincronizar. |
-| Mocks | Só na fronteira externa (tempo, rede de terceiros). Não se simula o próprio repositório em teste de integração. |
+| Convenção     | Regra                                                                                                           |
+| ------------- | --------------------------------------------------------------------------------------------------------------- |
+| Nome de teste | Descreve o comportamento observável: `test_concurrent_status_update_returns_conflict`, e não `test_update_2`.   |
+| Estrutura     | Dado / quando / então, com comentário apenas onde a intenção não é óbvia pelo código.                           |
+| Dados         | Sempre por _factory_. Nenhum teste depende de outro nem da ordem de execução.                                   |
+| Banco         | Criado e destruído por teste, em arquivo temporário ou Postgres.                                                |
+| Tempo         | Nenhum teste depende de `sleep` para sincronizar.                                                               |
+| Mocks         | Só na fronteira externa (tempo, rede de terceiros). Não se simula o próprio repositório em teste de integração. |

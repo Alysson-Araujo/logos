@@ -12,12 +12,12 @@ de conclusão de uma tarefa.
 
 ## 1. Pré-requisitos
 
-| Ferramenta | Versão | Observação |
-| --- | --- | --- |
-| Python | 3.12 | Backend (FastAPI + SQLAlchemy 2.0). |
-| Node.js | 20+ | Frontend (React + Vite). |
-| pnpm | 12 | Gerenciador de pacotes e orquestração do monorepo. |
-| Git | 2.40+ | Fluxo trunk-based com branches curtas. |
+| Ferramenta | Versão | Observação                                         |
+| ---------- | ------ | -------------------------------------------------- |
+| Python     | 3.12   | Backend (FastAPI + SQLAlchemy 2.0).                |
+| Node.js    | 20+    | Frontend (React + Vite).                           |
+| pnpm       | 12     | Gerenciador de pacotes e orquestração do monorepo. |
+| Git        | 2.40+  | Fluxo trunk-based com branches curtas.             |
 
 Podman ou Docker são **opcionais**: o backend sobe com SQLite e nenhum
 container é necessário para desenvolver. Um PostgreSQL local só é necessário
@@ -47,37 +47,41 @@ cp frontend/.env.example frontend/.env
 
 # 4. Banco + dados de demonstração
 cd backend
-alembic upgrade head
-python -m app.infra.seed
+python -m app.infra.seed        # cria as tabelas e popula os incidentes de demonstração
 cd ..
 
 # 5. Subir API e web juntos
 pnpm dev
 ```
 
+> O schema é criado automaticamente na subida da API (`Base.metadata.create_all`
+> em `backend/app/main.py`), e o seed também garante as tabelas antes de inserir.
+> Migrações versionadas com Alembic são a issue **#11** e **ainda não estão
+> implementadas** — é por isso que este passo não tem `alembic upgrade head`.
+
 Serviços esperados após o `pnpm dev`:
 
-| Serviço | URL padrão |
-| --- | --- |
-| API (FastAPI) | `http://localhost:8000` |
-| Swagger UI | `http://localhost:8000/docs` |
-| Frontend (Vite) | `http://localhost:5173` |
+| Serviço         | URL padrão                   |
+| --------------- | ---------------------------- |
+| API (FastAPI)   | `http://localhost:8000`      |
+| Swagger UI      | `http://localhost:8000/docs` |
+| Frontend (Vite) | `http://localhost:5173`      |
 
 ### 2.2 Comandos do dia a dia
 
-| Comando | O que faz |
-| --- | --- |
-| `pnpm dev` | Sobe API e frontend em paralelo, com reload. |
-| `pnpm dev:api` | Sobe apenas a API. |
-| `pnpm dev:web` | Sobe apenas o frontend. |
-| `pnpm seed` | Repopula o banco com os incidentes de demonstração. |
-| `pnpm lint` | Ruff no backend e ESLint no frontend. |
-| `pnpm format` | Formata os dois lados (Ruff format e Prettier). |
-| `pnpm typecheck` | mypy no backend e `tsc --noEmit` no frontend. |
-| `pnpm test` | pytest no backend e Vitest no frontend. |
-| `pnpm build` | Build de produção do frontend. |
-| `pnpm verify` | **Lint + typecheck + testes + build.** É o portão antes do PR. |
-| `pnpm commit` | Assistente interativo de Conventional Commits. |
+| Comando          | O que faz                                                      |
+| ---------------- | -------------------------------------------------------------- |
+| `pnpm dev`       | Sobe API e frontend em paralelo, com reload.                   |
+| `pnpm dev:api`   | Sobe apenas a API.                                             |
+| `pnpm dev:web`   | Sobe apenas o frontend.                                        |
+| `pnpm seed`      | Repopula o banco com os incidentes de demonstração.            |
+| `pnpm lint`      | Ruff no backend e ESLint no frontend.                          |
+| `pnpm format`    | Formata os dois lados (Ruff format e Prettier).                |
+| `pnpm typecheck` | mypy no backend e `tsc --noEmit` no frontend.                  |
+| `pnpm test`      | pytest no backend e Vitest no frontend.                        |
+| `pnpm build`     | Build de produção do frontend.                                 |
+| `pnpm verify`    | **Lint + typecheck + testes + build.** É o portão antes do PR. |
+| `pnpm commit`    | Assistente interativo de Conventional Commits.                 |
 
 > `pnpm verify` roda exatamente o mesmo conjunto de verificações que a
 > integração contínua executa. Rodar antes de abrir o PR é o hábito que evita
@@ -102,7 +106,10 @@ Depois ajuste `backend/.env`:
 DATABASE_URL=postgresql+psycopg://logos:logos@localhost:5432/logos
 ```
 
-E rode as migrações novamente: `alembic upgrade head`.
+E rode o seed novamente, a partir de `backend/`:
+`cd backend && python -m app.infra.seed`. Ele garante as tabelas no banco novo
+antes de inserir os dados de demonstração. Migrações versionadas com Alembic são
+a issue **#11** e ainda não estão implementadas.
 
 ---
 
@@ -123,15 +130,15 @@ main ──●──●──────────●────────
 <tipo>/<numero-da-issue>-<slug-curto-em-kebab-case>
 ```
 
-| Prefixo | Uso | Exemplo |
-| --- | --- | --- |
-| `feat/` | Nova funcionalidade | `feat/20-optimistic-lock` |
-| `fix/` | Correção de defeito | `fix/31-cursor-pagination-off-by-one` |
+| Prefixo     | Uso                                    | Exemplo                                |
+| ----------- | -------------------------------------- | -------------------------------------- |
+| `feat/`     | Nova funcionalidade                    | `feat/20-optimistic-lock`              |
+| `fix/`      | Correção de defeito                    | `fix/31-cursor-pagination-off-by-one`  |
 | `refactor/` | Reestruturação sem mudar comportamento | `refactor/22-extract-priority-service` |
-| `test/` | Apenas testes | `test/26-concurrency-test` |
-| `docs/` | Apenas documentação | `docs/70-adrs` |
-| `chore/` | Build, dependências, configuração | `chore/3-husky` |
-| `perf/` | Performance | `perf/43-virtual-list` |
+| `test/`     | Apenas testes                          | `test/26-concurrency-test`             |
+| `docs/`     | Apenas documentação                    | `docs/70-adrs`                         |
+| `chore/`    | Build, dependências, configuração      | `chore/3-husky`                        |
+| `perf/`     | Performance                            | `perf/43-virtual-list`                 |
 
 ### 3.2 Regras
 
@@ -170,11 +177,11 @@ mensagem com `commitlint`; mensagem fora do padrão é rejeitada localmente.
 
 ### 4.4 Limites impostos pela configuração
 
-| Regra | Valor |
-| --- | --- |
-| Comprimento máximo do cabeçalho | 72 caracteres |
-| Comprimento máximo da linha do corpo | 100 caracteres |
-| `subject-case` | Não pode começar em maiúscula nem em PascalCase |
+| Regra                                | Valor                                           |
+| ------------------------------------ | ----------------------------------------------- |
+| Comprimento máximo do cabeçalho      | 72 caracteres                                   |
+| Comprimento máximo da linha do corpo | 100 caracteres                                  |
+| `subject-case`                       | Não pode começar em maiúscula nem em PascalCase |
 
 ### 4.5 Exemplos reais
 
@@ -240,7 +247,7 @@ Nenhuma issue é fechada antes de todos os itens abaixo estarem satisfeitos.
 - [ ] Sem `console.log`, `print()` ou código comentado
 - [ ] Documentação/ADR atualizado se a decisão mudou
 - [ ] `.env.example` atualizado se nova variável
-- [ ] PR com `Closes #N`, CI verde, descrição explicando o *porquê*
+- [ ] PR com `Closes #N`, CI verde, descrição explicando o _porquê_
 - [ ] Print/GIF anexado se alterou interface
 
 ---
@@ -271,14 +278,14 @@ torna a mensagem do squash na `main`. O corpo deve conter `Closes #N`.
 
 O template de pull request do repositório solicita, obrigatoriamente:
 
-| Item | Detalhe |
-| --- | --- |
-| **Issue vinculada** | `Closes #N` no corpo. |
-| **O porquê** | Duas a três frases explicando o motivo da mudança, não o que ela faz. |
-| **Como testar** | Passos objetivos para quem revisa reproduzir. |
-| **Evidência de UI** | Print ou GIF sempre que a interface mudar. |
-| **Checklist de DoD** | Os dez itens da seção 5, marcados. |
-| **Tipo de mudança** | Feature, correção, refatoração, documentação ou infraestrutura. |
+| Item                 | Detalhe                                                               |
+| -------------------- | --------------------------------------------------------------------- |
+| **Issue vinculada**  | `Closes #N` no corpo.                                                 |
+| **O porquê**         | Duas a três frases explicando o motivo da mudança, não o que ela faz. |
+| **Como testar**      | Passos objetivos para quem revisa reproduzir.                         |
+| **Evidência de UI**  | Print ou GIF sempre que a interface mudar.                            |
+| **Checklist de DoD** | Os dez itens da seção 5, marcados.                                    |
+| **Tipo de mudança**  | Feature, correção, refatoração, documentação ou infraestrutura.       |
 
 ### 6.4 Após abrir
 
@@ -332,12 +339,12 @@ logos/
 
 Antes de pedir revisão, o mínimo esperado é:
 
-| Nível | O que deve estar coberto |
-| --- | --- |
-| Unitário | Regras de transição de status, cálculo do priority score, validadores. |
-| Integração | Rotas, filtros, paginação por cursor, envelopes de erro. |
-| Concorrência | Corrida de status com `ThreadPoolExecutor` provando o `409`. |
-| Frontend | Componentes e hooks críticos com Vitest. |
+| Nível        | O que deve estar coberto                                               |
+| ------------ | ---------------------------------------------------------------------- |
+| Unitário     | Regras de transição de status, cálculo do priority score, validadores. |
+| Integração   | Rotas, filtros, paginação por cursor, envelopes de erro.               |
+| Concorrência | Corrida de status com `ThreadPoolExecutor` provando o `409`.           |
+| Frontend     | Componentes e hooks críticos com Vitest.                               |
 
 ```bash
 pnpm test:api                        # pytest no backend

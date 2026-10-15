@@ -10,7 +10,7 @@ A tela de triagem tem duas propriedades que quebram a paginação tradicional. A
 
 ## Decisão
 
-**Paginação por cursor opaco** (*keyset pagination*), com ordenação no servidor e o cursor codificando a posição do último item da página anterior, no formato `{"p": 1048, "id": "0f2c9b1e-…"}` — o score do último item mais o seu `id`. O predicado acompanha a ordenação. Para `sort=priority_desc`:
+**Paginação por cursor opaco** (_keyset pagination_), com ordenação no servidor e o cursor codificando a posição do último item da página anterior, no formato `{"p": 1048, "id": "0f2c9b1e-…"}` — o score do último item mais o seu `id`. O predicado acompanha a ordenação. Para `sort=priority_desc`:
 
 ```sql
 SELECT * FROM incidents

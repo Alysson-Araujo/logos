@@ -6,7 +6,7 @@
 
 ## Contexto
 
-O backend tem contrato de domínio fechado: três enumerações de valores fixos, schemas Pydantic derivados de tipos e um cálculo de prioridade testado por faixa. A CI precisa rodar lint, formatação e verificação de tipos em cada pull request — mas verificação que só roda na CI chega tarde, e o autor conserta em um commit adicional, deixando o histórico com ruído de correção de formatação. Para que a verificação aconteça no *pre-commit*, ela precisa ser rápida.
+O backend tem contrato de domínio fechado: três enumerações de valores fixos, schemas Pydantic derivados de tipos e um cálculo de prioridade testado por faixa. A CI precisa rodar lint, formatação e verificação de tipos em cada pull request — mas verificação que só roda na CI chega tarde, e o autor conserta em um commit adicional, deixando o histórico com ruído de correção de formatação. Para que a verificação aconteça no _pre-commit_, ela precisa ser rápida.
 
 ## Decisão
 
@@ -27,7 +27,7 @@ plugins = ["pydantic.mypy"]
 ## Alternativas consideradas
 
 - **flake8 + isort + black.** Descartado: são quatro ferramentas, quatro configurações e quatro execuções para fazer o que uma faz. A lentidão relativa é a causa prática do problema — quando o lint é lento, ele migra para a CI e a verificação chega depois do push. A configuração também se espalha por `.flake8`, `setup.cfg` e `pyproject.toml`.
-- **Pyright.** Descartado por margem estreita: é mais rápido e tem ótima inferência. mypy foi escolhido por ser o padrão do ecossistema para bibliotecas e por ter o *plugin* oficial do Pydantic, que resolve a tipagem de modelos derivados — justamente onde o contrato vive.
+- **Pyright.** Descartado por margem estreita: é mais rápido e tem ótima inferência. mypy foi escolhido por ser o padrão do ecossistema para bibliotecas e por ter o _plugin_ oficial do Pydantic, que resolve a tipagem de modelos derivados — justamente onde o contrato vive.
 - **Sem verificador de tipos.** Descartado: com `str, Enum`, generics de repositório e schemas derivados, a ausência de verificação deixa o contrato do domínio sem garantia, e a anotação passa a ser comentário.
 - **Black isolado, sem lint.** Descartado: formatação uniforme não detecta `assert` em produção, import circular, sombreamento de nome nem complexidade — os defeitos que a revisão procura.
 

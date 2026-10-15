@@ -5,48 +5,48 @@ erro e cabeçalhos HTTP da API v1 do Logos.
 
 ## 1. Convenções gerais
 
-| Item | Definição |
-| --- | --- |
-| Base URL | `/api/v1` — ex.: `http://localhost:8000/api/v1` |
-| Content-Type | `application/json; charset=utf-8` |
-| Identificador público | `id` em UUID v4; `code` legível no formato `INC-AAAA-NNNNNN` |
-| Datas | ISO-8601 em UTC, com sufixo `Z` (`2026-02-11T12:31:12Z`) |
-| Enumeração | Valores em maiúsculas com underscore (`ACIDENTE_COM_VITIMAS`) |
-| Casing | `snake_case` nos parâmetros de query; `camelCase` no corpo e na resposta |
-| Documentação viva | OpenAPI 3.1 em `/docs` (Swagger UI) e `/redoc` (ReDoc) |
+| Item                  | Definição                                                                |
+| --------------------- | ------------------------------------------------------------------------ |
+| Base URL              | `/api/v1` — ex.: `http://localhost:8000/api/v1`                          |
+| Content-Type          | `application/json; charset=utf-8`                                        |
+| Identificador público | `id` em UUID v4; `code` legível no formato `INC-AAAA-NNNNNN`             |
+| Datas                 | ISO-8601 em UTC, com sufixo `Z` (`2026-02-11T12:31:12Z`)                 |
+| Enumeração            | Valores em maiúsculas com underscore (`ACIDENTE_COM_VITIMAS`)            |
+| Casing                | `snake_case` nos parâmetros de query; `camelCase` no corpo e na resposta |
+| Documentação viva     | OpenAPI 3.1 em `/docs` (Swagger UI) e `/redoc` (ReDoc)                   |
 
 ## 2. Endpoints
 
-| Método | Rota | Descrição | Códigos |
-| --- | --- | --- | --- |
-| `GET` | `/health/live` | *Liveness*: o processo está vivo. | `200` |
-| `GET` | `/health/ready` | *Readiness*: o banco responde de fato. | `200`, `503` |
-| `GET` | `/incidents` | Lista paginada por cursor, com filtros e ordenação. | `200`, `400`, `422`, `429`, `503` |
-| `GET` | `/incidents/{id}` | Detalhe do incidente. Devolve `ETag`. | `200`, `404`, `410` |
-| `POST` | `/incidents` | Cria incidente. Aceita `Idempotency-Key`. | `201`, `409`, `422`, `429`, `503` |
-| `PATCH` | `/incidents/{id}` | Atualiza dados e/ou status. `If-Match` obrigatório para status. | `200`, `404`, `409`, `412`, `422`, `429`, `503` |
-| `POST` | `/incidents/{id}/status` | Transição de status explícita. | `200`, `404`, `409`, `412`, `422`, `429`, `503` |
-| `DELETE` | `/incidents/{id}` | Soft delete (`deleted_at`). | `204`, `404` |
-| `GET` | `/incidents/{id}/events` | Timeline de auditoria do incidente. | `200`, `404` |
-| `GET` | `/incidents/stream` | SSE com eventos de incidentes em tempo real. | `200` |
-| `GET` | `/meta/enums` | Categorias, criticidades e status com rótulos PT-BR e cores. | `200` |
-| `GET` | `/docs` · `/redoc` | Swagger UI e ReDoc. | `200` |
+| Método   | Rota                     | Descrição                                                       | Códigos                                         |
+| -------- | ------------------------ | --------------------------------------------------------------- | ----------------------------------------------- |
+| `GET`    | `/health/live`           | _Liveness_: o processo está vivo.                               | `200`                                           |
+| `GET`    | `/health/ready`          | _Readiness_: o banco responde de fato.                          | `200`, `503`                                    |
+| `GET`    | `/incidents`             | Lista paginada por cursor, com filtros e ordenação.             | `200`, `400`, `422`, `429`, `503`               |
+| `GET`    | `/incidents/{id}`        | Detalhe do incidente. Devolve `ETag`.                           | `200`, `404`, `410`                             |
+| `POST`   | `/incidents`             | Cria incidente. Aceita `Idempotency-Key`.                       | `201`, `409`, `422`, `429`, `503`               |
+| `PATCH`  | `/incidents/{id}`        | Atualiza dados e/ou status. `If-Match` obrigatório para status. | `200`, `404`, `409`, `412`, `422`, `429`, `503` |
+| `POST`   | `/incidents/{id}/status` | Transição de status explícita.                                  | `200`, `404`, `409`, `412`, `422`, `429`, `503` |
+| `DELETE` | `/incidents/{id}`        | Soft delete (`deleted_at`).                                     | `204`, `404`                                    |
+| `GET`    | `/incidents/{id}/events` | Timeline de auditoria do incidente.                             | `200`, `404`                                    |
+| `GET`    | `/incidents/stream`      | SSE com eventos de incidentes em tempo real.                    | `200`                                           |
+| `GET`    | `/meta/enums`            | Categorias, criticidades e status com rótulos PT-BR e cores.    | `200`                                           |
+| `GET`    | `/docs` · `/redoc`       | Swagger UI e ReDoc.                                             | `200`                                           |
 
 ## 3. `GET /incidents`
 
 ### 3.1 Parâmetros de query
 
-| Parâmetro | Tipo | Padrão | Descrição |
-| --- | --- | --- | --- |
-| `status` | lista separada por vírgula | todos | `ABERTO`, `EM_INVESTIGACAO`, `FECHADO`, `INCONCLUSIVO`. |
-| `criticality` | lista separada por vírgula | todas | `ALTA`, `MEDIA`, `BAIXA`. |
-| `category` | lista separada por vírgula | todas | Uma das cinco categorias do domínio. |
-| `search` | string | — | Busca textual em `title`, `description`, `code`, `location_label` e `truck_plate`. |
-| `created_from` | datetime ISO-8601 | — | Limite inferior inclusivo de `created_at`. |
-| `created_to` | datetime ISO-8601 | — | Limite superior inclusivo de `created_at`. |
-| `sort` | enum | `priority_desc` | `priority_desc`, `created_desc`, `created_asc`, `criticality_desc`. |
-| `limit` | int | `50` | Itens por página. <!-- confirmar limite máximo aceito --> |
-| `cursor` | string opaca | — | Cursor devolvido em `pageInfo.nextCursor`. Ausente = primeira página. |
+| Parâmetro      | Tipo                       | Padrão          | Descrição                                                                          |
+| -------------- | -------------------------- | --------------- | ---------------------------------------------------------------------------------- |
+| `status`       | lista separada por vírgula | todos           | `ABERTO`, `EM_INVESTIGACAO`, `FECHADO`, `INCONCLUSIVO`.                            |
+| `criticality`  | lista separada por vírgula | todas           | `ALTA`, `MEDIA`, `BAIXA`.                                                          |
+| `category`     | lista separada por vírgula | todas           | Uma das cinco categorias do domínio.                                               |
+| `search`       | string                     | —               | Busca textual em `title`, `description`, `code`, `location_label` e `truck_plate`. |
+| `created_from` | datetime ISO-8601          | —               | Limite inferior inclusivo de `created_at`.                                         |
+| `created_to`   | datetime ISO-8601          | —               | Limite superior inclusivo de `created_at`.                                         |
+| `sort`         | enum                       | `priority_desc` | `priority_desc`, `created_desc`, `created_asc`, `criticality_desc`.                |
+| `limit`        | int                        | `50`            | Itens por página. <!-- confirmar limite máximo aceito -->                          |
+| `cursor`       | string opaca               | —               | Cursor devolvido em `pageInfo.nextCursor`. Ausente = primeira página.              |
 
 Exemplo de montagem:
 
@@ -382,8 +382,8 @@ data: {"id":"…","version":5,"status":"FECHADO"}
 : heartbeat
 ```
 
-A interface consome esses eventos para incrementar um contador — *"3 novos
-incidentes"* — e **não** reordena a lista sob o cursor da analista. A
+A interface consome esses eventos para incrementar um contador — _"3 novos
+incidentes"_ — e **não** reordena a lista sob o cursor da analista. A
 atualização da lista acontece sob ação explícita. A escolha de SSE em vez de
 WebSocket está no [ADR 0011](adr/0011-sse.md).
 
@@ -404,13 +404,13 @@ solto, nem HTML de erro de framework vazando para o cliente.
 }
 ```
 
-| Campo | Descrição |
-| --- | --- |
-| `error.code` | Identificador estável, legível por máquina. É o campo que o cliente interpreta. |
-| `error.message` | Texto em português, pronto para exibição em último caso. Nunca contém *stack trace*. |
-| `error.details` | Objeto específico do código — campos inválidos, transições permitidas, estado atual do recurso. |
-| `error.requestId` | Mesmo valor de `X-Request-Id`, para correlacionar com o log do servidor. |
-| `error.timestamp` | Momento em que o erro foi gerado, em UTC. |
+| Campo             | Descrição                                                                                       |
+| ----------------- | ----------------------------------------------------------------------------------------------- |
+| `error.code`      | Identificador estável, legível por máquina. É o campo que o cliente interpreta.                 |
+| `error.message`   | Texto em português, pronto para exibição em último caso. Nunca contém _stack trace_.            |
+| `error.details`   | Objeto específico do código — campos inválidos, transições permitidas, estado atual do recurso. |
+| `error.requestId` | Mesmo valor de `X-Request-Id`, para correlacionar com o log do servidor.                        |
+| `error.timestamp` | Momento em que o erro foi gerado, em UTC.                                                       |
 
 Erros de validação do Pydantic seguem o mesmo envelope, com `code:
 "VALIDATION_ERROR"` e `details.fields` listando cada campo e a regra violada —
@@ -418,24 +418,24 @@ o FastAPI não devolve o formato padrão `{"detail": [...]}` nesta API.
 
 ## 12. Catálogo de códigos de erro
 
-| Código | HTTP | Quando ocorre | O que o cliente deve fazer |
-| --- | --- | --- | --- |
-| `VALIDATION_ERROR` | `422` | Corpo ou query com tipo, formato ou faixa inválida. | Destacar os campos de `details.fields`. Não repetir a requisição sem corrigir. |
-| `INVALID_STATUS_TRANSITION` | `422` | Tentativa de transição proibida pela máquina de estados. | Recarregar o recurso e oferecer apenas as transições de `details.allowed`. |
-| `RESOLUTION_NOTES_REQUIRED` | `422` | `FECHADO` ou `INCONCLUSIVO` sem `resolution_notes` (mínimo 10 caracteres). | Abrir o campo de nota com foco e contador. |
-| `VERSION_REQUIRED` | `422` | Mudança de status sem `If-Match` e sem `expectedVersion`. | Reenviar informando a versão conhecida. |
-| `INVALID_CURSOR` | `400` | `cursor` malformado ou de outro conjunto de filtros. | Reiniciar a paginação sem cursor. |
-| `INVALID_FILTER` | `400` | Combinação de filtros incoerente (ex.: `created_from` posterior a `created_to`). | Corrigir o parâmetro apontado em `details.parameter`. |
-| `INCIDENT_NOT_FOUND` | `404` | `id` inexistente. | Remover o item da lista. |
-| `INCIDENT_DELETED` | `410` | Incidente com soft delete. | Remover da lista e informar que foi removido. |
-| `VERSION_CONFLICT` | `409` | CAS falhou: `version` no banco difere da esperada. | **Rollback da UI otimista** e abrir o modal de conflito com `details.serverState`. |
-| `PRECONDITION_FAILED` | `412` | `If-Match` com ETag que nunca existiu para o recurso (malformado ou de outra entidade). | Recarregar o recurso e pedir nova confirmação. |
-| `PRECONDITION_REQUIRED` | `428` | A mudança de status chegou sem `If-Match` e sem `expectedVersion`. | Enviar a versão conhecida do recurso. A API recusa para não desligar o lock. |
-| `IDEMPOTENCY_KEY_REUSED` | `409` | Mesma `Idempotency-Key` reenviada com corpo diferente. | Erro de programação do cliente: gerar chave nova por operação. |
-| `IDEMPOTENCY_KEY_IN_PROGRESS` | `409` | Mesma chave ainda em processamento. | Aguardar e repetir com a **mesma** chave. |
-| `RATE_LIMIT_EXCEEDED` | `429` | Teto de requisições por IP excedido. | Respeitar `Retry-After` e reduzir a frequência. |
-| `SERVICE_UNAVAILABLE` | `503` | Banco indisponível ou lento, ou circuit breaker aberto. | Manter o cache na tela, avisar instabilidade e repetir após `Retry-After`. |
-| `INTERNAL_ERROR` | `500` | Falha inesperada não classificada. | Mostrar mensagem neutra com `requestId` para suporte. Deve ser raro por construção. |
+| Código                        | HTTP  | Quando ocorre                                                                           | O que o cliente deve fazer                                                          |
+| ----------------------------- | ----- | --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `VALIDATION_ERROR`            | `422` | Corpo ou query com tipo, formato ou faixa inválida.                                     | Destacar os campos de `details.fields`. Não repetir a requisição sem corrigir.      |
+| `INVALID_STATUS_TRANSITION`   | `422` | Tentativa de transição proibida pela máquina de estados.                                | Recarregar o recurso e oferecer apenas as transições de `details.allowed`.          |
+| `RESOLUTION_NOTES_REQUIRED`   | `422` | `FECHADO` ou `INCONCLUSIVO` sem `resolution_notes` (mínimo 10 caracteres).              | Abrir o campo de nota com foco e contador.                                          |
+| `VERSION_REQUIRED`            | `422` | Mudança de status sem `If-Match` e sem `expectedVersion`.                               | Reenviar informando a versão conhecida.                                             |
+| `INVALID_CURSOR`              | `400` | `cursor` malformado ou de outro conjunto de filtros.                                    | Reiniciar a paginação sem cursor.                                                   |
+| `INVALID_FILTER`              | `400` | Combinação de filtros incoerente (ex.: `created_from` posterior a `created_to`).        | Corrigir o parâmetro apontado em `details.parameter`.                               |
+| `INCIDENT_NOT_FOUND`          | `404` | `id` inexistente.                                                                       | Remover o item da lista.                                                            |
+| `INCIDENT_DELETED`            | `410` | Incidente com soft delete.                                                              | Remover da lista e informar que foi removido.                                       |
+| `VERSION_CONFLICT`            | `409` | CAS falhou: `version` no banco difere da esperada.                                      | **Rollback da UI otimista** e abrir o modal de conflito com `details.serverState`.  |
+| `PRECONDITION_FAILED`         | `412` | `If-Match` com ETag que nunca existiu para o recurso (malformado ou de outra entidade). | Recarregar o recurso e pedir nova confirmação.                                      |
+| `PRECONDITION_REQUIRED`       | `428` | A mudança de status chegou sem `If-Match` e sem `expectedVersion`.                      | Enviar a versão conhecida do recurso. A API recusa para não desligar o lock.        |
+| `IDEMPOTENCY_KEY_REUSED`      | `409` | Mesma `Idempotency-Key` reenviada com corpo diferente.                                  | Erro de programação do cliente: gerar chave nova por operação.                      |
+| `IDEMPOTENCY_KEY_IN_PROGRESS` | `409` | Mesma chave ainda em processamento.                                                     | Aguardar e repetir com a **mesma** chave.                                           |
+| `RATE_LIMIT_EXCEEDED`         | `429` | Teto de requisições por IP excedido.                                                    | Respeitar `Retry-After` e reduzir a frequência.                                     |
+| `SERVICE_UNAVAILABLE`         | `503` | Banco indisponível ou lento, ou circuit breaker aberto.                                 | Manter o cache na tela, avisar instabilidade e repetir após `Retry-After`.          |
+| `INTERNAL_ERROR`              | `500` | Falha inesperada não classificada.                                                      | Mostrar mensagem neutra com `requestId` para suporte. Deve ser raro por construção. |
 
 ### 12.1 Por que `409` e não `412` no conflito
 
@@ -478,22 +478,22 @@ precondição, e a versão necessária vem no `ETag` da resposta e no campo
 
 ### 13.1 Cabeçalhos de requisição
 
-| Cabeçalho | Onde | Para que serve |
-| --- | --- | --- |
-| `If-Match` | `PATCH` e `POST /status` que alteram status | Traz a versão conhecida do recurso (`"3"`). É a entrada do compare-and-swap. |
-| `Idempotency-Key` | `POST` e `PATCH` | UUID v4 único por operação lógica. Torna o retry seguro: repetir a mesma chave com o mesmo corpo devolve a resposta original em vez de duplicar a mutação. |
-| `X-Request-Id` | Todas | Correlação nos logs. Se o cliente não enviar, o servidor gera. |
-| `Accept-Language` | Todas | `pt-BR` (padrão) ou `en-US` para mensagens de erro. <!-- confirmar suporte a en-US --> |
+| Cabeçalho         | Onde                                        | Para que serve                                                                                                                                             |
+| ----------------- | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `If-Match`        | `PATCH` e `POST /status` que alteram status | Traz a versão conhecida do recurso (`"3"`). É a entrada do compare-and-swap.                                                                               |
+| `Idempotency-Key` | `POST` e `PATCH`                            | UUID v4 único por operação lógica. Torna o retry seguro: repetir a mesma chave com o mesmo corpo devolve a resposta original em vez de duplicar a mutação. |
+| `X-Request-Id`    | Todas                                       | Correlação nos logs. Se o cliente não enviar, o servidor gera.                                                                                             |
+| `Accept-Language` | Todas                                       | `pt-BR` (padrão) ou `en-US` para mensagens de erro. <!-- confirmar suporte a en-US -->                                                                     |
 
 ### 13.2 Cabeçalhos de resposta
 
-| Cabeçalho | Onde | Significado |
-| --- | --- | --- |
-| `ETag` | `GET /incidents/{id}`, `POST`, `PATCH`, `POST /status` | Versão atual do recurso, como string citada (`"4"`). É o valor a devolver em `If-Match`. |
-| `Location` | `POST /incidents` (`201`) | URL do recurso criado. |
-| `Retry-After` | `429` e `503` | Segundos que o cliente deve aguardar antes de repetir. |
-| `X-Request-Id` | Todas | Eco do identificador de correlação. |
-| `Cache-Control` | `GET` | `no-cache` no detalhe; `private, max-age=30` na listagem, sempre com revalidação. |
+| Cabeçalho       | Onde                                                   | Significado                                                                              |
+| --------------- | ------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| `ETag`          | `GET /incidents/{id}`, `POST`, `PATCH`, `POST /status` | Versão atual do recurso, como string citada (`"4"`). É o valor a devolver em `If-Match`. |
+| `Location`      | `POST /incidents` (`201`)                              | URL do recurso criado.                                                                   |
+| `Retry-After`   | `429` e `503`                                          | Segundos que o cliente deve aguardar antes de repetir.                                   |
+| `X-Request-Id`  | Todas                                                  | Eco do identificador de correlação.                                                      |
+| `Cache-Control` | `GET`                                                  | `no-cache` no detalhe; `private, max-age=30` na listagem, sempre com revalidação.        |
 
 ### 13.3 Ciclo do `ETag`
 
@@ -519,19 +519,19 @@ precondição que o `UPDATE ... WHERE version = :expected` vai avaliar.
 
 ### 13.4 Versionamento da API
 
-| Nível | Estratégia |
-| --- | --- |
-| Versão maior | Prefixo no caminho (`/api/v1`). Mudança incompatível exige `/api/v2` e período de convivência. |
-| Adição compatível | Novo campo opcional em resposta ou novo parâmetro de query opcional. Não incrementa versão. |
-| Remoção ou renomeação | Só em versão maior. |
-| Códigos de erro | **Estáveis.** Um `code` nunca muda de significado; adicionar código novo é compatível, renomear não é. |
-| Depreciação | Anunciada no `CHANGELOG.md` e nos cabeçalhos de resposta da rota afetada. |
+| Nível                 | Estratégia                                                                                             |
+| --------------------- | ------------------------------------------------------------------------------------------------------ |
+| Versão maior          | Prefixo no caminho (`/api/v1`). Mudança incompatível exige `/api/v2` e período de convivência.         |
+| Adição compatível     | Novo campo opcional em resposta ou novo parâmetro de query opcional. Não incrementa versão.            |
+| Remoção ou renomeação | Só em versão maior.                                                                                    |
+| Códigos de erro       | **Estáveis.** Um `code` nunca muda de significado; adicionar código novo é compatível, renomear não é. |
+| Depreciação           | Anunciada no `CHANGELOG.md` e nos cabeçalhos de resposta da rota afetada.                              |
 
 ## 14. Limites de uso
 
-| Operação | Limite padrão | Configuração |
-| --- | --- | --- |
-| Leitura (`GET`) | 60 req/min por IP | `RATE_LIMIT_PER_MINUTE` |
+| Operação                            | Limite padrão                 | Configuração                        |
+| ----------------------------------- | ----------------------------- | ----------------------------------- |
+| Leitura (`GET`)                     | 60 req/min por IP             | `RATE_LIMIT_PER_MINUTE`             |
 | Escrita (`POST`, `PATCH`, `DELETE`) | Limite menor que o de leitura | Definido no token bucket de escrita |
 
 Excedido o limite, a resposta é `429` com `Retry-After`. O limite existe tanto
