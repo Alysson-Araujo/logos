@@ -23,6 +23,8 @@ from app.core.logging import (
     reset_request_id,
     set_request_id,
 )
+from app.core.rate_limit import rate_limit_middleware
+from app.core.security import security_headers_middleware
 from app.infra.seed import seed_incidents
 
 API_PREFIX: Final[str] = "/api/v1"
@@ -116,6 +118,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_headers=["*"],
         expose_headers=[REQUEST_ID_HEADER, "ETag", "Location", REPLAYED_HEADER],
     )
+    # A ordem de registro e o inverso da ordem de execucao: o ultimo middleware
+    # adicionado roda mais por fora. A pilha resultante, de fora para dentro, e
+    # request_context -> security_headers -> rate_limit -> CORS -> rotas.
+    #
+    # Isso importa por dois motivos: o request_id precisa ja existir quando o
+    # rate limit recusar, para a resposta e o log terem correlacao entre si; e os
+    # cabecalhos de seguranca precisam envolver o rate limit para valerem tambem
+    # na resposta 429.
+    application.middleware("http")(rate_limit_middleware)
+    application.middleware("http")(security_headers_middleware)
     application.middleware("http")(request_context_middleware)
 
     register_exception_handlers(application)
