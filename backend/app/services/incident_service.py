@@ -21,6 +21,7 @@ from app.domain.rules import (
     predecessors_of,
     validate_resolution_notes,
 )
+from app.infra.retry import RetryConfig, RetryPolicy, run_with_retry
 from app.models.base import utcnow
 from app.models.incident import INITIAL_VERSION, Incident
 from app.repositories.incident_repository import (
@@ -55,20 +56,53 @@ class IncidentService:
         repository: IncidentRepository,
         *,
         now_provider: Callable[[], datetime] = utcnow,
+        retry: RetryConfig | None = None,
     ) -> None:
-        """Recebe o repositório e a fonte de tempo (injetável nos testes)."""
+        """Recebe o repositório, a fonte de tempo (injetável) e a política de retentativa."""
         self._repository = repository
         self._now_provider = now_provider
+        self._retry = retry or RetryConfig()
+
+    def _execute[T](self, operation: Callable[[], T], *, policy: RetryPolicy) -> T:
+        """Executa a unidade de trabalho, repetindo se a falha for transitória.
+
+        A unidade é o método inteiro, e não cada consulta: repetir uma consulta
+        isolada deixaria a operação pela metade, com parte das escritas já
+        aplicada e outra parte não.
+
+        Entre as tentativas a sessão recebe `rollback()`, para a próxima começar
+        de um estado limpo em vez de herdar a transação abortada.
+        """
+        if policy.max_attempts <= 1:
+            return operation()
+        return run_with_retry(
+            operation,
+            policy=policy,
+            on_retry=lambda _exc: self._repository.rollback(),
+        )
 
     def get(self, incident_id: UUID) -> Incident:
         """Devolve o incidente ou levanta 404."""
+        return self._execute(lambda: self._require(incident_id), policy=self._retry.for_read())
+
+    def _require(self, incident_id: UUID) -> Incident:
+        """Busca o incidente pelo id ou levanta 404."""
         incident = self._repository.get_by_id(incident_id)
         if incident is None:
             raise IncidentNotFoundError(details={"id": str(incident_id)})
         return incident
 
     def create(self, payload: IncidentCreate) -> Incident:
-        """Cria o incidente com status ABERTO, SLA e score calculados no servidor."""
+        """Cria o incidente com status ABERTO, SLA e score calculados no servidor.
+
+        Não é repetido: um `INSERT` não tem guarda natural, então uma segunda
+        tentativa após um commit que o cliente não viu criaria um segundo
+        incidente. Aqui a API devolve `503` e quem reenvia é o cliente, com a
+        mesma `Idempotency-Key`.
+        """
+        return self._execute(lambda: self._insert(payload), policy=self._retry.for_insert())
+
+    def _insert(self, payload: IncidentCreate) -> Incident:
         now = self._now_provider()
         sla_due_at = compute_sla_due_at(payload.criticality, now)
         incident = Incident(
@@ -105,6 +139,9 @@ class IncidentService:
 
     def list(self, filters: IncidentFilter) -> IncidentPage:
         """Lista incidentes com filtros, ordenação e paginação por cursor."""
+        return self._execute(lambda: self._list(filters), policy=self._retry.for_read())
+
+    def _list(self, filters: IncidentFilter) -> IncidentPage:
         now = self._now_provider()
         self._repository.refresh_priority_scores(now=now)
         items, total, has_next_page = self._repository.list_incidents(filters)
@@ -136,7 +173,25 @@ class IncidentService:
         *,
         expected_version: int,
     ) -> Incident:
-        """Aplica a transição de status usando compare-and-swap no banco."""
+        """Aplica a transição de status usando compare-and-swap no banco.
+
+        É repetível porque o `UPDATE ... WHERE version = ?` não encontra a versão
+        esperada numa segunda execução depois de um commit bem-sucedido — então
+        repetir não produz efeito novo. Mas só é repetida quando o cliente
+        enviou `Idempotency-Key`, a declaração de que a operação é reenviável.
+        """
+        return self._execute(
+            lambda: self._transition(incident_id, payload, expected_version=expected_version),
+            policy=self._retry.for_conditional_write(),
+        )
+
+    def _transition(
+        self,
+        incident_id: UUID,
+        payload: IncidentStatusChange,
+        *,
+        expected_version: int,
+    ) -> Incident:
         validate_resolution_notes(payload.status, payload.resolution_notes)
 
         now = self._now_provider()
@@ -158,6 +213,12 @@ class IncidentService:
 
     def soft_delete(self, incident_id: UUID, *, expected_version: int | None) -> None:
         """Remove logicamente o incidente, opcionalmente sob lock otimista."""
+        self._execute(
+            lambda: self._do_soft_delete(incident_id, expected_version=expected_version),
+            policy=self._retry.for_conditional_write(),
+        )
+
+    def _do_soft_delete(self, incident_id: UUID, *, expected_version: int | None) -> None:
         rowcount = self._repository.soft_delete(
             incident_id,
             expected_version=expected_version,

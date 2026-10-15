@@ -11,9 +11,12 @@ from fastapi import FastAPI, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import DBAPIError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.core.config import get_settings
 from app.core.logging import get_request_id, serialize_timestamp
+from app.infra.retry import is_transient
 
 logger = logging.getLogger(__name__)
 
@@ -236,6 +239,53 @@ def register_exception_handlers(app: FastAPI) -> None:
         if exc.headers:
             response.headers.update(exc.headers)
         return response
+
+    @app.exception_handler(DBAPIError)
+    async def _handle_database_error(request: Request, exc: DBAPIError) -> JSONResponse:
+        """Traduz falha de banco em `503` (transitória) ou `500` (defeito nosso).
+
+        Uma falha transitória que escapou da retentativa significa "tente de novo
+        em instantes", e não "há um bug aqui" — o cliente reage de forma
+        diferente a cada um, e o briefing cobra exatamente essa distinção. Já um
+        erro determinístico de banco é defeito nosso e precisa aparecer como tal.
+
+        Nada do erro original vai para a resposta além do tipo: mensagem de
+        driver costuma carregar a consulta e nomes de coluna.
+        """
+        transient = is_transient(exc)
+        logger.warning(
+            "database_error",
+            extra={
+                "path": request.url.path,
+                "method": request.method,
+                "transient": transient,
+                "error_code": type(exc).__name__,
+            },
+            exc_info=True,
+        )
+
+        if not transient:
+            return JSONResponse(
+                status_code=500,
+                content=build_error_payload(
+                    "INTERNAL_ERROR",
+                    "Falha inesperada ao acessar os dados.",
+                    details={"errorType": type(exc).__name__},
+                    request_id=resolve_request_id(request),
+                ),
+            )
+
+        retry_after = max(1, int(get_settings().retry_base_delay_seconds))
+        return JSONResponse(
+            status_code=503,
+            content=build_error_payload(
+                "SERVICE_UNAVAILABLE",
+                "O banco de dados está instável. Tente novamente em instantes.",
+                details={"retryAfterSeconds": retry_after},
+                request_id=resolve_request_id(request),
+            ),
+            headers={"Retry-After": str(retry_after)},
+        )
 
     @app.exception_handler(Exception)
     async def _handle_unexpected_error(request: Request, exc: Exception) -> JSONResponse:

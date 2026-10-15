@@ -160,6 +160,16 @@ class IncidentRepository:
         """Sessão ORM associada ao repositório."""
         return self._session
 
+    def rollback(self) -> None:
+        """Descarta a transação corrente.
+
+        Chamado entre tentativas de uma operação repetida: sem isto a próxima
+        tentativa herdaria a transação abortada e falharia antes de tentar.
+        Uma conexão morta é devolvida ao pool e substituída na próxima consulta,
+        porque o engine usa `pool_pre_ping`.
+        """
+        self._session.rollback()
+
     def get_by_id(self, incident_id: UUID, *, include_deleted: bool = False) -> Incident | None:
         """Busca um incidente pelo id, ignorando removidos por padrão."""
         statement = select(Incident).where(Incident.id == incident_id)

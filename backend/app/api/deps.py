@@ -9,12 +9,15 @@ from typing import Annotated
 from fastapi import Depends
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.core.database import get_session
 from app.core.errors import (
     InvalidFilterError,
     PreconditionFailedError,
     PreconditionRequiredError,
 )
+from app.core.idempotency import is_replay_safe
+from app.infra.retry import RetryConfig, RetryPolicy
 from app.repositories.incident_repository import IncidentRepository
 from app.services.incident_service import IncidentService
 
@@ -33,8 +36,23 @@ RepositoryDep = Annotated[IncidentRepository, Depends(get_incident_repository)]
 
 
 def get_incident_service(repository: RepositoryDep) -> IncidentService:
-    """Cria o serviço de incidentes para a requisição."""
-    return IncidentService(repository)
+    """Cria o serviço de incidentes para a requisição, com a política de retentativa.
+
+    Os limites vêm da configuração; a permissão de repetir uma escrita vem do
+    marcador que o middleware de idempotência deixa quando o cliente envia
+    `Idempotency-Key`.
+    """
+    settings = get_settings()
+    return IncidentService(
+        repository,
+        retry=RetryConfig(
+            policy=RetryPolicy(
+                max_attempts=settings.retry_max_attempts,
+                base_delay=settings.retry_base_delay_seconds,
+            ),
+            request_allows_replay=is_replay_safe(),
+        ),
+    )
 
 
 ServiceDep = Annotated[IncidentService, Depends(get_incident_service)]
