@@ -32,11 +32,11 @@ automática e não existe registro confiável de quem fez o quê.
 
 Três características da Marina determinam todo o design do produto:
 
-| Característica | Consequência de projeto |
-| --- | --- |
-| **Escaneia, não lê.** | Informação em camadas: o essencial (categoria, criticidade, tempo em aberto) é legível em um relance; o detalhe fica sob demanda. |
+| Característica                          | Consequência de projeto                                                                                                                              |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Escaneia, não lê.**                   | Informação em camadas: o essencial (categoria, criticidade, tempo em aberto) é legível em um relance; o detalhe fica sob demanda.                    |
 | **É interrompida a cada dois minutos.** | O estado da aplicação precisa sobreviver à interrupção: nada de perder filtro, scroll ou rascunho. A lista nunca reordena sozinha embaixo do cursor. |
-| **Precisa justificar depois.** | Toda mudança gera registro de auditoria. `FECHADO` e `INCONCLUSIVO` exigem nota de resolução. |
+| **Precisa justificar depois.**          | Toda mudança gera registro de auditoria. `FECHADO` e `INCONCLUSIVO` exigem nota de resolução.                                                        |
 
 ### Persona secundária
 
@@ -83,28 +83,28 @@ encerramento **deixa rastro** (o que resolve a cobrança posterior).
 
 ## 4. Dores e o que o Logos faz a respeito
 
-| Dor | Impacto operacional | O que o Logos resolve |
-| --- | --- | --- |
-| Informação espalhada em 4 grupos de WhatsApp e 3 planilhas | A analista não sabe se o incidente já foi visto por alguém | Fonte única da verdade, com status visível para toda a central |
-| Sem priorização: o pneu furado aparece junto do acidente com vítimas | Ordem de atendimento errada e prejuízo direto | *Priority score* determinístico ordena a fila automaticamente |
-| Dois analistas ligam para o mesmo motorista | Retrabalho e irritação do cliente | Status compartilhado + lock otimista com aviso explícito de conflito |
-| O prazo de SLA é perdido sem que ninguém perceba | Multa contratual | Timer regressivo com alerta visual progressivo e pressão de SLA no score |
-| O sistema "trava" e ela não sabe se salvou | Ela clica três vezes e cria registros duplicados | Feedback de estado explícito + `Idempotency-Key` nas mutações |
-| Não há registro de quem decidiu o quê | Impossível justificar a decisão depois | Timeline de auditoria por incidente e nota de resolução obrigatória |
-| A lista se reordena sozinha durante o plantão | Clique no incidente errado, ação no caso errado | Novos eventos alimentam um contador; a lista só reordena sob ação explícita |
+| Dor                                                                  | Impacto operacional                                        | O que o Logos resolve                                                       |
+| -------------------------------------------------------------------- | ---------------------------------------------------------- | --------------------------------------------------------------------------- |
+| Informação espalhada em 4 grupos de WhatsApp e 3 planilhas           | A analista não sabe se o incidente já foi visto por alguém | Fonte única da verdade, com status visível para toda a central              |
+| Sem priorização: o pneu furado aparece junto do acidente com vítimas | Ordem de atendimento errada e prejuízo direto              | _Priority score_ determinístico ordena a fila automaticamente               |
+| Dois analistas ligam para o mesmo motorista                          | Retrabalho e irritação do cliente                          | Status compartilhado + lock otimista com aviso explícito de conflito        |
+| O prazo de SLA é perdido sem que ninguém perceba                     | Multa contratual                                           | Timer regressivo com alerta visual progressivo e pressão de SLA no score    |
+| O sistema "trava" e ela não sabe se salvou                           | Ela clica três vezes e cria registros duplicados           | Feedback de estado explícito + `Idempotency-Key` nas mutações               |
+| Não há registro de quem decidiu o quê                                | Impossível justificar a decisão depois                     | Timeline de auditoria por incidente e nota de resolução obrigatória         |
+| A lista se reordena sozinha durante o plantão                        | Clique no incidente errado, ação no caso errado            | Novos eventos alimentam um contador; a lista só reordena sob ação explícita |
 
 ## 5. Jobs-to-be-done
 
 ### JTBD 1 — Triagem em segundos
 
-> *"Quando eu abro o Logos, quero saber em 3 segundos qual é o pior problema agora."*
+> _"Quando eu abro o Logos, quero saber em 3 segundos qual é o pior problema agora."_
 
 O produto atende isso entregando, na primeira dobra, os KPIs por status, o
 contador de SLA vencendo e a lista já ordenada por prioridade — não por data.
 
 ### JTBD 2 — Posse sem ambiguidade
 
-> *"Quando eu assumo um caso, quero ter certeza de que ninguém mais vai falar com o mesmo motorista."*
+> _"Quando eu assumo um caso, quero ter certeza de que ninguém mais vai falar com o mesmo motorista."_
 
 O produto atende isso tornando o status e o analista responsável visíveis para
 todos, e recusando sobrescrita silenciosa: se alguém mudou o caso antes, a
@@ -112,7 +112,7 @@ segunda tentativa falha com `409` e mostra o que mudou.
 
 ### JTBD 3 — Encerramento defensável
 
-> *"Quando eu fecho um caso, quero registrar o porquê para não ser cobrada depois."*
+> _"Quando eu fecho um caso, quero registrar o porquê para não ser cobrada depois."_
 
 O produto atende isso exigindo `resolution_notes` para `FECHADO` e
 `INCONCLUSIVO`, e gravando cada transição na timeline de auditoria com autor e
@@ -132,24 +132,24 @@ Esse princípio produz quatro corolários concretos:
    caso vire `ALTA` e o sinal perca valor.
 3. **Silêncio visual para o trivial.** `BAIXA` tem borda fina e cor discreta;
    `ALTA` ocupa espaço visual. A tela não gasta atenção com o que não exige ação.
-4. **Densidade sob controle.** Modo *confortável* (padrão) e *compacto* (para
+4. **Densidade sob controle.** Modo _confortável_ (padrão) e _compacto_ (para
    monitoramento prolongado), com a escolha persistida.
 
 O princípio também justifica uma decisão que parece contraintuitiva: **a lista
 não deve reordenar sozinha**. Reordenar embaixo do cursor durante o plantão
 causa clique no incidente errado, e o custo de um clique errado em missão
 crítica é maior que o benefício de ver o item novo imediatamente. Por isso o
-SSE alimenta um contador — *"3 novos incidentes"* — e a atualização acontece
+SSE alimenta um contador — _"3 novos incidentes"_ — e a atualização acontece
 sob ação explícita da analista.
 
 ## 7. Métricas de sucesso
 
-| Métrica | Definição | Meta | Como é verificada |
-| --- | --- | --- | --- |
-| **TTT** — *time-to-triage* | Tempo entre o incidente entrar no sistema e a analista identificar sua prioridade | `< 5s` | Medição na interface com a lista de 120 incidentes do seed; instrumentação no roadmap. |
-| **TTA** — *time-to-acknowledge* | Tempo entre a criação e a saída de `ABERTO` | `-40%` frente ao processo atual | Timeline de auditoria (`created_at` → primeiro evento de transição). |
-| **Taxa de colisão** | Sobrescritas silenciosas entre analistas | `0` | Toda colisão vira `409` tratado e visível; o teste de concorrência comprova o comportamento. |
-| **Taxa de erro 5xx sob oscilação de rede** | Requisições que terminam em `500` durante instabilidade | `0` | Degradação explícita: cache *stale*, `503` com `Retry-After` e banner de aviso em vez de erro cru. |
+| Métrica                                    | Definição                                                                         | Meta                            | Como é verificada                                                                                  |
+| ------------------------------------------ | --------------------------------------------------------------------------------- | ------------------------------- | -------------------------------------------------------------------------------------------------- |
+| **TTT** — _time-to-triage_                 | Tempo entre o incidente entrar no sistema e a analista identificar sua prioridade | `< 5s`                          | Medição na interface com a lista de 120 incidentes do seed; instrumentação no roadmap.             |
+| **TTA** — _time-to-acknowledge_            | Tempo entre a criação e a saída de `ABERTO`                                       | `-40%` frente ao processo atual | Timeline de auditoria (`created_at` → primeiro evento de transição).                               |
+| **Taxa de colisão**                        | Sobrescritas silenciosas entre analistas                                          | `0`                             | Toda colisão vira `409` tratado e visível; o teste de concorrência comprova o comportamento.       |
+| **Taxa de erro 5xx sob oscilação de rede** | Requisições que terminam em `500` durante instabilidade                           | `0`                             | Degradação explícita: cache _stale_, `503` com `Retry-After` e banner de aviso em vez de erro cru. |
 
 ### 7.1 Leitura das metas
 

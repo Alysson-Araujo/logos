@@ -12,7 +12,7 @@ São 14h04 de uma terça-feira. A analista **Marina** abre o incidente
 `INC-2026-000123` — um acidente com vítimas na BR-116, km 412. Ela lê o
 histórico, liga para o SAMU, confirma que as vítimas foram atendidas e a pista
 foi liberada. Às 14h12 ela encerra o caso com a nota de resolução:
-*"Vítimas atendidas pelo SAMU. Pista liberada às 14h10."* O status vira
+_"Vítimas atendidas pelo SAMU. Pista liberada às 14h10."_ O status vira
 `FECHADO`.
 
 O analista **Rafael** abriu o mesmo incidente às 14h10, dois minutos antes do
@@ -52,7 +52,7 @@ aparece no plantão com pico de incidentes — exatamente quando o custo do erro
 maior.
 
 Verificar em Python (`if`) não resolve: entre o `if` e o `commit` o banco mudou.
-É o clássico **TOCTOU** (*time-of-check to time-of-use*).
+É o clássico **TOCTOU** (_time-of-check to time-of-use_).
 
 ## 2. A solução: optimistic locking com compare-and-swap
 
@@ -74,16 +74,16 @@ UPDATE incidents
 
 O resultado é interpretado pelo número de linhas afetadas:
 
-| `rowcount` | Significado | Resposta |
-| --- | --- | --- |
-| `1` | Ninguém alterou o recurso entre a leitura e a escrita. | `200 OK` com a nova representação e `ETag: "4"`. |
-| `0` | Alguém alterou antes (ou o registro foi removido). | `409 Conflict` com o estado **atual** do recurso no corpo. |
+| `rowcount` | Significado                                            | Resposta                                                   |
+| ---------- | ------------------------------------------------------ | ---------------------------------------------------------- |
+| `1`        | Ninguém alterou o recurso entre a leitura e a escrita. | `200 OK` com a nova representação e `ETag: "4"`.           |
+| `0`        | Alguém alterou antes (ou o registro foi removido).     | `409 Conflict` com o estado **atual** do recurso no corpo. |
 
 ### 2.1 Onde a versão esperada vem
 
-| Origem | Uso |
-| --- | --- |
-| `If-Match: "3"` | Caminho principal, com semântica HTTP correta. |
+| Origem                        | Uso                                                                                                   |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `If-Match: "3"`               | Caminho principal, com semântica HTTP correta.                                                        |
 | `expectedVersion: 3` no corpo | Alternativa para teste manual no Swagger e para clientes que não manipulam cabeçalhos com facilidade. |
 
 Se nenhum dos dois for informado em uma mudança de status, a resposta é
@@ -94,7 +94,7 @@ versão.
 
 A atomicidade está no banco, não na aplicação. O `UPDATE ... WHERE` é avaliado
 pelo motor em uma única operação: o predicado e a escrita pertencem à mesma
-instrução, sob o mesmo *lock* de linha que o próprio banco adquire. Duas
+instrução, sob o mesmo _lock_ de linha que o próprio banco adquire. Duas
 requisições simultâneas, em workers diferentes, em máquinas diferentes, chegam
 ao mesmo veredito: uma afeta a linha, a outra afeta zero linhas.
 
@@ -104,11 +104,11 @@ arbitra o conflito é o próprio dado persistido.
 
 ### 2.3 Onde isso é implementado
 
-| Camada | Papel |
-| --- | --- |
+| Camada                                | Papel                                                                                                                             |
+| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | `repositories/incident_repository.py` | Executa o `UPDATE` condicional e devolve `rowcount` mais a representação resultante. É o único lugar do código que conhece o CAS. |
-| `services/incident_service.py` | Traduz `rowcount = 0` em `VersionConflict` do domínio, busca o estado atual e grava o evento de auditoria. |
-| `api/v1/incidents.py` | Converte a exceção de domínio em `409 VERSION_CONFLICT` com `details.serverState`. |
+| `services/incident_service.py`        | Traduz `rowcount = 0` em `VersionConflict` do domínio, busca o estado atual e grava o evento de auditoria.                        |
+| `api/v1/incidents.py`                 | Converte a exceção de domínio em `409 VERSION_CONFLICT` com `details.serverState`.                                                |
 
 Nenhuma rota monta SQL, e nenhum service conhece `status code`.
 
@@ -133,20 +133,20 @@ para resolver.
 
 **4. O comportamento correto em missão crítica é informar, não bloquear.**
 Existe uma decisão humana legítima a ser tomada quando dois analistas divergem:
-*"eu vi que o caso foi fechado; minha mudança ainda faz sentido?"*. Bloquear a
+_"eu vi que o caso foi fechado; minha mudança ainda faz sentido?"_. Bloquear a
 segunda ação resolve o conflito de dados e destrói a informação. Otimista
 transforma o conflito em uma tela com diff e três botões.
 
 ### 3.1 Comparação direta
 
-| Critério | Pessimistic (`SELECT FOR UPDATE`) | Optimistic (`version`) |
-| --- | --- | --- |
-| Bloqueia a analista | Sim, pelo tempo de reflexão dela | Nunca |
-| Conexão do pool | Presa durante a transação inteira | Liberada a cada operação |
-| Comportamento em rede instável | Lock pendurado, timeout, "travou" | Detecta e informa |
-| Comportamento com N analistas no mesmo caso | Fila de espera silenciosa | Conflito explícito e informado |
-| Complexidade de implementação | Média (transaction management) | Baixa (uma cláusula `WHERE`) |
-| Custo em caso de conflito real | Nenhum (o segundo nunca chega a tentar) | Uma requisição extra + decisão humana |
+| Critério                                    | Pessimistic (`SELECT FOR UPDATE`)       | Optimistic (`version`)                |
+| ------------------------------------------- | --------------------------------------- | ------------------------------------- |
+| Bloqueia a analista                         | Sim, pelo tempo de reflexão dela        | Nunca                                 |
+| Conexão do pool                             | Presa durante a transação inteira       | Liberada a cada operação              |
+| Comportamento em rede instável              | Lock pendurado, timeout, "travou"       | Detecta e informa                     |
+| Comportamento com N analistas no mesmo caso | Fila de espera silenciosa               | Conflito explícito e informado        |
+| Complexidade de implementação               | Média (transaction management)          | Baixa (uma cláusula `WHERE`)          |
+| Custo em caso de conflito real              | Nenhum (o segundo nunca chega a tentar) | Uma requisição extra + decisão humana |
 
 O único cenário em que pessimista ganharia é aquele em que conflitos são
 frequentes e a resolução automática é sempre desejável — o oposto de uma
@@ -211,7 +211,7 @@ useMutation({
   mutationFn: (input: StatusChangeInput) =>
     http.post(`/incidents/${input.id}/status`, input, {
       ifMatch: String(input.version),
-      idempotencyKey: input.idempotencyKey,   // gerada no onMutate, reusada no retry
+      idempotencyKey: input.idempotencyKey, // gerada no onMutate, reusada no retry
     }),
 
   onMutate: async (input) => {
@@ -220,7 +220,7 @@ useMutation({
     queryClient.setQueryData(incidentKeys.detail(input.id), (old) =>
       applyOptimisticStatus(old, input),
     );
-    return { snapshot };                       // contexto de rollback
+    return { snapshot }; // contexto de rollback
   },
 
   onError: (error, input, context) => {
@@ -249,11 +249,11 @@ Três decisões embutidas nesse trecho:
 
 O diálogo não exibe "erro 409". Ele exibe a divergência em linguagem de operação:
 
-| Campo | Você tentou | No servidor está |
-| --- | --- | --- |
-| Status | Em Investigação | **Fechado** |
-| Responsável | Rafael L. | Marina S. |
-| Nota de resolução | — | Vítimas atendidas pelo SAMU. Pista liberada às 14h10. |
+| Campo             | Você tentou     | No servidor está                                      |
+| ----------------- | --------------- | ----------------------------------------------------- |
+| Status            | Em Investigação | **Fechado**                                           |
+| Responsável       | Rafael L.       | Marina S.                                             |
+| Nota de resolução | —               | Vítimas atendidas pelo SAMU. Pista liberada às 14h10. |
 
 Ações oferecidas: **Ver o que mudou** (abre a timeline), **Recarregar**
 (descarta a tentativa e traz o estado atual) e **Fechar** (mantém o estado do
@@ -263,13 +263,13 @@ em um clique.
 
 ### 5.3 Comportamento por classe de erro
 
-| Erro | Comportamento da interface |
-| --- | --- |
-| `409 VERSION_CONFLICT` | Rollback da atualização otimista, abre o modal de conflito com o diff. |
-| `412 PRECONDITION_FAILED` | Rollback, recarrega o recurso e pede nova confirmação. |
-| `422` | Rollback, destaca o campo inválido. Não repete automaticamente. |
-| `503` / timeout | **Mantém a UI otimista**, mostra toast *"Instável — vamos tentar de novo"* e deixa o retry com backoff assumir. |
-| `429` | Respeita `Retry-After` e agenda nova tentativa. |
+| Erro                      | Comportamento da interface                                                                                      |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `409 VERSION_CONFLICT`    | Rollback da atualização otimista, abre o modal de conflito com o diff.                                          |
+| `412 PRECONDITION_FAILED` | Rollback, recarrega o recurso e pede nova confirmação.                                                          |
+| `422`                     | Rollback, destaca o campo inválido. Não repete automaticamente.                                                 |
+| `503` / timeout           | **Mantém a UI otimista**, mostra toast _"Instável — vamos tentar de novo"_ e deixa o retry com backoff assumir. |
+| `429`                     | Respeita `Retry-After` e agenda nova tentativa.                                                                 |
 
 Em nenhum caso a aplicação executa `window.location.reload()`. Recarregar a
 página destrói o contexto da analista — filtros, scroll e posição na fila — e
@@ -286,12 +286,12 @@ gatilho — rede instável.
 Todo `POST` e `PATCH` aceita `Idempotency-Key: <uuid v4>`. O servidor persiste,
 por 24 horas, a tripla `(key, hash do corpo, resposta)`.
 
-| Cenário | Comportamento |
-| --- | --- |
-| Chave nova | Processa normalmente e armazena o resultado. |
-| Chave repetida, mesmo corpo | Devolve a resposta original, sem reprocessar. |
-| Chave repetida, corpo diferente | `409 IDEMPOTENCY_KEY_REUSED`. |
-| Chave em processamento | `409 IDEMPOTENCY_KEY_IN_PROGRESS`. |
+| Cenário                         | Comportamento                                 |
+| ------------------------------- | --------------------------------------------- |
+| Chave nova                      | Processa normalmente e armazena o resultado.  |
+| Chave repetida, mesmo corpo     | Devolve a resposta original, sem reprocessar. |
+| Chave repetida, corpo diferente | `409 IDEMPOTENCY_KEY_REUSED`.                 |
+| Chave em processamento          | `409 IDEMPOTENCY_KEY_IN_PROGRESS`.            |
 
 ### 6.2 A sequência que isso resolve
 
@@ -323,10 +323,10 @@ medo.
 
 ### 6.3 Relação com o lock otimista
 
-| Mecanismo | Protege contra | Chave |
-| --- | --- | --- |
+| Mecanismo          | Protege contra                                               | Chave                  |
+| ------------------ | ------------------------------------------------------------ | ---------------------- |
 | Optimistic locking | Duas decisões distintas e conflitantes sobre o mesmo recurso | `version` / `If-Match` |
-| Idempotência | A mesma decisão aplicada duas vezes | `Idempotency-Key` |
+| Idempotência       | A mesma decisão aplicada duas vezes                          | `Idempotency-Key`      |
 
 Os dois são necessários e não se substituem: a versão impede sobrescrever, a
 chave impede duplicar. Um `PATCH` reenviado com `Idempotency-Key` retorna a
@@ -353,16 +353,16 @@ flowchart TB
 
 ### 7.2 Camada por camada
 
-| Camada | Configuração | O que resolve |
-| --- | --- | --- |
-| **Pool** | `pool_pre_ping=True`, `pool_size=5`, `max_overflow=10`, `pool_recycle=1800` | Conexões mortas por *idle* são recicladas em vez de entregues à analista como erro. |
-| **Timeout** | `statement_timeout` (PostgreSQL) / `busy_timeout` (SQLite), `DB_STATEMENT_TIMEOUT_MS=5000` | Uma query patológica devolve `503` em vez de pendurar o worker para sempre. |
-| **Retry** | Exponencial com jitter, máximo 3 tentativas, apenas em `OperationalError`, `SerializationFailure` e `TimeoutError`, e apenas em operações idempotentes | Absorve blips de rede e picos momentâneos de contenção sem duplicar efeitos. |
-| **Circuit breaker** | Abre após N falhas consecutivas; responde `503` com `Retry-After` e o último cache conhecido | Falha rápido em vez de enfileirar requisições condenadas — o que protege o banco na volta. |
-| **Cache** | TTL curto na listagem, com *stale-while-revalidate* | Em degradação, serve dado ligeiramente velho mas **utilizável**, em vez de tela de erro. |
-| **Rate limit** | Token bucket por IP: 60 req/min em leitura, limite menor em escrita | Contém loop de retry do próprio cliente, que é uma das causas de sobrecarga em incidentes. |
-| **Shutdown** | `lifespan` fecha o pool e finaliza requisições em voo | Deploy não derruba requisição no meio. |
-| **Observabilidade** | Log JSON com `requestId`, método, rota, status e duração | Correlaciona o que a analista viu com o que o servidor fez. |
+| Camada              | Configuração                                                                                                                                           | O que resolve                                                                              |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
+| **Pool**            | `pool_pre_ping=True`, `pool_size=5`, `max_overflow=10`, `pool_recycle=1800`                                                                            | Conexões mortas por _idle_ são recicladas em vez de entregues à analista como erro.        |
+| **Timeout**         | `statement_timeout` (PostgreSQL) / `busy_timeout` (SQLite), `DB_STATEMENT_TIMEOUT_MS=5000`                                                             | Uma query patológica devolve `503` em vez de pendurar o worker para sempre.                |
+| **Retry**           | Exponencial com jitter, máximo 3 tentativas, apenas em `OperationalError`, `SerializationFailure` e `TimeoutError`, e apenas em operações idempotentes | Absorve blips de rede e picos momentâneos de contenção sem duplicar efeitos.               |
+| **Circuit breaker** | Abre após N falhas consecutivas; responde `503` com `Retry-After` e o último cache conhecido                                                           | Falha rápido em vez de enfileirar requisições condenadas — o que protege o banco na volta. |
+| **Cache**           | TTL curto na listagem, com _stale-while-revalidate_                                                                                                    | Em degradação, serve dado ligeiramente velho mas **utilizável**, em vez de tela de erro.   |
+| **Rate limit**      | Token bucket por IP: 60 req/min em leitura, limite menor em escrita                                                                                    | Contém loop de retry do próprio cliente, que é uma das causas de sobrecarga em incidentes. |
+| **Shutdown**        | `lifespan` fecha o pool e finaliza requisições em voo                                                                                                  | Deploy não derruba requisição no meio.                                                     |
+| **Observabilidade** | Log JSON com `requestId`, método, rota, status e duração                                                                                               | Correlaciona o que a analista viu com o que o servidor fez.                                |
 
 ### 7.3 Retry com backoff exponencial e jitter
 
@@ -388,11 +388,11 @@ def backoff_delay(
 ```
 
 | Tentativa | Teto do backoff | Atraso efetivo (0..teto) |
-| --- | --- | --- |
-| 1 | 1,0 s | 0 a 1,0 s |
-| 2 | 2,0 s | 0 a 2,0 s |
-| 3 | 4,0 s | 0 a 4,0 s |
-| 4+ | 8,0 s (teto) | 0 a 8,0 s |
+| --------- | --------------- | ------------------------ |
+| 1         | 1,0 s           | 0 a 1,0 s                |
+| 2         | 2,0 s           | 0 a 2,0 s                |
+| 3         | 4,0 s           | 0 a 4,0 s                |
+| 4+        | 8,0 s (teto)    | 0 a 8,0 s                |
 
 O retry é aplicado **somente** quando as duas condições valem:
 
@@ -402,16 +402,16 @@ O retry é aplicado **somente** quando as duas condições valem:
 2. A operação é idempotente: `GET`, ou mutação com `Idempotency-Key` cujo
    efeito é comprovadamente repetível.
 
-### 7.4 Cache com *stale-while-revalidate*
+### 7.4 Cache com _stale-while-revalidate_
 
 O cache da listagem tem três estados, expostos no cabeçalho `X-Cache-Status`
 para que o comportamento seja observável em desenvolvimento e nos logs:
 
-| Estado | Quando | O que acontece |
-| --- | --- | --- |
-| `HIT` | Dentro do TTL | Resposta imediata do cache. |
-| `REVALIDATED` | TTL expirado, atualização bem-sucedida | Busca no banco, atualiza o cache e responde. |
-| `STALE` | TTL expirado e o banco indisponível ou o circuit breaker aberto | Serve o valor antigo **marcado como defasado**, para a interface exibir o aviso de instabilidade. |
+| Estado        | Quando                                                          | O que acontece                                                                                    |
+| ------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `HIT`         | Dentro do TTL                                                   | Resposta imediata do cache.                                                                       |
+| `REVALIDATED` | TTL expirado, atualização bem-sucedida                          | Busca no banco, atualiza o cache e responde.                                                      |
+| `STALE`       | TTL expirado e o banco indisponível ou o circuit breaker aberto | Serve o valor antigo **marcado como defasado**, para a interface exibir o aviso de instabilidade. |
 
 O ponto central: um dado de 30 segundos atrás é **utilizável** para triagem —
 a analista precisa saber que o incidente existe e qual sua prioridade. Uma tela
@@ -436,7 +436,7 @@ transforma um incidente de infraestrutura em uma degradação visível em vez de
 uma fila de timeouts.
 
 Do lado da interface, `503` não é tratado como erro fatal: o card de erro
-mantém o cache na tela, mostra *"Instável — vamos tentar de novo"* e o retry
+mantém o cache na tela, mostra _"Instável — vamos tentar de novo"_ e o retry
 com backoff assume.
 
 ### 7.6 Rate limit
@@ -450,7 +450,7 @@ tentativa em vez de insistir.
 ## 8. Por que não confiar em retry cego em `PATCH`
 
 Esta é a decisão mais sutil do documento e a que mais depende de raciocínio
-sobre *quando* a falha aconteceu.
+sobre _quando_ a falha aconteceu.
 
 ### 8.1 Reexecutar um `PATCH` não é como reexecutar um `GET`
 
@@ -469,13 +469,13 @@ correto é diferente.
 
 ### 8.2 A regra aplicada
 
-| Situação | Estratégia |
-| --- | --- |
-| Falha **antes** de a transação iniciar (não foi possível obter conexão, timeout de aquisição do pool) | Retry interno permitido. Nenhum efeito foi aplicado. |
-| Falha **durante** a transação, antes do `COMMIT` | Retry interno permitido, desde que a transação tenha sido revertida. |
-| Falha **após** o `COMMIT` ou em momento indeterminado (timeout de resposta, queda de rede na volta) | **Sem retry.** A API devolve `503` e o cliente decide. |
-| Mutação **com** `Idempotency-Key` válida | Retry seguro. O servidor reconhece a chave e devolve a resposta original em vez de reaplicar. |
-| Mutação **sem** `Idempotency-Key` | Tratada como caso de risco: sem retry automático, retorno de `503` com `Retry-After`. |
+| Situação                                                                                              | Estratégia                                                                                    |
+| ----------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| Falha **antes** de a transação iniciar (não foi possível obter conexão, timeout de aquisição do pool) | Retry interno permitido. Nenhum efeito foi aplicado.                                          |
+| Falha **durante** a transação, antes do `COMMIT`                                                      | Retry interno permitido, desde que a transação tenha sido revertida.                          |
+| Falha **após** o `COMMIT` ou em momento indeterminado (timeout de resposta, queda de rede na volta)   | **Sem retry.** A API devolve `503` e o cliente decide.                                        |
+| Mutação **com** `Idempotency-Key` válida                                                              | Retry seguro. O servidor reconhece a chave e devolve a resposta original em vez de reaplicar. |
+| Mutação **sem** `Idempotency-Key`                                                                     | Tratada como caso de risco: sem retry automático, retorno de `503` com `Retry-After`.         |
 
 ### 8.3 Por que não basta "só repetir se for idempotente pelo método"
 
@@ -488,14 +488,14 @@ versão, mas o instrumento correto é não emitir a segunda requisição sem
 informação de causalidade.
 
 Por isso a chave de idempotência é o mecanismo explícito de intenção: ela afirma
-*"esta é a mesma tentativa de antes"*. Sem ela, a API não tem como distinguir
+_"esta é a mesma tentativa de antes"_. Sem ela, a API não tem como distinguir
 entre "repetição da mesma decisão" e "nova decisão" — e a resposta honesta é
 não agir e informar.
 
 ### 8.4 O que a interface faz nesse caso
 
 1. A UI otimista **permanece aplicada** (a analista vê a mudança que pediu).
-2. Um toast informa: *"Instável — vamos tentar de novo"*.
+2. Um toast informa: _"Instável — vamos tentar de novo"_.
 3. O botão "Tentar novamente" reenvia com a **mesma** `Idempotency-Key`, o que
    torna a repetição segura.
 4. Se o `503` persistir, o banner de offline assume e a alteração entra na fila
@@ -506,11 +506,11 @@ perguntar à analista se ela quer repetir uma operação de efeito indeterminado
 
 ## 9. Resumo das garantias
 
-| Garantia | Mecanismo | Como é comprovado |
-| --- | --- | --- |
-| Nenhuma sobrescrita silenciosa | `UPDATE ... WHERE version = :expected` | `tests/concurrency` com `ThreadPoolExecutor`: exatamente uma requisição vence, as demais recebem `409`. |
-| Nenhuma duplicação por retry | `Idempotency-Key` persistida por 24 h | Teste de integração que reenvia a mesma chave com o mesmo corpo e confere que o recurso não é recriado. |
-| Nenhum `500` por entrada inesperada | Pydantic v2 + envelope de erro único | Testes de integração cobrindo `400`, `409`, `412`, `422`, `429` e `503`. |
-| Degradação visível, não quebra | Circuit breaker + cache *stale* + `503` com `Retry-After` | Testes de infraestrutura e verificação manual com o banco derrubado. |
-| Retry que não derruba o banco na volta | Backoff exponencial com jitter completo | Teste unitário da distribuição dos atrasos. |
-| Conflito sempre visível para a analista | Modal de conflito com diff campo a campo | Teste de componente do `ConflictDialog` e demonstração em duas abas. |
+| Garantia                                | Mecanismo                                                 | Como é comprovado                                                                                       |
+| --------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Nenhuma sobrescrita silenciosa          | `UPDATE ... WHERE version = :expected`                    | `tests/concurrency` com `ThreadPoolExecutor`: exatamente uma requisição vence, as demais recebem `409`. |
+| Nenhuma duplicação por retry            | `Idempotency-Key` persistida por 24 h                     | Teste de integração que reenvia a mesma chave com o mesmo corpo e confere que o recurso não é recriado. |
+| Nenhum `500` por entrada inesperada     | Pydantic v2 + envelope de erro único                      | Testes de integração cobrindo `400`, `409`, `412`, `422`, `429` e `503`.                                |
+| Degradação visível, não quebra          | Circuit breaker + cache _stale_ + `503` com `Retry-After` | Testes de infraestrutura e verificação manual com o banco derrubado.                                    |
+| Retry que não derruba o banco na volta  | Backoff exponencial com jitter completo                   | Teste unitário da distribuição dos atrasos.                                                             |
+| Conflito sempre visível para a analista | Modal de conflito com diff campo a campo                  | Teste de componente do `ConflictDialog` e demonstração em duas abas.                                    |

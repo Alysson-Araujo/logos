@@ -11,12 +11,12 @@ que está pegando fogo?", e tudo que é normal permanece visualmente silencioso.
 Na prática, isso significa que o orçamento de atenção da analista é tratado como
 recurso escasso e alocado deliberadamente:
 
-| Recurso visual | Onde é gasto | Onde é negado |
-| --- | --- | --- |
-| Cor saturada | Criticidade `ALTA`, SLA vencendo | `BAIXA`, incidentes em dia |
-| Peso tipográfico | Código, categoria, tempo em aberto | Metadados secundários |
-| Espaço | Linha selecionada, painel aberto | Modo compacto para monitoramento longo |
-| Movimento | Entrada de painel, confirmação de ação | Qualquer coisa em `prefers-reduced-motion` |
+| Recurso visual   | Onde é gasto                           | Onde é negado                              |
+| ---------------- | -------------------------------------- | ------------------------------------------ |
+| Cor saturada     | Criticidade `ALTA`, SLA vencendo       | `BAIXA`, incidentes em dia                 |
+| Peso tipográfico | Código, categoria, tempo em aberto     | Metadados secundários                      |
+| Espaço           | Linha selecionada, painel aberto       | Modo compacto para monitoramento longo     |
+| Movimento        | Entrada de painel, confirmação de ação | Qualquer coisa em `prefers-reduced-motion` |
 
 ## 2. Tokens de cor
 
@@ -25,49 +25,49 @@ pelo JSX. Isso é o que permite trocar de tema sem tocar em componente nenhum.
 
 ### 2.1 Superfícies e texto
 
-| Token | Claro | Escuro | Uso |
-| --- | --- | --- | --- |
-| `--bg` | `#F8FAFC` | `#0B1120` | Fundo da aplicação |
-| `--surface` | `#FFFFFF` | `#111827` | Cards, linhas da lista, drawer |
+| Token              | Claro     | Escuro    | Uso                             |
+| ------------------ | --------- | --------- | ------------------------------- |
+| `--bg`             | `#F8FAFC` | `#0B1120` | Fundo da aplicação              |
+| `--surface`        | `#FFFFFF` | `#111827` | Cards, linhas da lista, drawer  |
 | `--surface-raised` | `#FFFFFF` | `#1F2937` | Modal, popover, command palette |
-| `--border` | `#E2E8F0` | `#1F2937` | Divisórias e contornos |
-| `--border-strong` | `#CBD5E1` | `#374151` | Contorno de campo em foco/hover |
-| `--text` | `#0F172A` | `#F1F5F9` | Texto principal |
-| `--text-muted` | `#475569` | `#94A3B8` | Metadados, rótulos secundários |
-| `--text-subtle` | `#64748B` | `#64748B` | Texto de apoio, placeholders |
+| `--border`         | `#E2E8F0` | `#1F2937` | Divisórias e contornos          |
+| `--border-strong`  | `#CBD5E1` | `#374151` | Contorno de campo em foco/hover |
+| `--text`           | `#0F172A` | `#F1F5F9` | Texto principal                 |
+| `--text-muted`     | `#475569` | `#94A3B8` | Metadados, rótulos secundários  |
+| `--text-subtle`    | `#64748B` | `#64748B` | Texto de apoio, placeholders    |
 
 ### 2.2 Criticidade
 
 Três canais redundantes por criticidade — cor, ícone e espessura de borda — mais
 o rótulo textual. A tabela é a fonte da verdade para o `CriticalityBadge`.
 
-| Criticidade | Ícone | Borda esquerda | Fundo tênue (claro) | Cor (claro) | Cor (escuro) |
-| --- | --- | --- | --- | --- | --- |
-| **ALTA** | ▲ triângulo | 4 px | `#FEF2F2` | `#DC2626` | `#F87171` |
-| **MÉDIA** | ◆ losango | 3 px | `#FFFBEB` | `#D97706` | `#FBBF24` |
-| **BAIXA** | ● círculo | 2 px | transparente | `#2563EB` | `#60A5FA` |
+| Criticidade | Ícone       | Borda esquerda | Fundo tênue (claro) | Cor (claro) | Cor (escuro) |
+| ----------- | ----------- | -------------- | ------------------- | ----------- | ------------ |
+| **ALTA**    | ▲ triângulo | 4 px           | `#FEF2F2`           | `#DC2626`   | `#F87171`    |
+| **MÉDIA**   | ◆ losango   | 3 px           | `#FFFBEB`           | `#D97706`   | `#FBBF24`    |
+| **BAIXA**   | ● círculo   | 2 px           | transparente        | `#2563EB`   | `#60A5FA`    |
 
 ### 2.3 Status
 
 Pills com fundo suave e texto forte. **Sempre com rótulo textual**, nunca só a
 cor.
 
-| Status | Rótulo PT-BR | Fundo (claro) | Texto (claro) | Fundo (escuro) | Texto (escuro) |
-| --- | --- | --- | --- | --- | --- |
-| `ABERTO` | Aberto | `#FFFBEB` | `#92400E` | `#422006` | `#FBBF24` |
-| `EM_INVESTIGACAO` | Em Investigação | `#EFF6FF` | `#1E40AF` | `#172554` | `#93C5FD` |
-| `FECHADO` | Fechado | `#F0FDF4` | `#166534` | `#052E16` | `#86EFAC` |
-| `INCONCLUSIVO` | Inconclusivo | `#F8FAFC` | `#475569` | `#1F2937` | `#CBD5E1` |
+| Status            | Rótulo PT-BR    | Fundo (claro) | Texto (claro) | Fundo (escuro) | Texto (escuro) |
+| ----------------- | --------------- | ------------- | ------------- | -------------- | -------------- |
+| `ABERTO`          | Aberto          | `#FFFBEB`     | `#92400E`     | `#422006`      | `#FBBF24`      |
+| `EM_INVESTIGACAO` | Em Investigação | `#EFF6FF`     | `#1E40AF`     | `#172554`      | `#93C5FD`      |
+| `FECHADO`         | Fechado         | `#F0FDF4`     | `#166534`     | `#052E16`      | `#86EFAC`      |
+| `INCONCLUSIVO`    | Inconclusivo    | `#F8FAFC`     | `#475569`     | `#1F2937`      | `#CBD5E1`      |
 
 ### 2.4 Estados de sistema
 
-| Token | Valor | Uso |
-| --- | --- | --- |
-| `--danger` | `#DC2626` | Erro, SLA vencido, conflito |
-| `--warning` | `#D97706` | Instabilidade de rede, atenção |
-| `--success` | `#16A34A` | Confirmação, SLA cumprido |
-| `--info` | `#2563EB` | Informação neutra, atualização disponível |
-| `--focus-ring` | `#2563EB` | Anel de foco (2 px + 2 px de *offset*) |
+| Token          | Valor     | Uso                                       |
+| -------------- | --------- | ----------------------------------------- |
+| `--danger`     | `#DC2626` | Erro, SLA vencido, conflito               |
+| `--warning`    | `#D97706` | Instabilidade de rede, atenção            |
+| `--success`    | `#16A34A` | Confirmação, SLA cumprido                 |
+| `--info`       | `#2563EB` | Informação neutra, atualização disponível |
+| `--focus-ring` | `#2563EB` | Anel de foco (2 px + 2 px de _offset_)    |
 
 ### 2.5 Implementação
 
@@ -132,7 +132,17 @@ export default {
           baixa: 'var(--criticality-baixa)',
         },
       },
-      spacing: { 1: '4px', 2: '8px', 3: '12px', 4: '16px', 5: '20px', 6: '24px', 8: '32px', 12: '48px', 16: '64px' },
+      spacing: {
+        1: '4px',
+        2: '8px',
+        3: '12px',
+        4: '16px',
+        5: '20px',
+        6: '24px',
+        8: '32px',
+        12: '48px',
+        16: '64px',
+      },
       borderRadius: { sm: '6px', md: '10px', full: '999px' },
       transitionTimingFunction: { out: 'cubic-bezier(0.2, 0.8, 0.2, 1)' },
     },
@@ -142,29 +152,29 @@ export default {
 
 ## 3. Tipografia
 
-| Item | Definição |
-| --- | --- |
-| Família de UI | `Inter`, com *fallback* para `system-ui`, `sans-serif` |
+| Item                 | Definição                                                          |
+| -------------------- | ------------------------------------------------------------------ |
+| Família de UI        | `Inter`, com _fallback_ para `system-ui`, `sans-serif`             |
 | Família monoespaçada | `JetBrains Mono` para códigos de incidente, IDs e trechos técnicos |
-| Escala | `12 / 13 / 14 / 16 / 20 / 24 / 32` px |
-| Pesos | `400` regular, `500` medium, `600` semibold, `700` bold |
-| Entrelinha | `1.25` em títulos, `1.5` em corpo, `1.2` em linhas densas da lista |
-| Números tabulares | `tabular-nums` obrigatório em timers, contadores, códigos e scores |
+| Escala               | `12 / 13 / 14 / 16 / 20 / 24 / 32` px                              |
+| Pesos                | `400` regular, `500` medium, `600` semibold, `700` bold            |
+| Entrelinha           | `1.25` em títulos, `1.5` em corpo, `1.2` em linhas densas da lista |
+| Números tabulares    | `tabular-nums` obrigatório em timers, contadores, códigos e scores |
 
 ### 3.1 Mapa de uso
 
-| Elemento | Tamanho | Peso | Observação |
-| --- | --- | --- | --- |
-| Código do incidente (`INC-2026-000123`) | 13 px | 600 | `JetBrains Mono` + `tabular-nums`, para alinhar verticalmente na varredura |
-| Categoria | 14 px | 600 | Caixa alta, é o primeiro campo reconhecido no F-pattern |
-| Local e placa | 13 px | 400 | `--text-muted` |
-| Badge de criticidade | 12 px | 700 | Caixa alta, sempre acompanhado de ícone e forma |
-| Pill de status | 12 px | 600 | Rótulo textual obrigatório |
-| Timer de SLA | 13 px | 600 | `tabular-nums`: o número não pode "dançar" a cada segundo |
-| Score de prioridade | 13 px | 500 | `tabular-nums`, alinhado à direita |
-| Título de seção do drawer | 16 px | 600 | — |
-| KPI do topo (contagem) | 24 px | 700 | `tabular-nums` |
-| Título da tela | 20 px | 600 | — |
+| Elemento                                | Tamanho | Peso | Observação                                                                 |
+| --------------------------------------- | ------- | ---- | -------------------------------------------------------------------------- |
+| Código do incidente (`INC-2026-000123`) | 13 px   | 600  | `JetBrains Mono` + `tabular-nums`, para alinhar verticalmente na varredura |
+| Categoria                               | 14 px   | 600  | Caixa alta, é o primeiro campo reconhecido no F-pattern                    |
+| Local e placa                           | 13 px   | 400  | `--text-muted`                                                             |
+| Badge de criticidade                    | 12 px   | 700  | Caixa alta, sempre acompanhado de ícone e forma                            |
+| Pill de status                          | 12 px   | 600  | Rótulo textual obrigatório                                                 |
+| Timer de SLA                            | 13 px   | 600  | `tabular-nums`: o número não pode "dançar" a cada segundo                  |
+| Score de prioridade                     | 13 px   | 500  | `tabular-nums`, alinhado à direita                                         |
+| Título de seção do drawer               | 16 px   | 600  | —                                                                          |
+| KPI do topo (contagem)                  | 24 px   | 700  | `tabular-nums`                                                             |
+| Título da tela                          | 20 px   | 600  | —                                                                          |
 
 **Por que `tabular-nums` é regra e não preferência:** em uma lista que atualiza
 a cada segundo, larguras de dígito variáveis fazem o texto deslocar
@@ -174,19 +184,19 @@ ruído.
 ## 4. Espaçamento, raios e sombras
 
 | Escala de espaçamento | 4 · 8 · 12 · 16 · 20 · 24 · 32 · 48 · 64 px |
-| --- | --- |
-| Base | 4 px |
+| --------------------- | ------------------------------------------- |
+| Base                  | 4 px                                        |
 
-| Raio | Valor | Aplicação |
-| --- | --- | --- |
-| `sm` | `6px` | Inputs, botões, badges retangulares |
-| `md` | `10px` | Cards, linhas da lista, drawer |
-| `full` | `999px` | Pills de status, avatares |
+| Raio   | Valor   | Aplicação                           |
+| ------ | ------- | ----------------------------------- |
+| `sm`   | `6px`   | Inputs, botões, badges retangulares |
+| `md`   | `10px`  | Cards, linhas da lista, drawer      |
+| `full` | `999px` | Pills de status, avatares           |
 
-| Sombra | Valor | Aplicação |
-| --- | --- | --- |
-| `shadow-1` | `0 1px 2px rgb(15 23 42 / 0.06)` | Linha em hover |
-| `shadow-2` | `0 4px 12px rgb(15 23 42 / 0.08)` | Card em foco, popover |
+| Sombra     | Valor                              | Aplicação                      |
+| ---------- | ---------------------------------- | ------------------------------ |
+| `shadow-1` | `0 1px 2px rgb(15 23 42 / 0.06)`   | Linha em hover                 |
+| `shadow-2` | `0 4px 12px rgb(15 23 42 / 0.08)`  | Card em foco, popover          |
 | `shadow-3` | `0 12px 32px rgb(15 23 42 / 0.14)` | Modal, drawer, command palette |
 
 Três níveis, sem exceção. Uma quarta sombra não tem função semântica — só
@@ -194,11 +204,11 @@ dificulta a leitura de hierarquia.
 
 ## 5. Movimento
 
-| Token | Duração | Aplicação |
-| --- | --- | --- |
-| `--duration-fast` | `150ms` | Hover, foco, troca de estado de botão |
-| `--duration-base` | `200ms` | Entrada de drawer, abertura de modal, toast |
-| Curva | `cubic-bezier(0.2, 0.8, 0.2, 1)` | Padrão para tudo; sai rápido, chega devagar |
+| Token             | Duração                          | Aplicação                                   |
+| ----------------- | -------------------------------- | ------------------------------------------- |
+| `--duration-fast` | `150ms`                          | Hover, foco, troca de estado de botão       |
+| `--duration-base` | `200ms`                          | Entrada de drawer, abertura de modal, toast |
+| Curva             | `cubic-bezier(0.2, 0.8, 0.2, 1)` | Padrão para tudo; sai rápido, chega devagar |
 
 Regras:
 
@@ -230,12 +240,12 @@ Regras:
 Toda informação de criticidade ou status é transmitida por **quatro canais
 simultâneos**:
 
-| Canal | Exemplo em `ALTA` |
-| --- | --- |
-| Cor | Vermelho `#DC2626` |
-| Ícone | ▲ triângulo |
+| Canal | Exemplo em `ALTA`      |
+| ----- | ---------------------- |
+| Cor   | Vermelho `#DC2626`     |
+| Ícone | ▲ triângulo            |
 | Forma | Borda esquerda de 4 px |
-| Texto | Rótulo "ALTA" |
+| Texto | Rótulo "ALTA"          |
 
 Nenhum estado da interface depende **apenas** de cor para ser compreendido.
 
@@ -298,13 +308,13 @@ pressão_de_sla             = 200 se faltam menos de 60 min para o SLA, senão 0
 **Incidente:** `INC-2026-000123`, acidente com vítimas, criticidade `ALTA`,
 criado há 4 horas, com SLA vencendo em 12 minutos.
 
-| Componente | Cálculo | Parcela |
-| --- | --- | --- |
-| Impacto da categoria | `ACIDENTE_COM_VITIMAS` → tabela | **300** |
-| Urgência da criticidade | `ALTA` → tabela | **500** |
-| Aging | `min(4 × 12, 400) = min(48, 400)` | **48** |
-| Pressão de SLA | faltam 12 min, que é menos que 60 → teto aplicado | **200** |
-| **Total** | `300 + 500 + 48 + 200` | **1048** |
+| Componente              | Cálculo                                           | Parcela  |
+| ----------------------- | ------------------------------------------------- | -------- |
+| Impacto da categoria    | `ACIDENTE_COM_VITIMAS` → tabela                   | **300**  |
+| Urgência da criticidade | `ALTA` → tabela                                   | **500**  |
+| Aging                   | `min(4 × 12, 400) = min(48, 400)`                 | **48**   |
+| Pressão de SLA          | faltam 12 min, que é menos que 60 → teto aplicado | **200**  |
+| **Total**               | `300 + 500 + 48 + 200`                            | **1048** |
 
 O mesmo cálculo com a janela de SLA fora do limite crítico (faltando 3 horas)
 resulta em `300 + 500 + 48 + 0 = **848**`, e o incidente cai na fila. É esse o
@@ -315,13 +325,13 @@ mais do que quatro horas de espera.
 
 Um problema mecânico `BAIXA` esquecido por 40 horas:
 
-| Componente | Cálculo | Parcela |
-| --- | --- | --- |
-| Impacto | `PROBLEMA_MECANICO` | 60 |
-| Urgência | `BAIXA` | 80 |
-| Aging | `min(40 × 12, 400) = min(480, 400)` | **400** (teto) |
-| Pressão de SLA | fora da janela (SLA de baixa é longo) | 0 |
-| **Total** | `60 + 80 + 400 + 0` | **540** |
+| Componente     | Cálculo                               | Parcela        |
+| -------------- | ------------------------------------- | -------------- |
+| Impacto        | `PROBLEMA_MECANICO`                   | 60             |
+| Urgência       | `BAIXA`                               | 80             |
+| Aging          | `min(40 × 12, 400) = min(480, 400)`   | **400** (teto) |
+| Pressão de SLA | fora da janela (SLA de baixa é longo) | 0              |
+| **Total**      | `60 + 80 + 400 + 0`                   | **540**        |
 
 Sem o teto, esse caso chegaria a `60 + 80 + 480 = 620` e, em 100 horas,
 ultrapassaria qualquer incidente novo de alta criticidade — a fila perderia
@@ -331,7 +341,7 @@ um `BAIXA` recém-criado (140).
 
 ### 7.4 Explicabilidade na interface
 
-O score nunca aparece sozinho. O *tooltip* do `PriorityPill` mostra a
+O score nunca aparece sozinho. O _tooltip_ do `PriorityPill` mostra a
 decomposição termo a termo:
 
 ```
@@ -443,20 +453,20 @@ Notas de leitura:
 Nenhum estado é implícito. Cada situação tem tratamento definido, texto
 próprio e ação disponível.
 
-| Estado | Gatilho | O que a analista vê |
-| --- | --- | --- |
-| `initialLoading` | Primeira carga | Skeleton com a forma exata da lista (não um spinner centralizado) |
-| `refetching` | Atualização de fundo | Barra fina no topo; conteúdo permanece visível e interativo |
-| `loadingMore` | Scroll infinito | Skeleton de 3 linhas ao final da lista |
-| `emptyInitial` | Nenhum incidente | Ilustração, *"Nenhum incidente registrado. Boa notícia."* e CTA `Criar incidente` |
-| `emptyFiltered` | Filtro sem resultado | *"Nenhum resultado para `Alta · Acidente com Vítimas`"* e botão `Limpar filtros` |
-| `errorRecoverable` | `5xx` ou timeout | Card de erro com `Tentar novamente` (com contagem regressiva); **o cache anterior permanece na tela** |
-| `errorFatal` | `4xx` de contrato | Mensagem clara e ação `Copiar detalhes técnicos` |
-| `offline` | `navigator.onLine === false` | Banner fixo *"Sem conexão — exibindo últimos dados. Suas alterações serão enviadas ao reconectar."* |
-| `pendingMutation` | Mutação em voo | Botão desabilitado com spinner embutido e barra de progresso na linha |
-| `optimisticApplied` | Antes do `200` | Card atualizado na hora, com opacidade de 70% e ícone de relógio |
-| `conflict` | `409` | Modal de conflito com diff campo a campo e três ações |
-| `success` | `200` ou `201` | Toast verde por 2,5 s e a linha pisca suavemente |
+| Estado              | Gatilho                      | O que a analista vê                                                                                   |
+| ------------------- | ---------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `initialLoading`    | Primeira carga               | Skeleton com a forma exata da lista (não um spinner centralizado)                                     |
+| `refetching`        | Atualização de fundo         | Barra fina no topo; conteúdo permanece visível e interativo                                           |
+| `loadingMore`       | Scroll infinito              | Skeleton de 3 linhas ao final da lista                                                                |
+| `emptyInitial`      | Nenhum incidente             | Ilustração, _"Nenhum incidente registrado. Boa notícia."_ e CTA `Criar incidente`                     |
+| `emptyFiltered`     | Filtro sem resultado         | _"Nenhum resultado para `Alta · Acidente com Vítimas`"_ e botão `Limpar filtros`                      |
+| `errorRecoverable`  | `5xx` ou timeout             | Card de erro com `Tentar novamente` (com contagem regressiva); **o cache anterior permanece na tela** |
+| `errorFatal`        | `4xx` de contrato            | Mensagem clara e ação `Copiar detalhes técnicos`                                                      |
+| `offline`           | `navigator.onLine === false` | Banner fixo _"Sem conexão — exibindo últimos dados. Suas alterações serão enviadas ao reconectar."_   |
+| `pendingMutation`   | Mutação em voo               | Botão desabilitado com spinner embutido e barra de progresso na linha                                 |
+| `optimisticApplied` | Antes do `200`               | Card atualizado na hora, com opacidade de 70% e ícone de relógio                                      |
+| `conflict`          | `409`                        | Modal de conflito com diff campo a campo e três ações                                                 |
+| `success`           | `200` ou `201`               | Toast verde por 2,5 s e a linha pisca suavemente                                                      |
 
 ### 9.1 Regras que valem para todos os estados
 
@@ -472,17 +482,17 @@ próprio e ação disponível.
 
 ### 10.1 Critérios
 
-| Critério | Como é atendido |
-| --- | --- |
-| **Contraste WCAG AA** | Mínimo de 4,5:1 em texto normal e 3:1 em texto grande, verificado nos dois temas. <!-- registrar os valores medidos quando a paleta estiver finalizada --> |
-| **Foco visível** | `:focus-visible` com anel de 2 px em `--focus-ring` e `offset` de 2 px, em todos os elementos interativos. |
-| **Navegação por teclado** | `Tab`, `Shift+Tab`, `Enter`, `Esc`, `j`/`k` na lista, `/` para busca, `f` para filtros, `Ctrl+K` para a command palette, `?` para a lista de atalhos. |
-| **`aria-live`** | `polite` em toasts, contadores e no aviso de novos incidentes; `assertive` no modal de conflito. |
-| **`aria-label`** | Obrigatório em todos os botões que contêm apenas ícone. |
-| **Redundância de canais** | Criticidade e status nunca dependem só de cor. |
-| **`prefers-reduced-motion`** | Todas as transições respeitam a preferência do sistema operacional. |
-| **Sem armadilha de foco** | Modal e drawer prendem o foco enquanto abertos e devolvem o foco ao elemento de origem ao fechar. |
-| **Estrutura semântica** | Uma `<h1>` por tela, `<table>`/`<ul>` com papéis corretos, `role="status"` para regiões que atualizam sozinhas. |
+| Critério                     | Como é atendido                                                                                                                                            |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Contraste WCAG AA**        | Mínimo de 4,5:1 em texto normal e 3:1 em texto grande, verificado nos dois temas. <!-- registrar os valores medidos quando a paleta estiver finalizada --> |
+| **Foco visível**             | `:focus-visible` com anel de 2 px em `--focus-ring` e `offset` de 2 px, em todos os elementos interativos.                                                 |
+| **Navegação por teclado**    | `Tab`, `Shift+Tab`, `Enter`, `Esc`, `j`/`k` na lista, `/` para busca, `f` para filtros, `Ctrl+K` para a command palette, `?` para a lista de atalhos.      |
+| **`aria-live`**              | `polite` em toasts, contadores e no aviso de novos incidentes; `assertive` no modal de conflito.                                                           |
+| **`aria-label`**             | Obrigatório em todos os botões que contêm apenas ícone.                                                                                                    |
+| **Redundância de canais**    | Criticidade e status nunca dependem só de cor.                                                                                                             |
+| **`prefers-reduced-motion`** | Todas as transições respeitam a preferência do sistema operacional.                                                                                        |
+| **Sem armadilha de foco**    | Modal e drawer prendem o foco enquanto abertos e devolvem o foco ao elemento de origem ao fechar.                                                          |
+| **Estrutura semântica**      | Uma `<h1>` por tela, `<table>`/`<ul>` com papéis corretos, `role="status"` para regiões que atualizam sozinhas.                                            |
 
 ### 10.2 Ordem de tabulação na tela de triagem
 

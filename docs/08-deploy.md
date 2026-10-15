@@ -14,11 +14,11 @@ flowchart LR
     U -.->|"SSE /incidents/stream"| R
 ```
 
-| Serviço | Plataforma | Papel |
-| --- | --- | --- |
-| Frontend | Vercel | Serve o build estático do Vite pela CDN. |
-| API | Render (Web Service) | Roda o uvicorn com a aplicação FastAPI. |
-| Banco | Neon | PostgreSQL serverless, com *branching* por ambiente. |
+| Serviço  | Plataforma           | Papel                                                |
+| -------- | -------------------- | ---------------------------------------------------- |
+| Frontend | Vercel               | Serve o build estático do Vite pela CDN.             |
+| API      | Render (Web Service) | Roda o uvicorn com a aplicação FastAPI.              |
+| Banco    | Neon                 | PostgreSQL serverless, com _branching_ por ambiente. |
 
 A escolha está justificada no [ADR 0012](adr/0012-render-vercel-neon.md).
 
@@ -27,17 +27,17 @@ A escolha está justificada no [ADR 0012](adr/0012-render-vercel-neon.md).
 ### 2.1 Neon (banco)
 
 1. Criar o projeto `logos` no Neon.
-2. Copiar a *connection string* do **pooled endpoint** (é a que aparece por
+2. Copiar a _connection string_ do **pooled endpoint** (é a que aparece por
    padrão no painel) com `?sslmode=require`.
 3. Guardar duas versões da string:
 
-| Uso | Formato | Para que serve |
-| --- | --- | --- |
-| Aplicação | `postgresql+psycopg://usuario:senha@host/logos?sslmode=require` | Conexões da API em tempo de execução. |
-| Migrações | A mesma, com `-pooler` removido do host | `alembic upgrade head`, que precisa de sessão direta. |
+| Uso                               | Formato                                                         | Para que serve                                                                                                                                           |
+| --------------------------------- | --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Aplicação                         | `postgresql+psycopg://usuario:senha@host/logos?sslmode=require` | Conexões da API em tempo de execução.                                                                                                                    |
+| Migrações (planejado — issue #11) | A mesma, com `-pooler` removido do host                         | `alembic upgrade head`, que precisa de sessão direta. O comando só existe quando a issue #11 entrar; hoje o schema é criado pela própria API no startup. |
 
-A distinção importa: o *pooler* do Neon usa PgBouncer em modo transação, e
-migrações que abrem transações longas (ou usam *prepared statements*) se
+A distinção importa: o _pooler_ do Neon usa PgBouncer em modo transação, e
+migrações que abrem transações longas (ou usam _prepared statements_) se
 comportam mal através dele.
 
 ### 2.2 Render (API)
@@ -45,38 +45,44 @@ comportam mal através dele.
 1. **New → Web Service** → conectar o repositório `logos`.
 2. Configurar:
 
-| Campo | Valor |
-| --- | --- |
-| Root Directory | `backend` |
-| Environment | Python 3 |
-| Build Command | `pip install -e .` |
-| Start Command | `uvicorn app.main:app --host 0.0.0.0 --port $PORT` |
-| Health Check Path | `/health/ready` |
+| Campo             | Valor                                              |
+| ----------------- | -------------------------------------------------- |
+| Root Directory    | `backend`                                          |
+| Environment       | Python 3                                           |
+| Build Command     | `pip install -e .`                                 |
+| Start Command     | `uvicorn app.main:app --host 0.0.0.0 --port $PORT` |
+| Health Check Path | `/health/ready`                                    |
 
 3. Definir as variáveis de ambiente da [seção 3](#3-variáveis-de-ambiente).
 4. Fazer o deploy. O primeiro build pode demorar alguns minutos.
-5. Aplicar o schema e popular os dados de demonstração. Use o **Shell** do
-   próprio Render, que já tem as variáveis carregadas:
+5. Criar o schema e popular os dados de demonstração. Use o **Shell** do próprio
+   Render, que já tem as variáveis carregadas — o seed garante as tabelas antes
+   de inserir:
 
 ```bash
-alembic upgrade head
 python -m app.infra.seed
 ```
 
 6. Conferir `GET /health/ready` (deve responder `200`) e abrir `/docs`.
+
+> **Schema e migrações.** Não há Alembic no projeto: a aplicação cria as tabelas
+> no startup (`Base.metadata.create_all`) e o seed também garante o schema.
+> Migrações versionadas com Alembic entram na issue **#11** e **ainda não
+> existem**. Em produção real, migrações são pré-requisito de qualquer deploy que
+> mexa no schema — é por isso que elas estão no milestone `M1 — Backend Core`.
 
 ### 2.3 Vercel (frontend)
 
 1. **Add New → Project** → importar o repositório.
 2. Configurar:
 
-| Campo | Valor |
-| --- | --- |
-| Root Directory | `frontend` |
-| Framework Preset | Vite |
-| Build Command | `pnpm build` |
-| Output Directory | `dist` |
-| Install Command | `pnpm install --frozen-lockfile` |
+| Campo            | Valor                            |
+| ---------------- | -------------------------------- |
+| Root Directory   | `frontend`                       |
+| Framework Preset | Vite                             |
+| Build Command    | `pnpm build`                     |
+| Output Directory | `dist`                           |
+| Install Command  | `pnpm install --frozen-lockfile` |
 
 3. Definir `VITE_API_BASE_URL` com a URL pública da API, incluindo o sufixo
    `/api/v1`.
@@ -119,22 +125,22 @@ mal configurado e banco sem dados.
 
 ### 3.1 Backend (Render)
 
-| Variável | Valor em produção | Observação |
-| --- | --- | --- |
-| `ENVIRONMENT` | `production` | Muda nível de log e política de CORS. |
-| `DATABASE_URL` | `postgresql+psycopg://…?sslmode=require` | Do Neon, endpoint com `-pooler` para a aplicação. |
-| `CORS_ORIGINS` | `https://<projeto>.vercel.app` | Lista separada por vírgula. Nunca `*`. |
-| `LOG_LEVEL` | `INFO` | `DEBUG` só em investigação pontual. |
-| `RATE_LIMIT_PER_MINUTE` | `60` | Teto de leitura por IP. |
-| `DB_STATEMENT_TIMEOUT_MS` | `5000` | Query não pode pendurar o worker. |
-| `RETRY_MAX_ATTEMPTS` | `3` | Retry interno com backoff e jitter. |
-| `CACHE_TTL_SECONDS` | `30` | TTL da listagem com *stale-while-revalidate*. |
-| `SEED_ON_STARTUP` | `false` | Dados de demonstração são carregados uma vez, pelo Shell, não a cada deploy. |
+| Variável                  | Valor em produção                        | Observação                                                                   |
+| ------------------------- | ---------------------------------------- | ---------------------------------------------------------------------------- |
+| `ENVIRONMENT`             | `production`                             | Muda nível de log e política de CORS.                                        |
+| `DATABASE_URL`            | `postgresql+psycopg://…?sslmode=require` | Do Neon, endpoint com `-pooler` para a aplicação.                            |
+| `CORS_ORIGINS`            | `https://<projeto>.vercel.app`           | Lista separada por vírgula. Nunca `*`.                                       |
+| `LOG_LEVEL`               | `INFO`                                   | `DEBUG` só em investigação pontual.                                          |
+| `RATE_LIMIT_PER_MINUTE`   | `60`                                     | Teto de leitura por IP.                                                      |
+| `DB_STATEMENT_TIMEOUT_MS` | `5000`                                   | Query não pode pendurar o worker.                                            |
+| `RETRY_MAX_ATTEMPTS`      | `3`                                      | Retry interno com backoff e jitter.                                          |
+| `CACHE_TTL_SECONDS`       | `30`                                     | TTL da listagem com _stale-while-revalidate_.                                |
+| `SEED_ON_STARTUP`         | `false`                                  | Dados de demonstração são carregados uma vez, pelo Shell, não a cada deploy. |
 
 ### 3.2 Frontend (Vercel)
 
-| Variável | Valor | Observação |
-| --- | --- | --- |
+| Variável            | Valor                                   | Observação                 |
+| ------------------- | --------------------------------------- | -------------------------- |
 | `VITE_API_BASE_URL` | `https://<servico>.onrender.com/api/v1` | Precisa incluir `/api/v1`. |
 
 No Vite, variáveis `VITE_*` são **embutidas no bundle em tempo de build**. Isso
@@ -143,15 +149,15 @@ tem duas consequências diretas:
 1. Segredo nenhum pode ter prefixo `VITE_` — ele estaria no JavaScript servido
    ao navegador.
 2. Alterar `VITE_API_BASE_URL` exige **novo deploy**, não apenas reiniciar o
-   serviço. Editar a variável sem *redeploy* deixa o bundle antigo no ar.
+   serviço. Editar a variável sem _redeploy_ deixa o bundle antigo no ar.
 
 ### 3.3 Banco (Neon)
 
-| Item | Valor |
-| --- | --- |
-| SSL | Obrigatório (`sslmode=require`). |
-| Endpoint da aplicação | Pooled (`…-pooler.…`) |
-| Endpoint das migrações | Direto (sem `-pooler`) |
+| Item                                           | Valor                            |
+| ---------------------------------------------- | -------------------------------- |
+| SSL                                            | Obrigatório (`sslmode=require`). |
+| Endpoint da aplicação                          | Pooled (`…-pooler.…`)            |
+| Endpoint das migrações (planejado — issue #11) | Direto (sem `-pooler`)           |
 
 ## 4. Caminho alternativo em AWS
 
@@ -172,19 +178,19 @@ flowchart LR
 
 ### 4.2 Componentes
 
-| Camada | Serviço AWS | Configuração |
-| --- | --- | --- |
-| Frontend estático | **S3 + CloudFront** | Bucket privado, acesso apenas via CloudFront Origin Access Control. Invalidação de cache no deploy. |
-| API (opção A) | **App Runner** | Build de container; escala automática; health check em `/health/ready`. Mais próximo do Render. |
-| API (opção B) | **Lambda + API Gateway** | FastAPI adaptada com Mangum; escala a zero, com cold start por requisição. |
-| Banco | **RDS PostgreSQL** | `db.t4g.micro`, subnet privada, sem IP público, acesso restrito ao *security group* da API. |
-| Segredos | **Secrets Manager** | `DATABASE_URL` e demais valores sensíveis, injetados como variável de ambiente. |
-| Observabilidade | **CloudWatch Logs + Alarms** | Log estruturado JSON já enviado por `stdout`, com alarme de taxa de `5xx`. |
+| Camada            | Serviço AWS                  | Configuração                                                                                        |
+| ----------------- | ---------------------------- | --------------------------------------------------------------------------------------------------- |
+| Frontend estático | **S3 + CloudFront**          | Bucket privado, acesso apenas via CloudFront Origin Access Control. Invalidação de cache no deploy. |
+| API (opção A)     | **App Runner**               | Build de container; escala automática; health check em `/health/ready`. Mais próximo do Render.     |
+| API (opção B)     | **Lambda + API Gateway**     | FastAPI adaptada com Mangum; escala a zero, com cold start por requisição.                          |
+| Banco             | **RDS PostgreSQL**           | `db.t4g.micro`, subnet privada, sem IP público, acesso restrito ao _security group_ da API.         |
+| Segredos          | **Secrets Manager**          | `DATABASE_URL` e demais valores sensíveis, injetados como variável de ambiente.                     |
+| Observabilidade   | **CloudWatch Logs + Alarms** | Log estruturado JSON já enviado por `stdout`, com alarme de taxa de `5xx`.                          |
 
 ### 4.3 Por que a opção B exige cuidado extra
 
 Lambda escala a zero e não mantém estado entre invocações. Com PostgreSQL, isso
-significa que cada *cold start* abre uma conexão nova — e um pico de invocações
+significa que cada _cold start_ abre uma conexão nova — e um pico de invocações
 paralelas pode esgotar o limite de conexões do RDS. A mitigação não é aumentar o
 pool: é usar **RDS Proxy** (que multiplexa conexões) e `NullPool` no
 SQLAlchemy, deixando o proxy fazer o trabalho de pool. Sem isso, o padrão
@@ -192,15 +198,15 @@ SQLAlchemy, deixando o proxy fazer o trabalho de pool. Sem isso, o padrão
 
 ### 4.4 Comparação das opções de hospedagem
 
-| Opção | Prós | Contras | Veredito |
-| --- | --- | --- | --- |
-| **Render + Vercel + Neon** | Free tier real, deploy via GitHub em minutos, Postgres gerenciado, logs acessíveis | Cold start de aproximadamente 30 s no plano gratuito | **Escolhido** |
-| **AWS (S3 + CloudFront + App Runner + RDS)** | Controle total, IAM, escalabilidade real, RDS Proxy | Configuração longa, custo não trivial, muito mais superfície para errar no prazo do case | Alternativa descrita, não adotada |
-| Fly.io | Excelente rede e runtime | Exige Docker instalado no ambiente de desenvolvimento | Reserva |
-| Railway | Boa experiência de desenvolvimento | O free tier deixou de ser generoso | Reserva |
-| Hugging Face Spaces | Simples para Python | Feito para demonstração de modelo, não para API REST com Postgres; hiberna | Descartado |
-| Replit | Rápido para começar | Recursos expiram e o ambiente é instável para demo | Descartado |
-| Vercel Serverless Python | Um provedor só | Limitações de runtime e cold start no acesso a banco | Descartado |
+| Opção                                        | Prós                                                                               | Contras                                                                                  | Veredito                          |
+| -------------------------------------------- | ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | --------------------------------- |
+| **Render + Vercel + Neon**                   | Free tier real, deploy via GitHub em minutos, Postgres gerenciado, logs acessíveis | Cold start de aproximadamente 30 s no plano gratuito                                     | **Escolhido**                     |
+| **AWS (S3 + CloudFront + App Runner + RDS)** | Controle total, IAM, escalabilidade real, RDS Proxy                                | Configuração longa, custo não trivial, muito mais superfície para errar no prazo do case | Alternativa descrita, não adotada |
+| Fly.io                                       | Excelente rede e runtime                                                           | Exige Docker instalado no ambiente de desenvolvimento                                    | Reserva                           |
+| Railway                                      | Boa experiência de desenvolvimento                                                 | O free tier deixou de ser generoso                                                       | Reserva                           |
+| Hugging Face Spaces                          | Simples para Python                                                                | Feito para demonstração de modelo, não para API REST com Postgres; hiberna               | Descartado                        |
+| Replit                                       | Rápido para começar                                                                | Recursos expiram e o ambiente é instável para demo                                       | Descartado                        |
+| Vercel Serverless Python                     | Um provedor só                                                                     | Limitações de runtime e cold start no acesso a banco                                     | Descartado                        |
 
 ## 5. Troubleshooting
 
@@ -222,7 +228,7 @@ novo no primeiro acesso.
 - Manter o timeout do cliente HTTP generoso na primeira carga, para que o front
   não classifique o cold start como erro. Um timeout curto transforma lentidão
   em tela de erro.
-- Um monitor de uptime fazendo *ping* periódico mantém o serviço quente, às
+- Um monitor de uptime fazendo _ping_ periódico mantém o serviço quente, às
   custas de consumir a cota gratuita.
 
 Como isso é uma característica conhecida da plataforma e não um defeito da
@@ -236,14 +242,14 @@ esconder: a interface mantém o skeleton enquanto espera, em vez de falhar.
 
 **Causas comuns, em ordem de frequência.**
 
-| Causa | Correção |
-| --- | --- |
-| `CORS_ORIGINS` ainda aponta para `localhost:5173` | Atualizar com a URL real da Vercel e reimplantar a API. |
-| Origem com barra no final (`https://x.vercel.app/`) | Remover a barra: a origem, por definição, não a inclui. |
-| *Preview deployments* da Vercel em domínio diferente | Adicionar o domínio de preview à lista, ou testar sempre pelo domínio de produção. |
-| `CORS_ORIGINS` precisa ser lista separada por vírgula | Conferir que não há espaço sobrando entre os valores. |
+| Causa                                                 | Correção                                                                           |
+| ----------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `CORS_ORIGINS` ainda aponta para `localhost:5173`     | Atualizar com a URL real da Vercel e reimplantar a API.                            |
+| Origem com barra no final (`https://x.vercel.app/`)   | Remover a barra: a origem, por definição, não a inclui.                            |
+| _Preview deployments_ da Vercel em domínio diferente  | Adicionar o domínio de preview à lista, ou testar sempre pelo domínio de produção. |
+| `CORS_ORIGINS` precisa ser lista separada por vírgula | Conferir que não há espaço sobrando entre os valores.                              |
 
-**Verificação rápida.** A requisição `OPTIONS` de *preflight* mostrada na
+**Verificação rápida.** A requisição `OPTIONS` de _preflight_ mostrada na
 [seção 2.5](#25-verificação-pós-deploy) responde com
 `Access-Control-Allow-Origin` igual à origem enviada? Se não, o problema é
 configuração, não código.
@@ -271,12 +277,12 @@ DATABASE_URL=postgresql+psycopg://usuario:senha@host/logos?sslmode=require
 DATABASE_URL=postgresql://usuario:senha@host/logos
 ```
 
-| Problema | Detalhe |
-| --- | --- |
-| Driver errado | O projeto usa `psycopg[binary]` (psycopg 3); o prefixo precisa ser `postgresql+psycopg://`, e não `postgresql+psycopg2://`. |
-| Senha com caracteres especiais | `@`, `:` e `/` precisam de *percent-encoding* na URL. |
-| Migração falhando pelo *pooler* | Usar o endpoint direto (sem `-pooler`) para `alembic upgrade head`. |
-| IPv6 | O endpoint direto do Neon pode resolver em IPv6; em redes que não suportam, usar o endpoint *pooled*, que oferece IPv4. |
+| Problema                                                    | Detalhe                                                                                                                     |
+| ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Driver errado                                               | O projeto usa `psycopg[binary]` (psycopg 3); o prefixo precisa ser `postgresql+psycopg://`, e não `postgresql+psycopg2://`. |
+| Senha com caracteres especiais                              | `@`, `:` e `/` precisam de _percent-encoding_ na URL.                                                                       |
+| Migração falhando pelo _pooler_ (quando a issue #11 entrar) | Usar o endpoint direto (sem `-pooler`) para `alembic upgrade head`.                                                         |
+| IPv6                                                        | O endpoint direto do Neon pode resolver em IPv6; em redes que não suportam, usar o endpoint _pooled_, que oferece IPv4.     |
 
 ### 5.4 `$PORT` do Render
 
@@ -305,16 +311,20 @@ Dois detalhes andam junto:
 CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
 ```
 
-### 5.5 Migrações não aplicadas
+### 5.5 Schema não aplicado no banco
 
 **Sintoma.** `GET /health/ready` responde `503`, ou a listagem devolve
 `ProgrammingError: relation "incidents" does not exist`.
 
 **Causa.** O deploy publicou o código, mas o schema do banco não foi criado.
 
-**Correção.** Rodar `alembic upgrade head` no ambiente publicado, pelo Shell do
-Render. Vale como regra operacional: **deploy de código que depende de schema
-novo só termina depois da migração.**
+**Correção.** Hoje o schema é criado pela própria aplicação: suba a API uma vez
+(no startup ela executa `Base.metadata.create_all`) ou rode
+`python -m app.infra.seed` no Shell do Render, que também garante as tabelas
+antes de inserir. Migrações versionadas com Alembic são a issue **#11** e
+**ainda não existem** — quando existirem, `alembic upgrade head` passa a ser o
+caminho, e continua valendo a regra operacional: **deploy de código que depende
+de schema novo só termina depois da migração.**
 
 ### 5.6 Lista vazia em produção
 
@@ -335,7 +345,7 @@ muito tempo, embora o `curl` local mostre os eventos em tempo real.
 **Causa.** Proxies e CDNs costumam acumular a resposta até completar um buffer
 antes de repassá-la. Sem conteúdo periódico, a conexão fica parada.
 
-**Correção.** O servidor envia um comentário de *heartbeat* periodicamente, o
+**Correção.** O servidor envia um comentário de _heartbeat_ periodicamente, o
 que mantém o buffer fluindo e também detecta conexões mortas. Do lado do
 cliente, `EventSource` reconecta sozinho; ao reconectar, um `refetch` fecha a
 eventual lacuna de eventos perdidos durante a queda.
@@ -349,7 +359,7 @@ continua chamando a URL antiga.
 existe leitura em tempo de execução.
 
 **Correção.** Disparar um novo deploy depois de alterar a variável
-(*Redeploy* com cache de build desabilitado, se necessário).
+(_Redeploy_ com cache de build desabilitado, se necessário).
 
 ### 5.9 Banco suspenso no Neon
 
@@ -379,7 +389,6 @@ cd backend
 export ENVIRONMENT=production
 export DATABASE_URL="postgresql+psycopg://logos:logos@localhost:5432/logos"
 export CORS_ORIGINS="http://localhost:5173"
-alembic upgrade head
 python -m app.infra.seed
 uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
@@ -399,7 +408,7 @@ exatamente o que faz aparecer metade dos problemas de CORS.
 
 - [ ] `GET /health/ready` responde `200` no ambiente publicado.
 - [ ] `/docs` abre e lista todos os endpoints.
-- [ ] `alembic upgrade head` executado.
+- [ ] Schema criado no ambiente publicado (startup da API ou `python -m app.infra.seed`) — migrações com Alembic são a issue #11.
 - [ ] Seed carregado.
 - [ ] `CORS_ORIGINS` com a URL real do frontend, sem `*` e sem barra final.
 - [ ] `VITE_API_BASE_URL` com `/api/v1` e deploy refeito após qualquer alteração.

@@ -12,14 +12,14 @@ Um incidente registrado é uma **decisão operacional documentada**: alguém rep
 
 **Soft delete** com a coluna `deleted_at`, nula enquanto o incidente está ativo. `DELETE /api/v1/incidents/{id}` não remove a linha: preenche `deleted_at`, avança `version` e registra um evento `DELETED` na timeline.
 
-| Aspecto | Comportamento |
-| --- | --- |
-| Resposta | `204 No Content`, mesma semântica externa de uma exclusão real |
-| Leitura posterior | `410 Gone`, distinguindo "existiu e foi removido" de "nunca existiu" (`404`) |
-| Listagem | Toda consulta filtra `deleted_at IS NULL`, com índice dedicado |
-| Comparação e escrita | O CAS inclui `AND deleted_at IS NULL` no predicado |
-| Timeline | Continua acessível: o registro de auditoria não é removido |
-| Idempotência | Repetir o `DELETE` com a mesma chave devolve o `204` original |
+| Aspecto              | Comportamento                                                                |
+| -------------------- | ---------------------------------------------------------------------------- |
+| Resposta             | `204 No Content`, mesma semântica externa de uma exclusão real               |
+| Leitura posterior    | `410 Gone`, distinguindo "existiu e foi removido" de "nunca existiu" (`404`) |
+| Listagem             | Toda consulta filtra `deleted_at IS NULL`, com índice dedicado               |
+| Comparação e escrita | O CAS inclui `AND deleted_at IS NULL` no predicado                           |
+| Timeline             | Continua acessível: o registro de auditoria não é removido                   |
+| Idempotência         | Repetir o `DELETE` com a mesma chave devolve o `204` original                |
 
 A coluna `version` avança junto, o que é intencional: quem tem a tela aberta passa a ter versão defasada e recebe `409` ao tentar alterar um incidente removido por outra pessoa.
 

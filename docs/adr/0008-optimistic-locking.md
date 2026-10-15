@@ -6,7 +6,7 @@
 
 ## Contexto
 
-Dois analistas abrem o mesmo incidente (`version = 3`). O analista A fecha o caso com a nota de resolução; oito segundos depois, o analista B — que ainda vê a tela antiga — marca `EM_INVESTIGACAO` e sobrescreve o registro do colega, sem que nenhum dos dois saiba. É o *lost update*: em logística, um caminhão parado por horas e uma decisão de dezenas de milhares de reais impossível de justificar. A API roda com múltiplos *workers* do uvicorn e pode rodar em múltiplas réplicas, então nenhuma solução baseada em memória do processo sobrevive.
+Dois analistas abrem o mesmo incidente (`version = 3`). O analista A fecha o caso com a nota de resolução; oito segundos depois, o analista B — que ainda vê a tela antiga — marca `EM_INVESTIGACAO` e sobrescreve o registro do colega, sem que nenhum dos dois saiba. É o _lost update_: em logística, um caminhão parado por horas e uma decisão de dezenas de milhares de reais impossível de justificar. A API roda com múltiplos _workers_ do uvicorn e pode rodar em múltiplas réplicas, então nenhuma solução baseada em memória do processo sobrevive.
 
 ## Decisão
 
@@ -33,7 +33,7 @@ UPDATE incidents
 
 ### Positivas
 
-- **Nunca bloqueia**, e a garantia é do banco: com predicado e escrita na mesma instrução, não há janela TOCTOU, mesmo com múltiplos *workers* e réplicas.
+- **Nunca bloqueia**, e a garantia é do banco: com predicado e escrita na mesma instrução, não há janela TOCTOU, mesmo com múltiplos _workers_ e réplicas.
 - O conflito vira informação útil: o `409` carrega o estado atual, o que permite mostrar o diff em vez de mensagem genérica.
 - **Verificável por teste**: dez requisições simultâneas produzem `1 × 200` e `9 × 409`.
 - Exige apenas uma coluna e um `WHERE`, sem infraestrutura adicional.

@@ -16,7 +16,7 @@ Um único repositório, `Alysson-Araujo/logos`, com `backend/` (FastAPI, SQLAlch
 
 - **Dois repositórios (`logos-api` e `logos-web`).** Descartado: a mudança de contrato mais importante do projeto — a introdução do lock otimista — toca os dois lados na mesma unidade lógica e viraria dois PRs coordenados, com as branches `main` incompatíveis entre os merges. Também obrigaria quem avalia a navegar entre dois repositórios para entender um produto.
 - **Monorepo com ferramenta de orquestração (Nx, Turborepo, Bazel).** Descartado: complexidade de configuração que não se paga com dois pacotes e um único desenvolvedor.
-- **Backend e frontend na mesma pasta, sem separação.** Descartado: `pyproject.toml` e `package.json` no mesmo nível tornariam ambíguo o *root directory* de cada serviço no deploy.
+- **Backend e frontend na mesma pasta, sem separação.** Descartado: `pyproject.toml` e `package.json` no mesmo nível tornariam ambíguo o _root directory_ de cada serviço no deploy.
 - **Frontend consumindo a API por pacote publicado.** Descartado: adicionaria versionamento de pacote interno para um projeto em que o contrato muda toda semana.
 
 ## Consequências
@@ -30,5 +30,5 @@ Um único repositório, `Alysson-Araujo/logos`, com `backend/` (FastAPI, SQLAlch
 ### Negativas / trade-offs
 
 - O clone traz as duas stacks; `pnpm dev:api` e `pnpm dev:web` permitem subir cada lado isoladamente.
-- A CI precisa de dois *jobs* com ambientes distintos, o que aumenta o tempo total do pipeline.
+- A CI precisa de dois _jobs_ com ambientes distintos, o que aumenta o tempo total do pipeline.
 - O repositório concentra o histórico de duas aplicações, com controle de acesso uniforme entre elas.

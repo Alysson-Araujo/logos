@@ -17,7 +17,7 @@ Os critérios de resiliência caem, no frontend, em cinco comportamentos concret
 - **Redux Toolkit (com RTK Query).** Descartado: exigiria `slices`, `thunks` e `reducers` para chegar aos mesmos comportamentos que o TanStack Query entrega por configuração. Redux trata tudo como estado global, o que leva a cache manual e invalidação escrita à mão.
 - **SWR.** É o concorrente mais próximo e a decisão tem nuance: SWR é excelente em leitura, leve e simples, e é menos completo exatamente onde este projeto tem o caso mais difícil — mutação otimista com rollback e tratamento por código de erro, encadeando lista e detalhe. Reimplementar isso seria escrever o que o TanStack Query já oferece.
 - **`fetch` em `useEffect` com estado local.** Descartado: reintroduz manualmente estado de carregamento, cancelamento, corrida entre requisições e política de retry — origem clássica do "cliquei e não sei se salvou" descrito na persona.
-- **Zustand para estado de servidor.** Descartado: store não invalida, não deduplica e não versiona cache; usá-lo para isso seria construir uma biblioteca de *data fetching* pior dentro do projeto.
+- **Zustand para estado de servidor.** Descartado: store não invalida, não deduplica e não versiona cache; usá-lo para isso seria construir uma biblioteca de _data fetching_ pior dentro do projeto.
 
 ## Consequências
 

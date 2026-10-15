@@ -94,23 +94,23 @@ versionamento segue o [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ## Tipos de mudança
 
-| Seção | Quando usar |
-| --- | --- |
-| `Added` | Funcionalidade nova. |
-| `Changed` | Mudança em comportamento já existente. |
-| `Deprecated` | Recurso ainda disponível, mas marcado para remoção. |
-| `Removed` | Recurso removido. |
-| `Fixed` | Correção de defeito. |
-| `Security` | Correção de vulnerabilidade ou endurecimento de segurança. |
+| Seção        | Quando usar                                                |
+| ------------ | ---------------------------------------------------------- |
+| `Added`      | Funcionalidade nova.                                       |
+| `Changed`    | Mudança em comportamento já existente.                     |
+| `Deprecated` | Recurso ainda disponível, mas marcado para remoção.        |
+| `Removed`    | Recurso removido.                                          |
+| `Fixed`      | Correção de defeito.                                       |
+| `Security`   | Correção de vulnerabilidade ou endurecimento de segurança. |
 
 ## Versionamento
 
 O projeto usa SemVer (`MAJOR.MINOR.PATCH`) com as seguintes tags previstas:
 
-| Tag | Marco |
-| --- | --- |
-| `v0.1.0` | API publicada e funcional (backend no ar). |
-| `v0.2.0` | Frontend integrado à API, com o fluxo de triagem completo. |
+| Tag      | Marco                                                            |
+| -------- | ---------------------------------------------------------------- |
+| `v0.1.0` | API publicada e funcional (backend no ar).                       |
+| `v0.2.0` | Frontend integrado à API, com o fluxo de triagem completo.       |
 | `v1.0.0` | Entrega final do case: documentação, testes e deploy acessíveis. |
 
 Como o projeto ainda está em fase inicial (`0.x`), mudanças incompatíveis podem
