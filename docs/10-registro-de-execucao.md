@@ -25,9 +25,11 @@ acertos não serve para avaliar nada.
 | 7   | Retentativa com backoff e jitter                   | [#93](https://github.com/Alysson-Araujo/logos/pull/93) | #27   | Falha transitória não vira erro para o analista |
 | 8   | Disjuntor de banco                                 | [#94](https://github.com/Alysson-Araujo/logos/pull/94) | #29   | Falha rápido: 21 s → 10 ms                      |
 | 9   | Cache com _stale-while-revalidate_                 | [#95](https://github.com/Alysson-Araujo/logos/pull/95) | #30   | Lista continua na tela durante a queda          |
+| 10  | Timeouts de pool e de consulta                     | [#96](https://github.com/Alysson-Araujo/logos/pull/96) | #28   | Consulta lenta não consome o worker             |
 
-Estado ao final: **211 arquivos**, **16 commits** na `main`, **65 issues abertas**,
-cobertura de **93%** com 218 testes verdes em SQLite e PostgreSQL.
+Estado ao final: **212 arquivos**, **17 commits** na `main`, **64 issues abertas**,
+cobertura de **93%** — 222 testes no PostgreSQL; no SQLite, 219 passam e os 3 que
+dependem de `statement_timeout` são pulados.
 
 ---
 
@@ -326,7 +328,64 @@ esconderia o defeito.
 
 ---
 
-## 8. Achados que atravessam as issues
+## 8. Timeouts de pool e de consulta — issue #28
+
+**Problema.** Uma consulta patológica — plano ruim, lock esperando, tabela sem
+índice — consome um worker até o fim dos tempos. Num pool de tamanho fixo, três
+consultas travadas derrubam a API inteira, e o sintoma aparece **longe da
+causa**: "a API está lenta", quando o problema é uma consulta.
+
+**Decisão.** Dois limites no servidor, aplicados como **opção de sessão**:
+
+| Limite                                | Padrão | O que resolve                                                              |
+| ------------------------------------- | ------ | -------------------------------------------------------------------------- |
+| `statement_timeout`                   | 5 s    | Mata a **consulta** que passa do teto. O erro chega como SQLSTATE `57014`. |
+| `idle_in_transaction_session_timeout` | 10 s   | Mata a conexão parada **dentro** de uma transação, liberando os locks.     |
+
+**Por que opção de sessão, e não um `SET` depois de conectar.** Um `SET` deixa uma
+janela em que a conexão recém-aberta ainda não tem limite — justamente a janela
+em que uma consulta travada entra. Como opção do servidor, o limite vale desde a
+primeira consulta.
+
+**Por que o segundo limite também importa.** O `statement_timeout` cobre o caso
+"consulta lenta". Ele **não** cobre o caso "worker morreu no meio de uma
+transação": a conexão fica viva, ociosa e **segurando locks**, e os outros
+processos esperam por um lock que ninguém vai soltar. O
+`idle_in_transaction_session_timeout` fecha essa porta.
+
+**A combinação com as issues anteriores.** O `57014` já estava classificado como
+transitório pela retentativa (#27) — então a consulta que **apenas demorou** ganha
+uma segunda tentativa, e a que trava sempre acaba abrindo o disjuntor (#29). Os
+três trabalham juntos: o timeout garante que a falha **acontece**, a retentativa
+absorve o blip, e o disjuntor para de tentar quando a falha é persistente.
+
+**Evidência (contra PostgreSQL 16, com o banco de desenvolvimento):**
+
+```
+configurado no app  : statement=5000ms idle=10000ms
+aplicado na sessao  : statement=5000ms idle=10000ms   <- chegou ao servidor
+
+consulta que estoura o limite de 0,3s:
+  cancelada em      : 0,31s
+  SQLSTATE          : 57014
+  is_transient      : True   (a retentativa cuida disso)
+
+conexao reutilizada do pool: 5000ms   <- o limite local nao vazou
+```
+
+**O que ficou de fora, e por quê.** O `lock_timeout` (quanto esperar por um lock
+antes de desistir) não foi configurado: o `statement_timeout` já limita a espera
+total, e um `lock_timeout` menor só mudaria **qual** erro aparece — o `57014` que
+já tratamos em vez do `55P03`, que também já classificamos como transitório.
+Configurar os dois seria knob a mais sem comportamento novo.
+
+**No SQLite.** O equivalente não existe: lá o limite é o `PRAGMA busy_timeout`,
+que já estava aplicado desde o scaffold. Por isso os testes desta issue são
+**pulados** no job de SQLite do CI e rodam de verdade no job de PostgreSQL.
+
+---
+
+## 9. Achados que atravessam as issues
 
 | Achado                                               | Impacto                                                       | Onde ficou registrado          |
 | ---------------------------------------------------- | ------------------------------------------------------------- | ------------------------------ |
@@ -345,7 +404,7 @@ documentação, e não apenas o código.
 
 ---
 
-## 9. Erros de processo (meus)
+## 10. Erros de processo (meus)
 
 Registrados porque são o tipo de coisa que se repete se não for anotada.
 
@@ -365,7 +424,7 @@ editor.
 
 ---
 
-## 10. Como verificar o que está aqui
+## 11. Como verificar o que está aqui
 
 ```bash
 # Banco e dependências
@@ -383,3 +442,125 @@ TEST_DATABASE_URL="postgresql+psycopg://logos:logos@localhost:5433/logos_test" p
 
 Cada afirmação numérica deste documento sai de um destes comandos, ou de um
 teste ao vivo registrado na seção correspondente.
+
+---
+
+## 12. Mapa do projeto — o que cada parte faz
+
+Para não se perder: a função de cada arquivo, em uma linha. A ordem segue o
+caminho de uma requisição.
+
+### Backend — o caminho de uma requisição
+
+| Arquivo                                   | O que faz                                                                                                                   |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `app/main.py`                             | Monta a aplicação: middlewares **na ordem que importa**, handlers de erro, CORS e lifespan.                                 |
+| `app/api/v1/incidents.py`                 | As rotas. É onde mora a decisão do cache (`X-Cache-Status`) e a invalidação por mutação.                                    |
+| `app/api/deps.py`                         | Monta o serviço por requisição, lendo a configuração e o marcador de "requisição reenviável".                               |
+| `app/services/incident_service.py`        | Regras de aplicação. É onde o **disjuntor** e a **retentativa** envolvem a unidade de trabalho.                             |
+| `app/repositories/incident_repository.py` | SQL. O compare-and-swap do lock otimista e a geração do código do incidente.                                                |
+| `app/models/`                             | Tabelas do SQLAlchemy (`incidents`, `incident_events`, `idempotency_keys`).                                                 |
+| `app/schemas/`                            | Contrato da API em Pydantic v2, com alias camelCase.                                                                        |
+| `app/domain/`                             | Regras puras: máquina de estados, SLA e priority score. **Sem HTTP e sem banco** — é o que dá para testar em milissegundos. |
+
+### Backend — a camada de resiliência (onde está o interesse do case)
+
+| Arquivo                       | O que faz                                                                                       |
+| ----------------------------- | ----------------------------------------------------------------------------------------------- |
+| `app/core/database.py`        | Engine, pool, `connect_timeout` e os timeouts de sessão. É onde o disjuntor "tem o que contar". |
+| `app/infra/retry.py`          | A classificação do que vale repetir (`is_transient`) e a política de backoff com jitter.        |
+| `app/core/circuit_breaker.py` | Máquina de estados `CLOSED`/`OPEN`/`HALF_OPEN`, com uma sondagem por vez.                       |
+| `app/core/cache.py`           | Cache da listagem com TTL e os quatro estados de `X-Cache-Status`.                              |
+| `app/core/rate_limit.py`      | Janela deslizante por cliente, com cotas separadas de leitura e escrita.                        |
+| `app/core/security.py`        | Cabeçalhos de segurança e identificação do cliente atrás de proxy.                              |
+| `app/core/idempotency.py`     | Leitura da `Idempotency-Key`, replay da resposta e o marcador em `ContextVar`.                  |
+| `app/core/errors.py`          | Envelope de erro único e a tradução de falha de banco em `503` ou `500`.                        |
+
+### Frontend
+
+| Arquivo                   | O que faz                                                                                 |
+| ------------------------- | ----------------------------------------------------------------------------------------- |
+| `src/lib/http.ts`         | Cliente HTTP e tratamento por status, incluindo `409` e `429`.                            |
+| `src/lib/queryClient.ts`  | Política global do TanStack Query: `staleTime`, retry só em `GET`, zero retry em mutação. |
+| `src/features/incidents/` | Listagem, filtros, detalhe e a mutação otimista com rollback.                             |
+
+### Infraestrutura e documentação
+
+| Arquivo                           | O que faz                                                                              |
+| --------------------------------- | -------------------------------------------------------------------------------------- |
+| `compose.yaml`                    | O PostgreSQL de desenvolvimento. Fonte única — `pnpm db:up` usa isto.                  |
+| `.github/workflows/ci.yml`        | Os quatro checks obrigatórios de todo PR.                                              |
+| `scripts/github-bootstrap.ps1`    | Cria labels, milestones e as 72 issues do planejamento.                                |
+| `docs/02` a `docs/09`             | Arquitetura, API, resiliência, design system, Git, testes, deploy e escolhas técnicas. |
+| `docs/10-registro-de-execucao.md` | Este documento: o porquê de cada decisão e a evidência.                                |
+| `PLANO-LOGOS.md`                  | Planejamento mestre, com o cronograma de 5 dias. Fica **fora** do repositório.         |
+
+---
+
+## 13. Como explicar na entrevista
+
+### O resumo de 30 segundos
+
+> É uma central de resposta a incidentes logísticos: o analista vê uma fila
+> priorizada, abre o incidente e muda o status. O interesse do case não é a tela,
+> é **o que acontece quando a rede oscila ou o banco cai**. Então o backend trata
+> três coisas que aparecem juntas: reenvio que não pode duplicar, falha
+> transitória que não deveria virar erro, e degradação que não pode virar tela
+> em branco.
+
+### Os três pilares, em duas frases cada
+
+| Pilar            | A explicação                                                                                                                                                                                                                                                        |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Concorrência** | Duas analistas abrem o mesmo incidente; quem salva primeiro ganha, o segundo recebe `409` com a versão atual e a interface mostra o conflito. A decisão acontece **numa instrução SQL** (compare-and-swap), não em código Python, então vale com múltiplos workers. |
+| **Idempotência** | A rede cai no meio do `POST` e o cliente não sabe se criou. Ele reenvia com a mesma `Idempotency-Key` e recebe a resposta original, sem um segundo incidente. A garantia é a **chave primária** da tabela: quem impede a dupla execução é o banco, não um `if`.     |
+| **Resiliência**  | Timeout para a falha **acontecer**, retry com jitter para absorver o blip, disjuntor para parar de tentar quando a falha é persistente, e cache para a tela continuar mostrando dado de 30 segundos atrás. Cada camada existe porque a anterior tem um limite.      |
+
+### Perguntas prováveis, e a resposta curta
+
+**"Por que não `SELECT … FOR UPDATE`?"**
+Seguraria a linha durante a requisição inteira, incluindo o tempo em que a
+analista está pensando. O lock otimista só falha na escrita, e o conflito é
+tratado como dado — não como erro.
+
+**"Por que a chave de idempotência é a chave primária?"**
+Porque `SELECT` seguido de `INSERT` tem uma janela entre a leitura e a escrita. A
+restrição de unicidade não tem: ou a linha entra, ou o banco recusa. É a única
+forma que continua correta com múltiplos workers.
+
+**"Por que repetir só leitura, e não toda escrita?"**
+Porque repetir uma escrita pode duplicar efeito. A exceção é a escrita guardada
+por compare-and-swap: a segunda execução não acha a versão esperada, então não
+produz efeito novo. E o `INSERT` **nunca** é repetido — é essa regra que
+justifica a `Idempotency-Key`.
+
+**"O disjuntor não é exagero para um MVP?"**
+Sem ele, o retry trabalha contra: três tentativas por requisição multiplicam a
+carga justamente quando o banco está pior. E foi medido — com o banco fora, a
+resposta caiu de **21 s para 10 ms**.
+
+**"Por que o cache não é a fonte de verdade?"**
+Porque toda mutação vai ao banco e **esvazia** o cache. Ele serve só a listagem, e
+é marcado como `STALE` quando é cópia. Sem cópia, a API devolve `503` em vez de
+lista vazia: "não há incidentes" e "não consigo ler os incidentes" são coisas
+diferentes.
+
+**"Como você sabe que funciona?"**
+Cada afirmação tem uma medição atrás. O disjuntor foi testado com o container do
+banco **realmente parado** — e foi assim que descobri que faltava
+`connect_timeout`: a requisição pendurava 12 minutos e o disjuntor não tinha o que
+contar, embora os 203 testes passassem.
+
+**"O que você faria diferente?"**
+Duas coisas. A documentação foi escrita **antes** do código e várias vezes
+descrevia algo que o código não fazia — reconciliei a cada issue, mas o certo era
+documentar junto. E teria feito o `connect_timeout` **antes** do disjuntor: o
+disjuntor estava "pronto" e não funcionava no cenário real.
+
+### Se pedirem para rodar
+
+```bash
+pnpm db:up     # PostgreSQL em container, porta 5433
+pnpm dev       # API em :8000 e frontend em :5173
+pnpm verify    # o mesmo conjunto de verificações do CI
+```
