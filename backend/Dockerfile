@@ -36,7 +36,8 @@ WORKDIR /app
 
 COPY --from=builder /opt/venv /opt/venv
 COPY --chown=logos:logos app ./app
-COPY --chown=logos:logos pyproject.toml README.md ./
+COPY --chown=logos:logos alembic ./alembic
+COPY --chown=logos:logos alembic.ini pyproject.toml README.md ./
 
 USER logos
 
@@ -45,4 +46,7 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health/live', timeout=3)"
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# As migracoes rodam antes do servidor subir. Com uma unica instancia este e o
+# caminho mais simples e seguro; em um deploy com varias replicas isso deve
+# virar um passo separado (job de release), para nao haver migracao concorrente.
+CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"]

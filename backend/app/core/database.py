@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from threading import Lock
+from typing import Final
 
-from sqlalchemy import Engine, create_engine, event, text
+from sqlalchemy import Engine, create_engine, event, inspect, text
 from sqlalchemy.engine.interfaces import DBAPIConnection
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -19,6 +20,9 @@ POSTGRES_POOL_RECYCLE_SECONDS = 1800
 
 _engine: Engine | None = None
 _engine_lock = Lock()
+
+#: Tabela cuja existencia prova que as migracoes foram aplicadas.
+REQUIRED_TABLE: Final[str] = "incidents"
 
 
 def normalize_database_url(url: str) -> str:
@@ -104,3 +108,22 @@ def ping_database(session: Session) -> bool:
         session.rollback()
         return False
     return True
+
+
+def ensure_schema_is_migrated() -> None:
+    """Falha cedo, com instrucao acionavel, quando o schema nao foi migrado.
+
+    O schema nao e criado pela aplicacao: quem cria e o Alembic. Sem esta
+    checagem, um banco vazio produziria um erro de "tabela inexistente" no meio
+    da primeira requisicao; com ela, a API para na subida dizendo exatamente o
+    comando que falta rodar.
+    """
+    tabelas = set(inspect(get_engine()).get_table_names())
+    if REQUIRED_TABLE in tabelas:
+        return
+    raise RuntimeError(
+        f"A tabela '{REQUIRED_TABLE}' nao existe em "
+        f"{normalize_database_url(get_settings().database_url)}.\n"
+        "O schema e criado pelas migracoes do Alembic. Rode antes de subir a API:\n"
+        "    cd backend && alembic upgrade head"
+    )

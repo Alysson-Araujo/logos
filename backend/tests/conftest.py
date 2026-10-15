@@ -37,17 +37,33 @@ os.environ["ENVIRONMENT"] = "test"
 os.environ["CORS_ORIGINS"] = "http://localhost:5173"
 
 import pytest
+from alembic.config import Config
 from fastapi.testclient import TestClient
 
-from app.core.database import create_session, get_engine
+from alembic import command
+from app.core.database import create_session
 from app.main import app
-from app.models import Base
 from app.repositories.incident_repository import IncidentRepository
 
 TEST_DATABASE_PATH = _DB_FILE
 INCIDENTS_URL = "/api/v1/incidents"
 
-Base.metadata.create_all(bind=get_engine())
+_BACKEND_DIR = Path(__file__).resolve().parent.parent
+
+
+def apply_migrations() -> None:
+    """Aplica as migracoes do Alembic no banco de teste.
+
+    A suite usa o mesmo caminho que a producao (`alembic upgrade head`) em vez
+    de `Base.metadata.create_all`. Assim uma migracao quebrada — ou um modelo
+    que ficou para tras em relacao a ela — aparece aqui, e nao no deploy.
+    """
+    configuracao = Config(str(_BACKEND_DIR / "alembic.ini"))
+    configuracao.set_main_option("script_location", str(_BACKEND_DIR / "alembic"))
+    command.upgrade(configuracao, "head")
+
+
+apply_migrations()
 
 
 @pytest.fixture(scope="session")
@@ -59,8 +75,11 @@ def client() -> Iterator[TestClient]:
 
 @pytest.fixture(autouse=True)
 def clean_database() -> Iterator[None]:
-    """Zera a base antes de cada teste para garantir isolamento."""
-    Base.metadata.create_all(bind=get_engine())
+    """Zera a base antes de cada teste para garantir isolamento.
+
+    O schema já foi criado pelas migrações na importação deste módulo; aqui só
+    removemos as linhas, sem recriar tabela nenhuma.
+    """
     with create_session() as session:
         IncidentRepository(session).clear()
     yield

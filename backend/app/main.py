@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.router import api_router
 from app.core.config import Settings, get_settings
-from app.core.database import create_session, dispose_engine, get_engine
+from app.core.database import create_session, dispose_engine, ensure_schema_is_migrated
 from app.core.errors import register_exception_handlers
 from app.core.logging import (
     REQUEST_ID_HEADER,
@@ -23,7 +23,6 @@ from app.core.logging import (
     set_request_id,
 )
 from app.infra.seed import seed_incidents
-from app.models import Base
 
 API_PREFIX: Final[str] = "/api/v1"
 
@@ -31,8 +30,14 @@ logger = logging.getLogger(__name__)
 
 
 def initialize_database(settings: Settings) -> None:
-    """Cria as tabelas e aplica o seed quando configurado."""
-    Base.metadata.create_all(bind=get_engine())
+    """Valida que o schema existe e aplica o seed quando configurado.
+
+    O schema NAO e criado aqui. Quem cria e o Alembic (`alembic upgrade head`),
+    para existir uma unica fonte de verdade sobre a estrutura do banco: se a
+    aplicacao criasse tabelas na subida, ela e as migracoes poderiam divergir
+    sem que nada acusasse.
+    """
+    ensure_schema_is_migrated()
     if not settings.seed_on_startup:
         return
     with create_session() as session:
