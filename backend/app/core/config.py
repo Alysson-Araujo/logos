@@ -54,6 +54,12 @@ class Settings(BaseSettings):
     #: Tempo em que a cópia da listagem é considerada fresca.
     cache_ttl_seconds: float = 30.0
 
+    # --- Limites de tempo no servidor de banco -----------------------------
+    #: Teto de duração de uma única consulta, em milissegundos.
+    db_statement_timeout_ms: int = 5000
+    #: Teto de tempo com uma transação aberta e ociosa, em milissegundos.
+    db_idle_transaction_timeout_ms: int = 10000
+
     @property
     def cors_origin_list(self) -> list[str]:
         """Devolve as origens de CORS como lista, ignorando entradas vazias."""

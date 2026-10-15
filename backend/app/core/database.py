@@ -11,7 +11,7 @@ from sqlalchemy.engine.interfaces import DBAPIConnection
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from app.core.config import get_settings
+from app.core.config import Settings, get_settings
 
 SQLITE_BUSY_TIMEOUT_MS = 5000
 POSTGRES_POOL_SIZE = 5
@@ -56,6 +56,29 @@ def _apply_sqlite_pragmas(dbapi_connection: DBAPIConnection, _record: object) ->
     cursor.close()
 
 
+def _server_session_options(settings: Settings) -> str:
+    """Opções de sessão que impedem uma consulta de pendurar o worker.
+
+    `statement_timeout` mata a consulta que passa do limite. O erro chega como
+    SQLSTATE 57014, que a retentativa já classifica como transitório — então uma
+    consulta que apenas **demorou** ganha uma segunda chance, e uma que trava
+    sempre acaba abrindo o disjuntor.
+
+    `idle_in_transaction_session_timeout` mata a conexão parada **dentro** de uma
+    transação. Sem ele, um worker interrompido no meio deixa a transação aberta
+    segurando locks; num pool de tamanho fixo, isso derruba a capacidade de todo
+    mundo — e o sintoma aparece longe da causa.
+
+    Vão como opções de sessão do servidor, e não como `SET` depois de conectar,
+    porque assim valem desde a primeira consulta: não existe janela em que uma
+    conexão recém-aberta ainda esteja sem limite.
+    """
+    return (
+        f"-c statement_timeout={settings.db_statement_timeout_ms}"
+        f" -c idle_in_transaction_session_timeout={settings.db_idle_transaction_timeout_ms}"
+    )
+
+
 def _build_engine(url: str, *, echo: bool) -> Engine:
     """Cria o engine com a configuração adequada ao banco alvo."""
     normalized = normalize_database_url(url)
@@ -67,6 +90,7 @@ def _build_engine(url: str, *, echo: bool) -> Engine:
         )
         event.listen(engine, "connect", _apply_sqlite_pragmas)
         return engine
+    settings = get_settings()
     return create_engine(
         normalized,
         echo=echo,
@@ -74,8 +98,11 @@ def _build_engine(url: str, *, echo: bool) -> Engine:
         pool_size=POSTGRES_POOL_SIZE,
         max_overflow=POSTGRES_MAX_OVERFLOW,
         pool_recycle=POSTGRES_POOL_RECYCLE_SECONDS,
-        # Sem isto o disjuntor não tem o que contar: a requisição nunca falha.
-        connect_args={"connect_timeout": POSTGRES_CONNECT_TIMEOUT_SECONDS},
+        connect_args={
+            # Sem isto o disjuntor não tem o que contar: a requisição nunca falha.
+            "connect_timeout": POSTGRES_CONNECT_TIMEOUT_SECONDS,
+            "options": _server_session_options(settings),
+        },
     )
 
 

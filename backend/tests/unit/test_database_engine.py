@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.core.config import get_settings
 from app.core.database import (
     POSTGRES_CONNECT_TIMEOUT_SECONDS,
     POSTGRES_POOL_SIZE,
@@ -51,8 +52,34 @@ def test_engine_postgres_mantem_pre_ping_e_pool(monkeypatch: Any) -> None:
     assert capturado["pool_size"] == POSTGRES_POOL_SIZE
 
 
+def test_engine_postgres_aplica_timeouts_de_sessao(monkeypatch: Any) -> None:
+    """`statement_timeout` precisa valer desde a primeira consulta.
+
+    Vai como opção de sessão do servidor, e não como `SET` depois de conectar:
+    um `SET` deixaria uma janela em que a conexão recém-aberta ainda não tem
+    limite — justamente a janela em que uma consulta travada entra.
+    """
+    capturado: dict[str, Any] = {}
+
+    def create_engine_falso(url: str, **kwargs: Any) -> object:
+        capturado.update(kwargs)
+        return object()
+
+    monkeypatch.setattr("app.core.database.create_engine", create_engine_falso)
+
+    _build_engine("postgresql://logos:logos@localhost:5433/logos", echo=False)
+
+    opcoes = capturado["connect_args"]["options"]
+    configuracao = get_settings()
+    assert f"statement_timeout={configuracao.db_statement_timeout_ms}" in opcoes
+    assert (
+        f"idle_in_transaction_session_timeout={configuracao.db_idle_transaction_timeout_ms}"
+        in opcoes
+    )
+
+
 def test_engine_sqlite_nao_recebe_opcoes_de_postgres(monkeypatch: Any) -> None:
-    """Passar `connect_timeout` para o SQLite quebraria a conexão."""
+    """Passar `connect_timeout` ou `options` para o SQLite quebraria a conexão."""
     capturado: dict[str, Any] = {}
 
     def create_engine_falso(url: str, **kwargs: Any) -> object:
@@ -64,5 +91,8 @@ def test_engine_sqlite_nao_recebe_opcoes_de_postgres(monkeypatch: Any) -> None:
 
     _build_engine("sqlite:///./logos.db", echo=False)
 
-    assert "connect_timeout" not in capturado.get("connect_args", {})
+    argumentos = capturado.get("connect_args", {})
+    assert "connect_timeout" not in argumentos
+    assert "options" not in argumentos
+    # O timeout do SQLite é outro: `PRAGMA busy_timeout`, no evento de conexão.
     assert "pool_pre_ping" not in capturado
