@@ -48,8 +48,10 @@ extend-exclude = [".venv", "build", "dist"]
 select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "SIM", "RUF", "S", "ANN"]
 
 [tool.ruff.lint.per-file-ignores]
-# Testes podem usar assert e nao precisam de anotacao de tipo.
-"tests/**" = ["S101", "ANN", "E402"]
+# Testes podem usar assert e nao precisam de anotacao de tipo. S311 e liberado
+# porque geradores pseudoaleatorios em testes usam semente fixa para resultados
+# reproduziveis, nunca para produzir segredo.
+"tests/**" = ["S101", "ANN", "E402", "S311"]
 # O seed usa geracao pseudoaleatoria apenas para dados de demonstracao.
 "app/infra/seed.py" = ["S311"]
 

@@ -30,6 +30,7 @@ from __future__ import annotations
 import hashlib
 import re
 from collections.abc import Callable, Coroutine
+from contextvars import ContextVar
 from typing import Any, Final
 
 from fastapi import Request, Response
@@ -60,6 +61,25 @@ MUTATING_METHODS: Final[frozenset[str]] = frozenset({"POST", "PUT", "PATCH", "DE
 #: `Location` e `ETag` fazem parte do contrato: sem eles, um reenvio de criação
 #: deixaria o cliente sem saber onde o recurso está nem em que versão ele ficou.
 REPLAYED_HEADERS: Final[tuple[str, ...]] = ("ETag", "Location")
+
+#: Marcador de que a requisição atual pode ser repetida com segurança, porque o
+#: cliente enviou `Idempotency-Key`.
+#:
+#: Vive em um `ContextVar` porque quem lê o cabeçalho é o middleware — contexto
+#: assíncrono da requisição — e quem decide a retentativa é o serviço, que roda
+#: em thread do pool nos endpoints síncronos. O `anyio` copia o contexto para a
+#: thread, então o marcador atravessa sem que o serviço precise conhecer HTTP.
+_REPLAY_SAFE: ContextVar[bool] = ContextVar("logos_replay_safe", default=False)
+
+
+def mark_replay_safe() -> None:
+    """Marca a requisição atual como segura de repetir."""
+    _REPLAY_SAFE.set(True)
+
+
+def is_replay_safe() -> bool:
+    """Indica se a operação atual pode ser repetida automaticamente."""
+    return _REPLAY_SAFE.get()
 
 
 def build_fingerprint(method: str, path: str, body: bytes) -> str:
@@ -102,6 +122,10 @@ class IdempotentRoute(APIRoute):
                 return await original(request)
 
             key = validate_key(raw_key)
+            # A partir daqui a operação é reenviável: o cliente declarou isso ao
+            # enviar a chave, e é essa declaração que autoriza a retentativa
+            # interna de uma escrita (ver app/infra/retry.py).
+            mark_replay_safe()
             # O corpo é lido aqui e continua disponível para o handler original:
             # o Starlette guarda o resultado em cache.
             fingerprint = build_fingerprint(request.method, request.url.path, await request.body())

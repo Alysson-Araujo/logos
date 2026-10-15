@@ -36,6 +36,12 @@ class Settings(BaseSettings):
     #: Escritas por minuto, por cliente. Mutação é deliberada e mais cara.
     rate_limit_write_per_minute: int = 20
 
+    # --- Retentativa em falha transitória de banco -------------------------
+    #: Tentativas totais, incluindo a primeira.
+    retry_max_attempts: int = 3
+    #: Teto do backoff da primeira espera; dobra a cada tentativa (1s, 2s, 4s).
+    retry_base_delay_seconds: float = 1.0
+
     @property
     def cors_origin_list(self) -> list[str]:
         """Devolve as origens de CORS como lista, ignorando entradas vazias."""

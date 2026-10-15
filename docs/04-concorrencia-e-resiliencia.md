@@ -367,24 +367,27 @@ flowchart TB
 ### 7.3 Retry com backoff exponencial e jitter
 
 ```python
-import random
+@dataclass(frozen=True, slots=True)
+class RetryPolicy:
+    max_attempts: int = 3
+    base_delay: float = 1.0
+    factor: float = 2.0
+    max_delay: float = 8.0
 
-def backoff_delay(
-    attempt: int,
-    *,
-    base: float = 0.5,
-    cap: float = 8.0,
-) -> float:
-    """Backoff exponencial com jitter completo (full jitter).
+    def ceiling_for(self, attempt: int) -> float:
+        """Teto da espera após a tentativa informada: 1 s, 2 s, 4 s, 8 s…"""
+        return min(self.max_delay, self.base_delay * (self.factor ** (attempt - 1)))
 
-    O jitter não é enfeite. Quando o banco volta depois de uma
-    indisponibilidade, todas as requisições que estavam falhando
-    tentam reconectar no mesmo instante e derrubam o banco de novo
-    (thundering herd). Espalhar as tentativas em uma janela evita
-    que o retry seja o causador da segunda queda.
-    """
-    ceiling = min(cap, base * (2 ** attempt))
-    return random.uniform(0, ceiling)
+    def delay_for(self, attempt: int) -> float:
+        """Jitter completo: uniforme entre 0 e o teto da tentativa.
+
+        O jitter não é enfeite. Quando o banco volta depois de uma
+        indisponibilidade, todas as requisições que estavam falhando tentam
+        reconectar no mesmo instante e derrubam o banco de novo (thundering
+        herd). Sortear a espera espalha as tentativas e evita que o retry seja
+        o causador da segunda queda.
+        """
+        return random.uniform(0, self.ceiling_for(attempt))
 ```
 
 | Tentativa | Teto do backoff | Atraso efetivo (0..teto) |
@@ -394,13 +397,28 @@ def backoff_delay(
 | 3         | 4,0 s           | 0 a 4,0 s                |
 | 4+        | 8,0 s (teto)    | 0 a 8,0 s                |
 
-O retry é aplicado **somente** quando as duas condições valem:
+O retry é aplicado **somente** quando as três condições valem:
 
-1. A falha é de infraestrutura: `OperationalError`, `SerializationFailure` ou
-   `TimeoutError`. Erro de validação, regra de negócio ou conflito de versão não
-   se resolve repetindo — repetir só consome tempo e mascara o problema.
-2. A operação é idempotente: `GET`, ou mutação com `Idempotency-Key` cujo
-   efeito é comprovadamente repetível.
+1. A falha é de infraestrutura: `OperationalError`, `DisconnectionError`,
+   `TimeoutError` ou um SQLSTATE transitório — `40001` (_serialization
+   failure_), `40P01` (_deadlock_), `57014` (_statement timeout_) e a família
+   `08` (conexão). Erro de validação, violação de constraint ou conflito de
+   versão não se resolve repetindo; repetir só consome tempo e mascara o
+   problema. A classificação é por código, e não por texto da mensagem, porque a
+   mensagem muda entre versões do driver.
+2. A operação é repetível: leitura sempre; escrita só quando o cliente enviou
+   `Idempotency-Key`, que é a declaração de que o reenvio é esperado.
+3. A escrita é guardada por compare-and-swap. **`INSERT` nunca é repetido**: o
+   `POST /incidents` que falhou depois de um commit que o cliente não viu criaria
+   um segundo incidente. Nesse caso a API devolve `503` com `Retry-After` e quem
+   reenvia é o cliente, com a mesma chave — que é exatamente o papel da
+   idempotência no nível HTTP.
+
+A retentativa envolve a **unidade de trabalho inteira**, e não cada consulta:
+repetir uma consulta isolada deixaria a operação pela metade, com parte das
+escritas aplicada e outra parte não. Entre as tentativas a sessão recebe
+`rollback()`, para a próxima começar de um estado limpo em vez de herdar a
+transação abortada.
 
 ### 7.4 Cache com _stale-while-revalidate_
 

@@ -192,14 +192,14 @@ todos os clientes que estavam tentando reconectam no mesmo instante e derrubam
 o banco de novo. Espalhar as tentativas resolve isso.
 
 ```python
-def backoff_delay(attempt: int, *, base: float = 0.5, cap: float = 8.0) -> float:
+def backoff_delay(attempt: int, *, base: float = 1.0, cap: float = 8.0) -> float:
     """Backoff exponencial com jitter completo.
 
     O jitter espalha as tentativas de todos os clientes que estavam
     bloqueados durante a mesma indisponibilidade, evitando que a
     reconexão simultânea derrube o banco outra vez (thundering herd).
     """
-    ceiling = min(cap, base * (2 ** attempt))
+    ceiling = min(cap, base * (2 ** (attempt - 1)))
     return random.uniform(0, ceiling)
 ```
 
@@ -397,7 +397,8 @@ principal, e o que `scripts/setup-local.ps1 -SkipDatabase` configura sozinho.
 | `RATE_LIMIT_READ_PER_MINUTE`  | `60`                                                    | Leituras (`GET`/`HEAD`) por minuto, por cliente.                                                                                                                    |
 | `RATE_LIMIT_WRITE_PER_MINUTE` | `20`                                                    | Escritas por minuto, por cliente. Mutação é deliberada e mais cara que a listagem.                                                                                  |
 | `DB_STATEMENT_TIMEOUT_MS`     | `5000`                                                  | Timeout de statement no banco, para query não pendurar o worker.                                                                                                    |
-| `RETRY_MAX_ATTEMPTS`          | `3`                                                     | Tentativas do retry interno com backoff e jitter.                                                                                                                   |
+| `RETRY_MAX_ATTEMPTS`          | `3`                                                     | Tentativas do retry interno com backoff e jitter, contando a primeira.                                                                                              |
+| `RETRY_BASE_DELAY_SECONDS`    | `1.0`                                                   | Teto do backoff da primeira espera; dobra a cada tentativa (1s, 2s, 4s) e satura em 8s.                                                                             |
 | `CACHE_TTL_SECONDS`           | `30`                                                    | TTL do cache da listagem com _stale-while-revalidate_.                                                                                                              |
 | `SEED_ON_STARTUP`             | `true`                                                  | Popula dados de demonstração ao subir em ambiente de desenvolvimento.                                                                                               |
 
