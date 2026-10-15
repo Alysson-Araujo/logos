@@ -1,8 +1,12 @@
 """Fixtures compartilhadas dos testes.
 
-O ambiente é configurado ANTES de importar a aplicação: os testes rodam contra um banco
-SQLite em arquivo (não `:memory:`), porque o teste de concorrência usa várias threads com
-conexões distintas.
+O ambiente é configurado ANTES de importar a aplicação.
+
+Por padrão a suíte roda contra um SQLite em arquivo (não `:memory:`, que não
+compartilha conexão entre threads). Definindo `TEST_DATABASE_URL`, ela passa a
+rodar contra um PostgreSQL de verdade — que é o banco de produção e o único
+onde o comportamento do lock otimista sob concorrência real pode ser observado.
+É exatamente isso que o job `backend-postgres` da CI faz.
 """
 
 from __future__ import annotations
@@ -16,7 +20,17 @@ from typing import Any
 _TEST_DIR = Path(tempfile.mkdtemp(prefix="logos-tests-"))
 _DB_FILE = _TEST_DIR / "logos-test.db"
 
-os.environ["DATABASE_URL"] = f"sqlite:///{_DB_FILE.as_posix()}"
+# PostgreSQL quando TEST_DATABASE_URL estiver definida; SQLite em arquivo caso
+# contrário. Sem esta distinção o job de PostgreSQL da CI subiria o serviço e
+# rodaria a suíte inteira no SQLite, sem ninguém perceber — um falso positivo
+# caro, porque é justamente sob concorrência de PostgreSQL que a garantia do
+# lock otimista precisa ser exercida.
+_EXTERNAL_DATABASE_URL = os.environ.get("TEST_DATABASE_URL", "").strip()
+if _EXTERNAL_DATABASE_URL:
+    os.environ["DATABASE_URL"] = _EXTERNAL_DATABASE_URL
+else:
+    os.environ["DATABASE_URL"] = f"sqlite:///{_DB_FILE.as_posix()}"
+
 os.environ["SEED_ON_STARTUP"] = "false"
 os.environ["LOG_LEVEL"] = "ERROR"
 os.environ["ENVIRONMENT"] = "test"
