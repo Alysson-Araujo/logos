@@ -53,6 +53,7 @@ Rodam sem banco, sem servidor e sem rede. São possíveis porque a camada
 | `test_retry.py`           | Classificação de falha (transitória vs determinística), teto exponencial do backoff, jitter dentro do teto e não constante, `rollback` antes de cada espera e a política por tipo de operação (leitura, escrita condicional e `INSERT`). |
 | `test_circuit_breaker.py` | Máquina de estados com relógio injetado: abre no limiar e não antes, sucesso zera a contagem, `Retry-After` nunca é zero, uma única sondagem após o cooldown, sonda bem-sucedida fecha e sonda que falha reabre sem esperar o limiar.    |
 | `test_database_engine.py` | Trava a configuração que faz o disjuntor ter o que contar: `connect_timeout` finito no engine PostgreSQL, `pool_pre_ping` mantido, e nada disso vazando para o SQLite.                                                                   |
+| `test_cache.py`           | Cache da listagem com relógio injetado: fresco dentro do TTL e vencido depois, TTL zero como modo "sempre revalidar", descarte das entradas mais antigas acima do teto e chave estável que não depende da ordem dos campos.              |
 
 ```bash
 cd backend
@@ -79,6 +80,7 @@ de método interno.
 | `test_security.py`             | Cabeçalhos de segurança no sucesso e no erro; CORS libera só a origem configurada; `429` com `Retry-After`; health e preflight isentos de cota.                                                                                               |
 | `test_retry_http.py`           | Falha transitória de banco: leitura repete e responde `200`; esgotadas as tentativas, `503` com `Retry-After`; escrita sem `Idempotency-Key` não repete; com a chave, repete; `POST` (`INSERT`) nunca repete; erro determinístico vira `500`. |
 | `test_circuit_breaker_http.py` | Depois do limiar a API **para de chamar o banco** e responde `503` com `Retry-After`; passado o cooldown uma sondagem passa e o tráfego volta; `404` não abre o circuito; `/health/live` responde com o circuito aberto.                      |
+| `test_cache_http.py`           | `MISS` na primeira leitura e `HIT` na seguinte, sem tocar no banco; mutação esvazia o cache e o registro novo aparece; `REVALIDATED` no TTL vencido; `STALE` com o banco fora, devolvendo a cópia antiga; sem cópia, o `503` sobe.            |
 
 ```bash
 cd backend

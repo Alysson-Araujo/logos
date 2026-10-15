@@ -38,6 +38,20 @@ versionamento segue o [Semantic Versioning](https://semver.org/lang/pt-BR/).
   `PULL_REQUEST_TEMPLATE.md` e `CODEOWNERS`.
 - Arquivos de exemplo de variáveis de ambiente (`backend/.env.example` e
   `frontend/.env.example`), sem nenhum segredo real versionado.
+- **Idempotência das mutações** (`Idempotency-Key`): reserva atômica garantida
+  pela chave primária, replay da resposta original e `Idempotency-Replayed` no
+  reenvio (#22).
+- **Limitação de taxa** por cliente com janela deslizante e cotas separadas de
+  leitura e escrita, com `429` e `Retry-After` (#33).
+- **Retentativa** de falhas transitórias de banco com backoff exponencial
+  (1 s, 2 s, 4 s) e jitter completo, restrita a operações repetíveis (#27).
+- **Disjuntor de banco** (`CLOSED`/`OPEN`/`HALF_OPEN`) com uma sondagem por vez,
+  respondendo `503` com `Retry-After` sem tocar no banco (#29).
+- **Timeout de conexão** de 5 s no engine PostgreSQL (#29).
+- **Cache da listagem** com _stale-while-revalidate_, exposto em
+  `X-Cache-Status`, que mantém a lista na tela durante uma degradação (#30).
+- `docs/10-registro-de-execucao.md`: registro do que foi construído, com o
+  raciocínio e a evidência de cada decisão.
 - Documentação do projeto:
   - `README.md` raiz com problema, solução, os três pilares técnicos, stack,
     setup local, variáveis de ambiente, testes, deploy e roadmap.
@@ -71,7 +85,11 @@ versionamento segue o [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ### Changed
 
-- Nenhuma alteração registrada até o momento.
+- O schema passou a ser criado **exclusivamente** por migrações do Alembic:
+  `create_all` foi removido e a aplicação falha com instrução explícita quando a
+  migração não foi aplicada (#11).
+- O PostgreSQL de desenvolvimento passou a rodar em container, na porta 5433,
+  para não disputar a porta com um servidor nativo (#88).
 
 ### Deprecated
 
@@ -83,12 +101,22 @@ versionamento segue o [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ### Fixed
 
-- Nada corrigido até o momento.
+- O CORS não anunciava `PATCH` nem `PUT`, então um preflight do navegador
+  bloquearia qualquer cliente que usasse esses métodos (#22).
+- A chave de idempotência ficava presa em `in_progress` quando o handler subia
+  exceção, impedindo o cliente de corrigir o pedido e tentar de novo (#22).
+- O `conftest` sobrescrevia a URL do banco, fazendo o job de PostgreSQL do CI
+  testar SQLite — um falso positivo que escondia incompatibilidades (#90).
 
 ### Security
 
 - Nenhum segredo é versionado: `.env` está no `.gitignore` e apenas os arquivos
   `.env.example` com valores fictícios entram no repositório.
+- Cabeçalhos de segurança em toda resposta — `X-Content-Type-Options`,
+  `Referrer-Policy`, `X-Frame-Options`, `Permissions-Policy` e HSTS em produção
+  (#33).
+- `/health/live` e `/health/ready` não consomem cota de requisições: recusar o
+  healthcheck faria a plataforma reiniciar o serviço durante a queda (#33).
 
 ---
 

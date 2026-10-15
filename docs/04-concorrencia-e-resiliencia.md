@@ -427,14 +427,44 @@ para que o comportamento seja observável em desenvolvimento e nos logs:
 
 | Estado        | Quando                                                          | O que acontece                                                                                    |
 | ------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| `HIT`         | Dentro do TTL                                                   | Resposta imediata do cache.                                                                       |
-| `REVALIDATED` | TTL expirado, atualização bem-sucedida                          | Busca no banco, atualiza o cache e responde.                                                      |
+| `MISS`        | Não havia cópia guardada                                        | A resposta vem do banco e passa a ser guardada.                                                   |
+| `HIT`         | Dentro do TTL                                                   | Resposta imediata do cache, sem tocar no banco.                                                   |
+| `REVALIDATED` | TTL expirado, atualização bem-sucedida                          | Busca no banco, atualiza o cache e responde com o dado novo.                                      |
 | `STALE`       | TTL expirado e o banco indisponível ou o circuit breaker aberto | Serve o valor antigo **marcado como defasado**, para a interface exibir o aviso de instabilidade. |
 
 O ponto central: um dado de 30 segundos atrás é **utilizável** para triagem —
 a analista precisa saber que o incidente existe e qual sua prioridade. Uma tela
 de erro não é útil. Por isso o cache degrada em vez de falhar, e por isso ele
 nunca é tratado como fonte de verdade: toda mutação vai ao banco.
+
+Quatro decisões que valem registro:
+
+- **A chave é o pedido inteiro** — filtros, ordenação, limite e cursor. Servir a
+  página de um filtro para outro entregaria dado errado com aparência de certo,
+  que é o pior tipo de erro de cache, porque não parece erro.
+- **Toda mutação bem-sucedida esvazia o cache.** Invalidar só a chave afetada
+  exigiria saber quais combinações de filtro incluem o registro alterado; errar
+  isso **esconderia a mudança** de quem olha a lista. Um cache frio custa uma
+  consulta a mais; um cache errado custa a confiança no painel.
+- **O "em segundo plano" é adiado, não concorrente.** A revalidação não roda em
+  thread própria: quem revalida é a próxima requisição que encontrar o banco de
+  volta. O efeito para quem usa é o mesmo — a tela não espera por uma
+  revalidação que provavelmente vai falhar —, sem gerenciar threads, filas e
+  erros que ninguém observa.
+- **Sem cópia guardada, o `503` sobe.** Devolver lista vazia seria mentir sobre o
+  estado do sistema: "não há incidentes" e "não consigo ler os incidentes" são
+  coisas diferentes, e confundi-las numa central de incidentes é perigoso.
+
+A degradação é reconhecida por **dois** caminhos: o circuito já aberto, que
+recusa sem tocar no banco, e a falha transitória que **acabou de abri-lo**. Sem o
+segundo, a primeira requisição durante a queda receberia erro tendo cópia
+guardada — exatamente o que este cache existe para evitar. Erro de cliente, como
+cursor inválido, não conta como degradação: servir dado antigo para um pedido
+malformado esconderia o defeito em vez de mostrá-lo.
+
+**Limite honesto:** o cache vive na memória do processo. Com N workers há N
+caches, cada um com a sua taxa de acerto. Trocar por Redis é substituir o
+dicionário; a política de estados não muda.
 
 ### 7.5 Circuit breaker
 
