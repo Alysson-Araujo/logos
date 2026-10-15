@@ -40,6 +40,14 @@ jobs:
       - name: Tipos (mypy)
         run: mypy app
 
+      # `alembic check` compara os modelos com o que as migracoes criam e falha
+      # se houver divergencia. Sem este passo, um modelo alterado sem migracao
+      # correspondente passaria na CI e explodiria no deploy.
+      - name: Schema (alembic upgrade + check)
+        run: |
+          alembic upgrade head
+          alembic check
+
       - name: Testes (pytest)
         run: pytest -q
 

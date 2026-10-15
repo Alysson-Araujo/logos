@@ -13,11 +13,10 @@ from uuid import uuid4
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
-from app.core.database import create_session, get_engine
+from app.core.database import create_session
 from app.core.logging import configure_logging
 from app.domain.enums import IncidentCategory, IncidentCriticality, IncidentStatus
 from app.domain.priority import compute_priority_score, compute_sla_due_at
-from app.models import Base
 from app.models.base import utcnow
 from app.models.incident import INITIAL_VERSION, Incident
 from app.repositories.incident_repository import IncidentRepository, build_code
@@ -255,9 +254,12 @@ def seed_incidents(session: Session, *, count: int = SEED_COUNT) -> int:
 
 
 def main() -> None:
-    """Executa o seed manualmente (`python -m app.infra.seed`)."""
+    """Executa o seed manualmente (`python -m app.infra.seed`).
+
+    As tabelas precisam existir antes: o schema vem do Alembic
+    (`alembic upgrade head`), e nao de `create_all`.
+    """
     configure_logging(get_settings().log_level)
-    Base.metadata.create_all(bind=get_engine())
     with create_session() as session:
         created = seed_incidents(session)
     logger.info("seed finalizado: %s incidentes criados", created)

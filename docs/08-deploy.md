@@ -31,10 +31,10 @@ A escolha está justificada no [ADR 0012](adr/0012-render-vercel-neon.md).
    padrão no painel) com `?sslmode=require`.
 3. Guardar duas versões da string:
 
-| Uso                               | Formato                                                         | Para que serve                                                                                                                                           |
-| --------------------------------- | --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Aplicação                         | `postgresql+psycopg://usuario:senha@host/logos?sslmode=require` | Conexões da API em tempo de execução.                                                                                                                    |
-| Migrações (planejado — issue #11) | A mesma, com `-pooler` removido do host                         | `alembic upgrade head`, que precisa de sessão direta. O comando só existe quando a issue #11 entrar; hoje o schema é criado pela própria API no startup. |
+| Uso       | Formato                                                         | Para que serve                                        |
+| --------- | --------------------------------------------------------------- | ----------------------------------------------------- |
+| Aplicação | `postgresql+psycopg://usuario:senha@host/logos?sslmode=require` | Conexões da API em tempo de execução.                 |
+| Migrações | A mesma, com `-pooler` removido do host                         | `alembic upgrade head`, que precisa de sessão direta. |
 
 A distinção importa: o _pooler_ do Neon usa PgBouncer em modo transação, e
 migrações que abrem transações longas (ou usam _prepared statements_) se
@@ -55,21 +55,28 @@ comportam mal através dele.
 
 3. Definir as variáveis de ambiente da [seção 3](#3-variáveis-de-ambiente).
 4. Fazer o deploy. O primeiro build pode demorar alguns minutos.
-5. Criar o schema e popular os dados de demonstração. Use o **Shell** do próprio
-   Render, que já tem as variáveis carregadas — o seed garante as tabelas antes
-   de inserir:
+5. O comando de start já aplica as migrações antes de subir o servidor
+   (`alembic upgrade head`, no `backend/Dockerfile`). Para popular os dados de
+   demonstração, use o **Shell** do próprio Render, que já tem as variáveis
+   carregadas:
 
 ```bash
+alembic upgrade head
 python -m app.infra.seed
 ```
 
 6. Conferir `GET /health/ready` (deve responder `200`) e abrir `/docs`.
 
-> **Schema e migrações.** Não há Alembic no projeto: a aplicação cria as tabelas
-> no startup (`Base.metadata.create_all`) e o seed também garante o schema.
-> Migrações versionadas com Alembic entram na issue **#11** e **ainda não
-> existem**. Em produção real, migrações são pré-requisito de qualquer deploy que
-> mexa no schema — é por isso que elas estão no milestone `M1 — Backend Core`.
+> **Schema e migrações.** O schema é versionado pelo Alembic e a aplicação não
+> cria tabelas: se o banco estiver vazio, ela para na subida dizendo qual comando
+> falta. A CI roda `alembic upgrade head` e `alembic check`, que acusa qualquer
+> divergência entre os modelos e as migrações. A URL usada pelas migrações deve
+> ser a conexão **direta** do Neon, sem `-pooler`: o PgBouncer em modo transação
+> se comporta mal com migrações.
+>
+> Em um deploy com **várias réplicas**, mover o `alembic upgrade head` do comando
+> de start para um passo de release separado — do contrário, duas réplicas podem
+> tentar migrar ao mesmo tempo.
 
 ### 2.3 Vercel (frontend)
 
@@ -153,11 +160,11 @@ tem duas consequências diretas:
 
 ### 3.3 Banco (Neon)
 
-| Item                                           | Valor                            |
-| ---------------------------------------------- | -------------------------------- |
-| SSL                                            | Obrigatório (`sslmode=require`). |
-| Endpoint da aplicação                          | Pooled (`…-pooler.…`)            |
-| Endpoint das migrações (planejado — issue #11) | Direto (sem `-pooler`)           |
+| Item                   | Valor                            |
+| ---------------------- | -------------------------------- |
+| SSL                    | Obrigatório (`sslmode=require`). |
+| Endpoint da aplicação  | Pooled (`…-pooler.…`)            |
+| Endpoint das migrações | Direto (sem `-pooler`)           |
 
 ## 4. Caminho alternativo em AWS
 
@@ -277,12 +284,12 @@ DATABASE_URL=postgresql+psycopg://usuario:senha@host/logos?sslmode=require
 DATABASE_URL=postgresql://usuario:senha@host/logos
 ```
 
-| Problema                                                    | Detalhe                                                                                                                     |
-| ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| Driver errado                                               | O projeto usa `psycopg[binary]` (psycopg 3); o prefixo precisa ser `postgresql+psycopg://`, e não `postgresql+psycopg2://`. |
-| Senha com caracteres especiais                              | `@`, `:` e `/` precisam de _percent-encoding_ na URL.                                                                       |
-| Migração falhando pelo _pooler_ (quando a issue #11 entrar) | Usar o endpoint direto (sem `-pooler`) para `alembic upgrade head`.                                                         |
-| IPv6                                                        | O endpoint direto do Neon pode resolver em IPv6; em redes que não suportam, usar o endpoint _pooled_, que oferece IPv4.     |
+| Problema                        | Detalhe                                                                                                                     |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Driver errado                   | O projeto usa `psycopg[binary]` (psycopg 3); o prefixo precisa ser `postgresql+psycopg://`, e não `postgresql+psycopg2://`. |
+| Senha com caracteres especiais  | `@`, `:` e `/` precisam de _percent-encoding_ na URL.                                                                       |
+| Migração falhando pelo _pooler_ | Usar o endpoint direto (sem `-pooler`) para `alembic upgrade head`.                                                         |
+| IPv6                            | O endpoint direto do Neon pode resolver em IPv6; em redes que não suportam, usar o endpoint _pooled_, que oferece IPv4.     |
 
 ### 5.4 `$PORT` do Render
 
@@ -318,13 +325,16 @@ CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
 
 **Causa.** O deploy publicou o código, mas o schema do banco não foi criado.
 
-**Correção.** Hoje o schema é criado pela própria aplicação: suba a API uma vez
-(no startup ela executa `Base.metadata.create_all`) ou rode
-`python -m app.infra.seed` no Shell do Render, que também garante as tabelas
-antes de inserir. Migrações versionadas com Alembic são a issue **#11** e
-**ainda não existem** — quando existirem, `alembic upgrade head` passa a ser o
-caminho, e continua valendo a regra operacional: **deploy de código que depende
-de schema novo só termina depois da migração.**
+**Correção.** Rode as migrações no ambiente publicado:
+
+```bash
+alembic upgrade head
+```
+
+O comando de start definido no `backend/Dockerfile` já faz isso antes de subir o
+`uvicorn`. Em um serviço configurado sem ele, use o **Shell** do Render, que já
+tem as variáveis carregadas. A regra operacional vale sempre: **deploy de código
+que depende de schema novo só termina depois da migração.**
 
 ### 5.6 Lista vazia em produção
 
@@ -411,7 +421,7 @@ exatamente o que faz aparecer metade dos problemas de CORS.
 
 - [ ] `GET /health/ready` responde `200` no ambiente publicado.
 - [ ] `/docs` abre e lista todos os endpoints.
-- [ ] Schema criado no ambiente publicado (startup da API ou `python -m app.infra.seed`) — migrações com Alembic são a issue #11.
+- [ ] Migrações aplicadas (`alembic upgrade head`) e `alembic_version` no head esperado.
 - [ ] Seed carregado.
 - [ ] `CORS_ORIGINS` com a URL real do frontend, sem `*` e sem barra final.
 - [ ] `VITE_API_BASE_URL` com `/api/v1` e deploy refeito após qualquer alteração.

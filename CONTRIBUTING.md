@@ -45,19 +45,26 @@ cp backend/.env.example backend/.env
 pnpm install
 cp frontend/.env.example frontend/.env
 
-# 4. Banco + dados de demonstração
+# 4. Schema + dados de demonstração
 cd backend
-python -m app.infra.seed        # cria as tabelas e popula os incidentes de demonstração
+alembic upgrade head            # cria o schema a partir das migrações
+python -m app.infra.seed        # popula os incidentes de demonstração
 cd ..
 
 # 5. Subir API e web juntos
 pnpm dev
 ```
 
-> O schema é criado automaticamente na subida da API (`Base.metadata.create_all`
-> em `backend/app/main.py`), e o seed também garante as tabelas antes de inserir.
-> Migrações versionadas com Alembic são a issue **#11** e **ainda não estão
-> implementadas** — é por isso que este passo não tem `alembic upgrade head`.
+> O schema é versionado pelo **Alembic**; a aplicação não cria tabelas. Ao
+> alterar um modelo, gere a migração correspondente e revise o arquivo antes de
+> commitar:
+>
+> ```bash
+> cd backend && alembic revision --autogenerate -m "descricao da mudanca"
+> ```
+>
+> A CI roda `alembic upgrade head` e `alembic check`, então um modelo alterado
+> sem migração correspondente **reprova o pull request**.
 
 Serviços esperados após o `pnpm dev`:
 
@@ -194,7 +201,23 @@ mensagem com `commitlint`; mensagem fora do padrão é rejeitada localmente.
 | Comprimento máximo da linha do corpo | 100 caracteres                                  |
 | `subject-case`                       | Não pode começar em maiúscula nem em PascalCase |
 
-### 4.5 Exemplos reais
+### 4.5 Referências de issue ficam no rodapé
+
+Um `#<número>` **dentro do corpo** faz o `commitlint` reprovar o commit. O
+analisador de Conventional Commits trata qualquer `#42` como referência de
+rodapé, e a divisão entre corpo e rodapé se perde — o commit é rejeitado com
+`footer must have leading blank line`, mesmo com o texto corretamente separado
+por linhas em branco.
+
+Escreva a referência apenas no rodapé, que é onde a própria convenção manda:
+
+```
+Corpo explicando o porquê da mudança, sem citar o número da issue.
+
+Closes #42
+```
+
+### 4.6 Exemplos reais
 
 ```
 feat(api): adiciona lock otimista na transição de status

@@ -252,24 +252,24 @@ ninguém olhar. A interface mostra o motivo em _tooltip_, termo a termo:
 
 ## Stack
 
-| Camada             | Tecnologia                                     | Por que esta e não outra                                                                                                                                                                                                                                          |
-| ------------------ | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| API                | **FastAPI** + Pydantic v2                      | Validação declarativa e OpenAPI automático; `async` para I/O; é o "Python" pedido pelo briefing com o melhor custo/benefício. Flask exigiria montar validação e documentação à mão.                                                                               |
-| Persistência       | **SQLAlchemy 2.0 + Alembic**                   | O lock otimista exige `UPDATE` condicional atômico, que um JSON estruturado não oferece de forma confiável. O versionamento de schema com Alembic é a issue #11 e ainda não está implementado — hoje o schema é criado por `Base.metadata.create_all` no startup. |
-| Banco              | **PostgreSQL** local (container) e em produção | É o mesmo banco nos dois ambientes, então o comportamento de concorrência e os índices `GIN` são exercidos de verdade. O SQLite segue suportado como alternativa sem container, para rodar em qualquer máquina.                                                   |
-| Frontend           | **React 18 + TypeScript `strict`**             | SPA que consome API. TypeScript estrito transforma o contrato da API em erro de compilação em vez de bug em produção.                                                                                                                                             |
-| Build              | **Vite**                                       | Build quase instantâneo e HMR rápido. Next.js traria SSR desnecessário e acoplaria o deploy do front ao do back.                                                                                                                                                  |
-| Estado de servidor | **TanStack Query**                             | Retry, cache, `staleTime`, `onMutate` otimista e rollback vêm de fábrica — são exatamente os critérios de resiliência. Redux seria boilerplate.                                                                                                                   |
-| Estado de UI       | **Zustand**                                    | Tema, densidade e filtros efêmeros sem re-render global. Context sozinho faria a árvore inteira re-renderizar.                                                                                                                                                    |
-| Estilo             | **Tailwind CSS**                               | Tokens controláveis e dark mode por classe, sem CSS morto.                                                                                                                                                                                                        |
-| Componentes        | **shadcn/ui sobre Radix**                      | Acessibilidade (foco, teclado, ARIA) por padrão e o código no repositório, sem caixa preta.                                                                                                                                                                       |
-| Lista              | **TanStack Virtual**                           | 100+ incidentes renderizando ~20 linhas, DOM estável e scroll fluido.                                                                                                                                                                                             |
-| Contrato runtime   | **Zod**                                        | O front não confia cegamente no JSON: os schemas espelham o contrato e falham cedo.                                                                                                                                                                               |
-| Testes             | **pytest** + **Vitest** + Playwright           | Um por nível da pirâmide, incluindo o teste de corrida com `ThreadPoolExecutor`.                                                                                                                                                                                  |
-| Qualidade Python   | **Ruff + mypy `strict`**                       | Um binário que formata e faz lint, muito mais rápido que flake8 + black + isort; mypy garante que o contrato de tipos é real.                                                                                                                                     |
-| Qualidade TS       | **ESLint 9 + Prettier**                        | Regras de hooks, `jsx-a11y` e `no-floating-promises` pegam bugs de UI antes do runtime.                                                                                                                                                                           |
-| Automação          | **Husky + lint-staged + commitlint**           | Padrão de commit aplicado no `commit-msg`; formatação apenas do que mudou.                                                                                                                                                                                        |
-| Deploy             | **Render + Vercel + Neon**                     | Free tier real, deploy via GitHub e Postgres gerenciado. Alternativas avaliadas no [ADR 0012](docs/adr/0012-render-vercel-neon.md).                                                                                                                               |
+| Camada             | Tecnologia                                     | Por que esta e não outra                                                                                                                                                                                                            |
+| ------------------ | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| API                | **FastAPI** + Pydantic v2                      | Validação declarativa e OpenAPI automático; `async` para I/O; é o "Python" pedido pelo briefing com o melhor custo/benefício. Flask exigiria montar validação e documentação à mão.                                                 |
+| Persistência       | **SQLAlchemy 2.0 + Alembic**                   | O lock otimista exige `UPDATE` condicional atômico, que um JSON estruturado não oferece de forma confiável. O schema é versionado pelo Alembic, e `alembic check` na CI acusa qualquer divergência entre os modelos e as migrações. |
+| Banco              | **PostgreSQL** local (container) e em produção | É o mesmo banco nos dois ambientes, então o comportamento de concorrência e os índices `GIN` são exercidos de verdade. O SQLite segue suportado como alternativa sem container, para rodar em qualquer máquina.                     |
+| Frontend           | **React 18 + TypeScript `strict`**             | SPA que consome API. TypeScript estrito transforma o contrato da API em erro de compilação em vez de bug em produção.                                                                                                               |
+| Build              | **Vite**                                       | Build quase instantâneo e HMR rápido. Next.js traria SSR desnecessário e acoplaria o deploy do front ao do back.                                                                                                                    |
+| Estado de servidor | **TanStack Query**                             | Retry, cache, `staleTime`, `onMutate` otimista e rollback vêm de fábrica — são exatamente os critérios de resiliência. Redux seria boilerplate.                                                                                     |
+| Estado de UI       | **Zustand**                                    | Tema, densidade e filtros efêmeros sem re-render global. Context sozinho faria a árvore inteira re-renderizar.                                                                                                                      |
+| Estilo             | **Tailwind CSS**                               | Tokens controláveis e dark mode por classe, sem CSS morto.                                                                                                                                                                          |
+| Componentes        | **shadcn/ui sobre Radix**                      | Acessibilidade (foco, teclado, ARIA) por padrão e o código no repositório, sem caixa preta.                                                                                                                                         |
+| Lista              | **TanStack Virtual**                           | 100+ incidentes renderizando ~20 linhas, DOM estável e scroll fluido.                                                                                                                                                               |
+| Contrato runtime   | **Zod**                                        | O front não confia cegamente no JSON: os schemas espelham o contrato e falham cedo.                                                                                                                                                 |
+| Testes             | **pytest** + **Vitest** + Playwright           | Um por nível da pirâmide, incluindo o teste de corrida com `ThreadPoolExecutor`.                                                                                                                                                    |
+| Qualidade Python   | **Ruff + mypy `strict`**                       | Um binário que formata e faz lint, muito mais rápido que flake8 + black + isort; mypy garante que o contrato de tipos é real.                                                                                                       |
+| Qualidade TS       | **ESLint 9 + Prettier**                        | Regras de hooks, `jsx-a11y` e `no-floating-promises` pegam bugs de UI antes do runtime.                                                                                                                                             |
+| Automação          | **Husky + lint-staged + commitlint**           | Padrão de commit aplicado no `commit-msg`; formatação apenas do que mudou.                                                                                                                                                          |
+| Deploy             | **Render + Vercel + Neon**                     | Free tier real, deploy via GitHub e Postgres gerenciado. Alternativas avaliadas no [ADR 0012](docs/adr/0012-render-vercel-neon.md).                                                                                                 |
 
 ## Setup local
 
@@ -317,16 +317,16 @@ cp backend/.env.example backend/.env      # no Windows: Copy-Item backend\.env.e
 
 ```bash
 cd backend
-python -m app.infra.seed    # cria as tabelas e popula 120 incidentes de demonstração
+alembic upgrade head        # cria o schema a partir das migrações
+python -m app.infra.seed    # popula 120 incidentes de demonstração
 uvicorn app.main:app --reload --port 8000
 ```
 
-O schema não é criado por migração: a aplicação cria as tabelas no startup
-(`Base.metadata.create_all`, em `backend/app/main.py`), e o próprio seed também
-garante o schema antes de inserir. Migrações versionadas com **Alembic** são a
-issue **#11** (`feat(db): configura Alembic e migracao inicial`, milestone
-`M1 — Backend Core`) e **ainda não estão implementadas** — é por isso que este
-passo não tem `alembic upgrade head`.
+O schema é versionado pelo **Alembic**. A aplicação **não** cria tabelas: se o
+banco estiver vazio, ela para na subida com a instrução do comando que falta —
+o que evita o cenário de a API e as migrações divergirem sem ninguém perceber.
+A migração inicial (`backend/alembic/versions/0001_esquema_inicial.py`) cria as
+duas tabelas e todos os índices.
 
 Verificação: `GET http://localhost:8000/health/ready` deve responder `200` e o
 Swagger está em `http://localhost:8000/docs`.
@@ -468,10 +468,10 @@ Reproduzir o deploy:
    `uvicorn app.main:app --host 0.0.0.0 --port $PORT`.
 3. Definir as variáveis de ambiente listadas acima (`ENVIRONMENT=production`,
    `CORS_ORIGINS` com a URL da Vercel, `DATABASE_URL` do Neon).
-4. Subir a API uma vez para criar o schema (a aplicação cria as tabelas no
-   startup) e rodar o seed no ambiente publicado. Migrações versionadas com
-   Alembic são a issue **#11** — em produção real elas são pré-requisito, e é
-   por isso que estão no milestone `M1 — Backend Core`.
+4. Aplicar as migrações no ambiente publicado (`alembic upgrade head`) e rodar
+   o seed. Localmente isso é o `pnpm db:migrate`; no Render, o comando de start
+   já executa `alembic upgrade head` antes do `uvicorn` — veja o
+   `backend/Dockerfile`.
 5. Na Vercel, importar o repositório com raiz `frontend/`, framework Vite, e
    definir `VITE_API_BASE_URL`.
 6. Voltar ao Render e ajustar `CORS_ORIGINS` com a URL real da Vercel.
@@ -510,7 +510,7 @@ logos/
 │   │   ├── api/                      # deps, router e v1/{incidents,meta,health,stream}
 │   │   ├── models/                   # ORM SQLAlchemy (incident, incident_event)
 │   │   └── infra/                    # cache, retry, circuit_breaker, seed
-│   ├── alembic/                      # planejado — issue #11 (env.py + versions/)
+│   ├── alembic/                      # env.py + versions/ (migrações versionadas)
 │   ├── tests/                        # unit/, integration/, concurrency/
 │   ├── pyproject.toml                # deps + ruff + mypy + pytest + coverage
 │   ├── .env.example
