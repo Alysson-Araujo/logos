@@ -1,0 +1,41 @@
+# Logos — API + PostgreSQL 16.
+# Compatível com `podman compose up` e `docker compose up`.
+# A API roda em SQLite por padrão; aqui ela é apontada para o Postgres.
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: logos-db
+    environment:
+      POSTGRES_USER: logos
+      POSTGRES_PASSWORD: logos
+      POSTGRES_DB: logos
+    ports:
+      - "5432:5432"
+    volumes:
+      - logos-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U logos -d logos"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: logos-api
+    environment:
+      DATABASE_URL: postgresql+psycopg://logos:logos@db:5432/logos
+      SEED_ON_STARTUP: "true"
+      CORS_ORIGINS: "http://localhost:5173,http://127.0.0.1:5173"
+      LOG_LEVEL: "INFO"
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    restart: unless-stopped
+
+volumes:
+  logos-pgdata:

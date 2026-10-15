@@ -1,0 +1,78 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "logos-backend"
+version = "0.1.0"
+description = "Logos - Central de Resposta a Incidentes (API FastAPI)"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [{ name = "Alysson Araujo", email = "alysson10araujo@gmail.com" }]
+keywords = ["incidentes", "fastapi", "sqlalchemy", "optimistic-locking"]
+classifiers = [
+  "Private :: Do Not Upload",
+  "Programming Language :: Python :: 3.12",
+  "Framework :: FastAPI",
+]
+dependencies = [
+  "fastapi>=0.115.0",
+  "uvicorn[standard]>=0.32.0",
+  "pydantic>=2.9.0",
+  "pydantic-settings>=2.6.0",
+  "sqlalchemy>=2.0.36",
+  "psycopg[binary]>=3.2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3.0",
+  "pytest-cov>=6.0.0",
+  "httpx>=0.27.0",
+  "ruff>=0.8.0",
+  "mypy>=1.13.0",
+]
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["."]
+extend-exclude = [".venv", "build", "dist"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "SIM", "RUF", "S", "ANN"]
+
+[tool.ruff.lint.per-file-ignores]
+# Testes podem usar assert e nao precisam de anotacao de tipo.
+"tests/**" = ["S101", "ANN", "E402"]
+# O seed usa geracao pseudoaleatoria apenas para dados de demonstracao.
+"app/infra/seed.py" = ["S311"]
+
+[tool.ruff.lint.flake8-annotations]
+suppress-dummy-args = true
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unused_configs = true
+plugins = ["pydantic.mypy"]
+exclude = ["^\\.venv/"]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+addopts = "-q --strict-markers --strict-config --cov=app --cov-report=term-missing --cov-fail-under=80"
+testpaths = ["tests"]
+markers = ["concurrency: testes de corrida com threads"]
+
+[tool.coverage.run]
+branch = true
+source = ["app"]
+
+[tool.coverage.report]
+exclude_lines = ["pragma: no cover", "if TYPE_CHECKING:", "raise NotImplementedError"]

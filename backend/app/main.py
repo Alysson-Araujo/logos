@@ -1,0 +1,120 @@
+"""Aplicação FastAPI: lifespan, middlewares, handlers e rotas."""
+
+from __future__ import annotations
+
+import logging
+import time
+from collections.abc import AsyncIterator, Awaitable, Callable
+from contextlib import asynccontextmanager
+from typing import Final
+from uuid import uuid4
+
+from fastapi import FastAPI, Request, Response
+from fastapi.middleware.cors import CORSMiddleware
+
+from app.api.router import api_router
+from app.core.config import Settings, get_settings
+from app.core.database import create_session, dispose_engine, get_engine
+from app.core.errors import register_exception_handlers
+from app.core.logging import (
+    REQUEST_ID_HEADER,
+    configure_logging,
+    reset_request_id,
+    set_request_id,
+)
+from app.infra.seed import seed_incidents
+from app.models import Base
+
+API_PREFIX: Final[str] = "/api/v1"
+
+logger = logging.getLogger(__name__)
+
+
+def initialize_database(settings: Settings) -> None:
+    """Cria as tabelas e aplica o seed quando configurado."""
+    Base.metadata.create_all(bind=get_engine())
+    if not settings.seed_on_startup:
+        return
+    with create_session() as session:
+        created = seed_incidents(session)
+    logger.info("seed executado: %s incidentes criados", created)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """Prepara o banco na subida e libera o pool no shutdown."""
+    settings = get_settings()
+    configure_logging(settings.log_level)
+    initialize_database(settings)
+    logger.info("api iniciada: ambiente=%s banco=%s", settings.environment, settings.database_url)
+    try:
+        yield
+    finally:
+        dispose_engine()
+        logger.info("api finalizada")
+
+
+async def request_context_middleware(
+    request: Request,
+    call_next: Callable[[Request], Awaitable[Response]],
+) -> Response:
+    """Propaga o X-Request-Id e registra uma linha de log por requisição."""
+    request_id = request.headers.get(REQUEST_ID_HEADER) or uuid4().hex
+    request.state.request_id = request_id
+    token = set_request_id(request_id)
+    started_at = time.perf_counter()
+    status_code = 500
+    try:
+        response = await call_next(request)
+        status_code = response.status_code
+        response.headers[REQUEST_ID_HEADER] = request_id
+        return response
+    finally:
+        elapsed_ms = round((time.perf_counter() - started_at) * 1000, 2)
+        logger.info(
+            "http_request",
+            extra={
+                "method": request.method,
+                "path": request.url.path,
+                "status_code": status_code,
+                "duration_ms": elapsed_ms,
+            },
+        )
+        reset_request_id(token)
+
+
+def create_app(settings: Settings | None = None) -> FastAPI:
+    """Monta a aplicação FastAPI com middlewares, handlers e rotas."""
+    current = settings or get_settings()
+    configure_logging(current.log_level)
+
+    application = FastAPI(
+        title=current.app_name,
+        version=current.app_version,
+        description=(
+            "Central de Resposta a Incidentes. API com máquina de estados explícita, "
+            "priority score determinístico e lock otimista (compare-and-swap) na transição "
+            "de status."
+        ),
+        lifespan=lifespan,
+        docs_url="/docs" if current.docs_enabled else None,
+        redoc_url="/redoc" if current.docs_enabled else None,
+        openapi_url="/openapi.json" if current.docs_enabled else None,
+    )
+
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origins=current.cors_origin_list,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+        allow_headers=["*"],
+        expose_headers=[REQUEST_ID_HEADER, "ETag", "Location"],
+    )
+    application.middleware("http")(request_context_middleware)
+
+    register_exception_handlers(application)
+    application.include_router(api_router, prefix=API_PREFIX)
+    return application
+
+
+app = create_app()
