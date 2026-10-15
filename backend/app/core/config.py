@@ -42,6 +42,14 @@ class Settings(BaseSettings):
     #: Teto do backoff da primeira espera; dobra a cada tentativa (1s, 2s, 4s).
     retry_base_delay_seconds: float = 1.0
 
+    # --- Disjuntor de banco ------------------------------------------------
+    #: Liga o disjuntor. Desligar é útil para observar a falha crua em teste.
+    circuit_breaker_enabled: bool = True
+    #: Falhas transitórias consecutivas que abrem o circuito.
+    circuit_breaker_failure_threshold: int = 5
+    #: Segundos de espera antes de autorizar a sondagem de recuperação.
+    circuit_breaker_cooldown_seconds: float = 30.0
+
     @property
     def cors_origin_list(self) -> list[str]:
         """Devolve as origens de CORS como lista, ignorando entradas vazias."""

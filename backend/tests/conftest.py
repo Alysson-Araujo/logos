@@ -40,6 +40,11 @@ os.environ["CORS_ORIGINS"] = "http://localhost:5173"
 # 429 e a falhar por um motivo que não é o que eles verificam. O comportamento do
 # limitador tem teste próprio, que o liga explicitamente.
 os.environ["RATE_LIMIT_ENABLED"] = "false"
+# O disjuntor também guarda estado no processo, com um agravante: os testes que
+# simulam falha de banco o deixariam aberto para os testes seguintes, que
+# passariam a receber 503 sem relação com o que verificam. Quem testa o
+# disjuntor o liga explicitamente.
+os.environ["CIRCUIT_BREAKER_ENABLED"] = "false"
 
 import pytest
 from alembic.config import Config
