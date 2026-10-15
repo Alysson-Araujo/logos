@@ -1,0 +1,91 @@
+name: cd
+
+# Deploy automatico somente a partir da main.
+# Onda 1: Render (API) + Vercel (frontend) + Neon (PostgreSQL).
+# Ver docs/08-deploy.md para o passo a passo e para a arquitetura AWS equivalente.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  api:
+    name: deploy da API (Render)
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main' }}
+    steps:
+      - name: Disparar deploy hook do Render
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: |
+          if [ -z "$RENDER_DEPLOY_HOOK" ]; then
+            echo "::warning::Secret RENDER_DEPLOY_HOOK nao configurado. Deploy da API ignorado."
+            exit 0
+          fi
+          curl -fsS -X POST "$RENDER_DEPLOY_HOOK"
+          echo "Deploy da API disparado."
+
+  web:
+    name: deploy do frontend (Vercel)
+    runs-on: ubuntu-latest
+    needs: [api]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Instalar dependencias
+        run: pnpm install --frozen-lockfile
+
+      - name: Build de producao
+        env:
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+        run: pnpm --filter web build
+
+      - name: Publicar na Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "::warning::Secret VERCEL_TOKEN nao configurado. Deploy do frontend ignorado."
+            exit 0
+          fi
+          npx vercel deploy --prod --token "$VERCEL_TOKEN" --yes
+
+  smoke:
+    name: smoke test pos-deploy
+    runs-on: ubuntu-latest
+    needs: [api, web]
+    steps:
+      - name: Verificar saude da API publicada
+        env:
+          API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+        run: |
+          if [ -z "$API_BASE_URL" ]; then
+            echo "::warning::VITE_API_BASE_URL nao configurado. Smoke test ignorado."
+            exit 0
+          fi
+          echo "Aguardando a API responder (cold start do free tier)..."
+          for tentativa in $(seq 1 12); do
+            if curl -fsS "$API_BASE_URL/health/ready"; then
+              echo "API respondeu saudavel na tentativa $tentativa."
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::API nao respondeu apos 12 tentativas."
+          exit 1

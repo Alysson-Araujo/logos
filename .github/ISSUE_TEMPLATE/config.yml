@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+
+contact_links:
+  - name: Documentacao do projeto
+    url: https://github.com/Alysson-Araujo/logos/tree/main/docs
+    about: Arquitetura, contrato da API, concorrencia, resiliência e design system.
+
+  - name: Guia de contribuicao
+    url: https://github.com/Alysson-Araujo/logos/blob/main/CONTRIBUTING.md
+    about: Fluxo de branch, padrao de commit e Definition of Done.
+
+  - name: Como rodar o projeto localmente
+    url: https://github.com/Alysson-Araujo/logos#setup-local
+    about: Passo a passo de setup do backend e do frontend.

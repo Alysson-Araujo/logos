@@ -1,0 +1,15 @@
+node_modules
+dist
+build
+coverage
+.venv
+venv
+__pycache__
+.pytest_cache
+.ruff_cache
+.mypy_cache
+*.db
+*.sqlite3
+pnpm-lock.yaml
+package-lock.json
+docs/assets/*.gif

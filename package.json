@@ -1,0 +1,66 @@
+{
+  "name": "logos",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Logos — Central de Resposta a Incidentes para operação logística de missão crítica",
+  "author": "Alysson Araújo <alysson10araujo@gmail.com>",
+  "license": "MIT",
+  "packageManager": "pnpm@12.4.1",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "concurrently -n api,web -c blue,magenta \"pnpm dev:api\" \"pnpm dev:web\"",
+    "dev:api": "cd backend && uvicorn app.main:app --reload --port 8000",
+    "dev:web": "pnpm --filter web dev",
+    "seed": "cd backend && python -m app.infra.seed",
+    "db:up": "podman compose up -d postgres",
+    "db:down": "podman compose down",
+    "lint": "pnpm lint:web && pnpm lint:api",
+    "lint:web": "pnpm --filter web lint",
+    "lint:api": "cd backend && ruff check .",
+    "format": "pnpm format:web && pnpm format:api",
+    "format:web": "pnpm --filter web format",
+    "format:api": "cd backend && ruff format .",
+    "typecheck": "pnpm typecheck:web && pnpm typecheck:api",
+    "typecheck:web": "pnpm --filter web typecheck",
+    "typecheck:api": "cd backend && mypy app",
+    "test": "pnpm test:web && pnpm test:api",
+    "test:web": "pnpm --filter web test:run",
+    "test:api": "cd backend && pytest -q",
+    "build": "pnpm --filter web build",
+    "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "prepare": "husky",
+    "commit": "cz"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^19.6.1",
+    "@commitlint/config-conventional": "^19.6.0",
+    "commitizen": "^4.3.1",
+    "concurrently": "^9.1.2",
+    "cz-conventional-changelog": "^3.3.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.4.3",
+    "prettier": "^3.4.2"
+  },
+  "lint-staged": {
+    "frontend/**/*.{ts,tsx}": [
+      "prettier --write"
+    ],
+    "frontend/**/*.{css,json,html}": [
+      "prettier --write"
+    ],
+    "backend/**/*.py": [
+      "ruff check --fix",
+      "ruff format"
+    ],
+    "*.{md,json,yml,yaml}": [
+      "prettier --write"
+    ]
+  },
+  "config": {
+    "commitizen": {
+      "path": "./node_modules/cz-conventional-changelog"
+    }
+  }
+}

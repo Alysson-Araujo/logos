@@ -1,0 +1,3 @@
+# Verificacao rapida no commit: formata e corrige apenas o que mudou.
+# Regras em package.json > lint-staged.
+pnpm exec lint-staged

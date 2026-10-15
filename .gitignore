@@ -1,0 +1,60 @@
+# ---------------------------------------------------------------- Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+*.egg-info/
+.eggs/
+dist/
+build/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.db
+*.sqlite3
+*.sqlite3-journal
+*.sqlite3-wal
+*.sqlite3-shm
+
+# ---------------------------------------------------------------- Node
+node_modules/
+.pnpm-store/
+dist/
+dist-ssr/
+build/
+.vite/
+coverage/
+*.tsbuildinfo
+.eslintcache
+
+# ---------------------------------------------------------------- Ambiente e segredos
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# ---------------------------------------------------------------- IDE e sistema
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---------------------------------------------------------------- Logs e temporarios
+*.log
+npm-debug.log*
+pnpm-debug.log*
+logs/
+tmp/

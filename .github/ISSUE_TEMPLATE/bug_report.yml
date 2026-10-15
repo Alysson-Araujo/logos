@@ -1,0 +1,81 @@
+name: Relatar defeito
+description: Algo nao funciona como deveria no Logos.
+title: 'fix(escopo): '
+labels: ['type:fix']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Obrigado por reportar. Quanto mais preciso o relato, mais rapido o defeito e corrigido.
+
+  - type: textarea
+    id: comportamento-atual
+    attributes:
+      label: Comportamento atual
+      description: O que acontece hoje.
+      placeholder: Ao clicar em "Fechar caso" com a rede lenta, o botao volta ao normal sem feedback nenhum.
+    validations:
+      required: true
+
+  - type: textarea
+    id: comportamento-esperado
+    attributes:
+      label: Comportamento esperado
+      description: O que deveria acontecer.
+      placeholder: O botao deveria manter o estado pendente e exibir um toast de erro com opcao de tentar novamente.
+    validations:
+      required: true
+
+  - type: textarea
+    id: passos
+    attributes:
+      label: Passos para reproduzir
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: camada
+    attributes:
+      label: Camada afetada
+      multiple: true
+      options:
+        - API (backend)
+        - Interface (frontend)
+        - Banco de dados
+        - CI/CD e deploy
+        - Documentacao
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severidade
+    attributes:
+      label: Severidade
+      description: Impacto sobre o objetivo de missao critica do sistema.
+      options:
+        - Bloqueia o uso (nao consigo operar)
+        - Degrada a operacao (perco tempo, mas consigo contornar)
+        - Cosmetico (visual ou texto)
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidencias
+    attributes:
+      label: Evidencias
+      description: Logs, print, resposta da API e o `requestId` quando houver.
+      render: shell
+    validations:
+      required: false
+
+  - type: input
+    id: ambiente
+    attributes:
+      label: Ambiente
+      placeholder: local (SQLite) / Render + Neon / Vercel
+    validations:
+      required: false

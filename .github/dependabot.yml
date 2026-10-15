@@ -1,0 +1,35 @@
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /backend
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: 'chore'
+      include: scope
+    labels:
+      - 'type:chore'
+      - 'area:api'
+
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: 'chore'
+      include: scope
+    labels:
+      - 'type:chore'
+      - 'area:web'
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: 'ci'
+    labels:
+      - 'type:chore'
+      - 'area:ci'

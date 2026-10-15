@@ -1,0 +1,2 @@
+# Ultima barreira antes de publicar: os tipos precisam estar consistentes.
+pnpm typecheck

@@ -1,0 +1,50 @@
+packages:
+  - frontend
+
+# --------------------------------------------------------------------------- #
+# nodeLinker: hoisted
+#
+# Por padrao o pnpm cria node_modules/.pnpm/<pacote>@<versao>_<peer>@<versao>/...
+# O caminho resultante e longo. Neste repositorio, que vive dentro de uma pasta
+# do OneDrive com um caminho base de ~100 caracteres, ele ultrapassa o limite
+# MAX_PATH do Windows (260) e o pnpm 12 termina em stack overflow
+# (STATUS_STACK_OVERFLOW / 0xC00000FD) no meio da instalacao.
+#
+# O linker hoisted achata node_modules, encurta os caminhos e resolve o problema.
+# O custo e abrir mao do isolamento estrito de dependencias do pnpm.
+#
+# Alternativa recomendada a longo prazo: mover o repositorio para um caminho
+# curto (ex.: C:\dev\logos) e remover esta linha.
+# --------------------------------------------------------------------------- #
+nodeLinker: hoisted
+
+# --------------------------------------------------------------------------- #
+# allowBuilds
+#
+# O pnpm 10+ bloqueia scripts de pos-instalacao por seguranca e, quando o
+# conjunto de dependencias nao esta aprovado, abre um prompt interativo.
+# Em terminal nao interativo (CI, hooks do Git, execucao automatizada) esse
+# prompt nao pode ser respondido e a instalacao falha com
+# ERR_PNPM_IGNORED_BUILDS.
+#
+# esbuild: baixa e valida o binario nativo usado pelo Vite.
+# msw:     executa o pos-instalacao que prepara o service worker de mock.
+# --------------------------------------------------------------------------- #
+allowBuilds:
+  esbuild: true
+  msw: true
+
+# --------------------------------------------------------------------------- #
+# verifyDepsBeforeRun: false
+#
+# Por padrao o pnpm confere se node_modules corresponde ao lockfile ANTES de
+# cada `pnpm exec` e, se nao corresponder, dispara uma instalacao no meio do
+# comando. Isso torna os hooks do Husky imprevisiveis: um commit comum passa a
+# poder disparar uma instalacao de rede antes de rodar o lint-staged.
+#
+# Com a verificacao desligada, os hooks ficam rapidos e deterministicos. A
+# garantia de que as dependencias estao corretas continua existindo onde
+# importa: a CI roda `pnpm install --frozen-lockfile` antes de lint, tipos,
+# testes e build.
+# --------------------------------------------------------------------------- #
+verifyDepsBeforeRun: false

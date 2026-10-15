@@ -1,0 +1,2 @@
+# Garante o padrao Conventional Commits definido em commitlint.config.cjs.
+pnpm exec commitlint --edit "$1"

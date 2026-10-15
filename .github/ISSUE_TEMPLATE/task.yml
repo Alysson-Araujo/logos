@@ -1,0 +1,75 @@
+name: Tarefa tecnica
+description: Trabalho de engenharia que nao muda o comportamento visivel do produto.
+title: 'chore(escopo): '
+labels: ['type:chore']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use para configuracao, refatoracao, testes, documentacao e infraestrutura.
+
+  - type: textarea
+    id: objetivo
+    attributes:
+      label: Objetivo
+      description: O que esta tarefa entrega e por que ela importa agora.
+    validations:
+      required: true
+
+  - type: textarea
+    id: escopo
+    attributes:
+      label: Escopo
+      description: O que entra e o que explicitamente nao entra.
+      value: |
+        **Entra:**
+        -
+
+        **Nao entra:**
+        -
+    validations:
+      required: true
+
+  - type: textarea
+    id: checklist
+    attributes:
+      label: Checklist tecnico
+      value: |
+        - [ ] Implementacao concluida
+        - [ ] Testes escritos ou atualizados
+        - [ ] `pnpm verify` verde localmente
+        - [ ] Documentacao ou ADR atualizado, se a decisao mudou
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      multiple: true
+      options:
+        - API (backend)
+        - Interface (frontend)
+        - Banco de dados
+        - Experiencia do usuario
+        - CI/CD e infraestrutura
+        - Documentacao
+    validations:
+      required: true
+
+  - type: input
+    id: estimativa
+    attributes:
+      label: Estimativa
+      placeholder: '2h / meio dia / 1 dia'
+    validations:
+      required: false
+
+  - type: input
+    id: depende-de
+    attributes:
+      label: Depende de
+      description: Numero das issues que precisam estar concluidas antes.
+      placeholder: '#12, #18'
+    validations:
+      required: false

@@ -1,0 +1,72 @@
+name: Propor funcionalidade
+description: Nova capacidade para o Logos ou melhoria em algo existente.
+title: 'feat(escopo): '
+labels: ['type:feat']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Descreva o **problema do usuario** antes da solucao tecnica. A decisao de arquitetura vem depois.
+
+  - type: textarea
+    id: problema
+    attributes:
+      label: Problema do usuario
+      description: Que dor do analista da central isso resolve?
+      placeholder: Hoje a analista nao percebe que o SLA de um caso vai estourar antes que ele estoure.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposta
+    attributes:
+      label: Proposta de solucao
+      description: Como resolver, em linhas gerais.
+    validations:
+      required: true
+
+  - type: textarea
+    id: criterios
+    attributes:
+      label: Criterios de aceite
+      description: Como saberemos que esta pronto? Escreva em formato verificavel.
+      value: |
+        - [ ] Quando ..., entao ...
+        - [ ] Quando ..., entao ...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area principal
+      multiple: true
+      options:
+        - API (backend)
+        - Interface (frontend)
+        - Banco de dados
+        - Experiencia do usuario
+        - CI/CD e infraestrutura
+        - Documentacao
+    validations:
+      required: true
+
+  - type: dropdown
+    id: prioridade
+    attributes:
+      label: Prioridade
+      options:
+        - Critica (bloqueia a entrega)
+        - Alta
+        - Media
+        - Baixa
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternativas
+    attributes:
+      label: Alternativas consideradas
+      description: O que mais foi pensado e por que foi descartado. Isso vira um ADR depois.
+    validations:
+      required: false
