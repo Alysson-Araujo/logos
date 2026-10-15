@@ -13,6 +13,7 @@ from app.api.deps import (
     parse_if_match,
     resolve_expected_version,
 )
+from app.core.idempotency import IdempotentRoute
 from app.domain.enums import (
     IncidentCategory,
     IncidentCriticality,
@@ -32,12 +33,26 @@ from app.schemas.incident import (
 ERROR_RESPONSES: Final[dict[int | str, dict[str, Any]]] = {
     400: {"model": ErrorResponse, "description": "Cursor de paginação inválido"},
     404: {"model": ErrorResponse, "description": "Incidente não encontrado"},
-    409: {"model": ErrorResponse, "description": "Conflito de versão (lock otimista)"},
+    409: {
+        "model": ErrorResponse,
+        "description": (
+            "Conflito: versão divergente (VERSION_CONFLICT), ou Idempotency-Key "
+            "reusada com corpo diferente ou ainda em processamento"
+        ),
+    },
     412: {"model": ErrorResponse, "description": "If-Match malformado"},
-    422: {"model": ErrorResponse, "description": "Validação ou transição de status inválida"},
+    422: {
+        "model": ErrorResponse,
+        "description": "Validação, transição de status ou Idempotency-Key inválida",
+    },
+    428: {"model": ErrorResponse, "description": "If-Match ou expectedVersion ausente"},
 }
 
-router = APIRouter(prefix="/incidents", tags=["incidents"])
+router = APIRouter(
+    prefix="/incidents",
+    tags=["incidents"],
+    route_class=IdempotentRoute,
+)
 
 
 @router.get(

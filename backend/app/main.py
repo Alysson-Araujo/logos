@@ -16,6 +16,7 @@ from app.api.router import api_router
 from app.core.config import Settings, get_settings
 from app.core.database import create_session, dispose_engine, ensure_schema_is_migrated
 from app.core.errors import register_exception_handlers
+from app.core.idempotency import REPLAYED_HEADER
 from app.core.logging import (
     REQUEST_ID_HEADER,
     configure_logging,
@@ -111,9 +112,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         CORSMiddleware,
         allow_origins=current.cors_origin_list,
         allow_credentials=True,
-        allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=["*"],
-        expose_headers=[REQUEST_ID_HEADER, "ETag", "Location"],
+        expose_headers=[REQUEST_ID_HEADER, "ETag", "Location", REPLAYED_HEADER],
     )
     application.middleware("http")(request_context_middleware)
 

@@ -144,12 +144,12 @@ Três asserções, três garantias distintas:
 
 ### 4.2 Outros cenários do diretório
 
-| Teste                                | O que prova                                                                                                                    |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
-| `test_concurrent_create_is_unique`   | Criações simultâneas geram códigos `INC-…` únicos, sem colisão na sequência.                                                   |
-| `test_concurrent_reads_during_write` | Leituras concorrentes durante uma escrita não veem estado parcial nem erro de transação.                                       |
-| `test_concurrent_idempotent_retry`   | Dez requisições com a **mesma** `Idempotency-Key` produzem um único recurso.                                                   |
-| `test_lost_update_is_impossible`     | A regressão específica: simula o cenário Marina/Rafael e prova que a nota de resolução do primeiro não é apagada pelo segundo. |
+| Teste                                                                | O que prova                                                                                                                                                            |
+| -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `test_dez_threads_com_mesma_versao_tem_um_vencedor_e_nove_conflitos` | O núcleo do Pilar 1: dez threads com a mesma versão esperada produzem exatamente um `200` e nove `409`.                                                                |
+| `test_corrida_com_expected_version_no_corpo`                         | A versão pode vir no corpo (`expectedVersion`) em vez do `If-Match`, e a proteção continua valendo.                                                                    |
+| `test_vencedor_nao_e_sobrescrito_por_escrita_tardia`                 | A regressão Marina/Rafael: a nota de resolução de quem venceu não é apagada por quem escreveu depois com dados desatualizados.                                         |
+| `test_requisicoes_simultaneas_com_a_mesma_chave_criam_um_so`         | Cinco requisições simultâneas com a mesma `Idempotency-Key` produzem um único recurso. Vive em `tests/integration/test_idempotency.py` porque precisa do cliente HTTP. |
 
 ```bash
 cd backend

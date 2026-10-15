@@ -43,6 +43,7 @@ from fastapi.testclient import TestClient
 from alembic import command
 from app.core.database import create_session
 from app.main import app
+from app.repositories.idempotency_repository import IdempotencyRepository
 from app.repositories.incident_repository import IncidentRepository
 
 TEST_DATABASE_PATH = _DB_FILE
@@ -82,6 +83,7 @@ def clean_database() -> Iterator[None]:
     """
     with create_session() as session:
         IncidentRepository(session).clear()
+        IdempotencyRepository(session).clear()
     yield
 
 
