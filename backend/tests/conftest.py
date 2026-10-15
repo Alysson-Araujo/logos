@@ -35,6 +35,11 @@ os.environ["SEED_ON_STARTUP"] = "false"
 os.environ["LOG_LEVEL"] = "ERROR"
 os.environ["ENVIRONMENT"] = "test"
 os.environ["CORS_ORIGINS"] = "http://localhost:5173"
+# O teto de requisições fica desligado na suíte: os testes não são carga, e a
+# cota é compartilhada por IP — os últimos testes do arquivo passariam a receber
+# 429 e a falhar por um motivo que não é o que eles verificam. O comportamento do
+# limitador tem teste próprio, que o liga explicitamente.
+os.environ["RATE_LIMIT_ENABLED"] = "false"
 
 import pytest
 from alembic.config import Config

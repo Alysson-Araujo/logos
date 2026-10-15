@@ -28,6 +28,14 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
     seed_on_startup: bool = True
 
+    # --- Limitação de taxa -------------------------------------------------
+    #: Liga o teto de requisições por cliente. Desligar é útil ao rodar carga local.
+    rate_limit_enabled: bool = True
+    #: Leituras (GET/HEAD) por minuto, por cliente. A tela de triagem lista muito.
+    rate_limit_read_per_minute: int = 60
+    #: Escritas por minuto, por cliente. Mutação é deliberada e mais cara.
+    rate_limit_write_per_minute: int = 20
+
     @property
     def cors_origin_list(self) -> list[str]:
         """Devolve as origens de CORS como lista, ignorando entradas vazias."""

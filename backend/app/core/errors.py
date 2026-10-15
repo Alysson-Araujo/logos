@@ -113,6 +113,20 @@ class InvalidIdempotencyKeyError(DomainError):
     default_message = "Idempotency-Key inválida."
 
 
+class RateLimitExceededError(DomainError):
+    """Teto de requisições por cliente excedido.
+
+    É montado direto no middleware, e não levantado, porque middleware fica fora
+    do `ExceptionMiddleware` do Starlette: uma exceção levantada ali viraria 500
+    em vez de passar pelos handlers globais. A classe existe mesmo assim para o
+    código e a mensagem terem um dono único.
+    """
+
+    code = "RATE_LIMIT_EXCEEDED"
+    status_code = 429
+    default_message = "Muitas requisições em pouco tempo. Aguarde e tente novamente."
+
+
 class InvalidFilterError(DomainError):
     """Valor de filtro desconhecido na query string."""
 

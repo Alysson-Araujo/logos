@@ -337,7 +337,7 @@ versionado por migrações**, seed, logging JSON e suíte de testes.
 **Fora deste vertical slice** (issues futuras, já mapeadas no plano):
 
 - SSE `/incidents/stream`;
-- circuit breaker, cache TTL e rate limit;
+- circuit breaker e cache TTL;
 - timeline de auditoria (`incident_events` já existe no schema; endpoints são issue futura);
 - autenticação real (por ora o ator é simulado por `assignedAnalyst` e headers de infraestrutura).
 

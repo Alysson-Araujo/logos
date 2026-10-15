@@ -441,11 +441,27 @@ com backoff assume.
 
 ### 7.6 Rate limit
 
-Token bucket por IP, com cotas diferentes para leitura e escrita. O objetivo
-principal não é defesa contra ataque, é conter o **loop de retry do próprio
-cliente** — que é exatamente o que acontece quando a rede oscila e o front
-insiste. Excedido o limite: `429` com `Retry-After`, e a interface agenda nova
-tentativa em vez de insistir.
+Janela deslizante por cliente, com cotas diferentes para leitura e escrita. O
+objetivo principal não é defesa contra ataque, é conter o **loop de retry do
+próprio cliente** — que é exatamente o que acontece quando a rede oscila e o
+front insiste. Excedido o limite: `429` com `Retry-After`, e a interface agenda
+nova tentativa em vez de insistir.
+
+A janela é deslizante, e não fixa, porque a fixa permite gastar o teto nos
+últimos segundos de um minuto e de novo nos primeiros do seguinte — o dobro do
+limite em um instante curto. Com a deslizante, o teto vale a qualquer momento, e
+o `Retry-After` devolvido é o tempo exato até a requisição mais antiga sair da
+janela.
+
+`/health/live` e `/health/ready` ficam isentos de cota. Recusar o healthcheck
+faria a plataforma marcar o serviço como doente e reiniciar o deploy — o
+limitador derrubaria o próprio serviço que ele deveria proteger.
+
+**Limite honesto desta implementação:** o histórico vive na memória do processo.
+Isso é exato com uma instância e passa a valer _por worker_ quando houver várias,
+o que na prática multiplica o teto pelo número de workers. Trocar por um store
+compartilhado (Redis) é substituir a estrutura que guarda o histórico; o
+middleware e o contrato com o cliente não mudam.
 
 ## 8. Por que não confiar em retry cego em `PATCH`
 
