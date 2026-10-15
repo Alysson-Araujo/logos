@@ -87,29 +87,40 @@ Serviços esperados após o `pnpm dev`:
 > integração contínua executa. Rodar antes de abrir o PR é o hábito que evita
 > pull request vermelho.
 
-### 2.3 Alternativa com Podman/PostgreSQL
+### 2.3 Banco de dados em container
 
-Para trabalhar com a mesma engine usada em produção:
+O banco de desenvolvimento é um PostgreSQL, subido pelo `compose.yaml` da raiz
+do projeto:
 
 ```bash
-podman run -d --name logos-pg \
-  -e POSTGRES_USER=logos \
-  -e POSTGRES_PASSWORD=logos \
-  -e POSTGRES_DB=logos \
-  -p 5432:5432 \
-  docker.io/library/postgres:16
+pnpm db:up        # sobe o container logos-db
+pnpm seed         # cria as tabelas e popula os dados de demonstração
 ```
 
-Depois ajuste `backend/.env`:
+A porta exposta no host é a **5433**, e não a 5432, porque a 5432 costuma estar
+ocupada por um PostgreSQL instalado nativamente. Dentro da rede do compose o
+banco continua na 5432, como na CI. O `backend/.env` já aponta para
+`localhost:5433`.
 
-```dotenv
-DATABASE_URL=postgresql+psycopg://logos:logos@localhost:5432/logos
+Para rodar a suíte contra esse banco, e não contra SQLite:
+
+```powershell
+cd backend
+$env:TEST_DATABASE_URL = "postgresql+psycopg://logos:logos@localhost:5433/logos_test"
+python -m pytest -q
 ```
 
-E rode o seed novamente, a partir de `backend/`:
-`cd backend && python -m app.infra.seed`. Ele garante as tabelas no banco novo
-antes de inserir os dados de demonstração. Migrações versionadas com Alembic são
-a issue **#11** e ainda não estão implementadas.
+```bash
+cd backend
+TEST_DATABASE_URL="postgresql+psycopg://logos:logos@localhost:5433/logos_test" python -m pytest -q
+```
+
+O banco de teste é criado uma vez, com:
+`podman exec logos-db psql -U logos -d logos -c "CREATE DATABASE logos_test;"`.
+
+**Sem Podman?** Use `DATABASE_URL=sqlite:///./logos.db` no `backend/.env`. A
+suíte roda em SQLite automaticamente quando `TEST_DATABASE_URL` não está
+definida.
 
 ---
 
