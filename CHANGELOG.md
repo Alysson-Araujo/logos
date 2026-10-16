@@ -53,6 +53,9 @@ versionamento segue o [Semantic Versioning](https://semver.org/lang/pt-BR/).
 - **Timeouts de sessão no PostgreSQL**: `statement_timeout` (teto por consulta) e
   `idle_in_transaction_session_timeout` (teto com a transação ociosa), aplicados
   como opção de servidor para valerem desde a primeira consulta (#28).
+- **Timeline de auditoria** (`GET /incidents/{id}/events`): eventos `CREATED`,
+  `STATUS_CHANGED` e `DELETED` gravados na mesma transação da mudança que
+  descrevem, com autor, status de origem e destino (#24).
 - `docs/10-registro-de-execucao.md`: registro do que foi construído, com o
   raciocínio e a evidência de cada decisão.
 - Documentação do projeto:
