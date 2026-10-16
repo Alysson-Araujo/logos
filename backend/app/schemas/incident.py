@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
 from pydantic import Field, StringConstraints, field_validator
@@ -136,3 +136,31 @@ class CursorPayload(CamelModel):
 
     p: int
     id: UUID
+
+
+class IncidentEventRead(CamelModel):
+    """Um evento da timeline de auditoria do incidente."""
+
+    id: UUID
+    #: `CREATED`, `STATUS_CHANGED` ou `DELETED`. São estáveis, como os códigos de
+    #: erro da API: renomear quebraria a leitura do histórico já gravado.
+    event_type: str
+    from_status: IncidentStatus | None = None
+    to_status: IncidentStatus | None = None
+    #: Quem provocou o evento, quando a informação existe. Hoje vem do payload da
+    #: requisição; com autenticação real, virá do token.
+    actor: str | None = None
+    #: Contexto do evento — na transição, a versão que o cliente declarou esperar.
+    payload: dict[str, Any] | None = None
+    created_at: UtcDateTime
+
+
+class IncidentTimelineResponse(CamelModel):
+    """Timeline de auditoria de um incidente, em ordem cronológica.
+
+    Usa `items`, como a listagem: o cliente já sabe de qual incidente pediu a
+    timeline, então repetir o id na resposta só daria duas fontes para o mesmo
+    dado.
+    """
+
+    items: list[IncidentEventRead]

@@ -26,6 +26,7 @@ from app.domain.rules import (
 from app.infra.retry import RetryConfig, RetryPolicy, is_transient, run_with_retry
 from app.models.base import utcnow
 from app.models.incident import INITIAL_VERSION, Incident
+from app.models.incident_event import IncidentEvent
 from app.repositories.incident_repository import (
     IncidentFilter,
     IncidentRepository,
@@ -123,6 +124,28 @@ class IncidentService:
         if incident is None:
             raise IncidentNotFoundError(details={"id": str(incident_id)})
         return incident
+
+    def events(self, incident_id: UUID) -> list[IncidentEvent]:
+        """Timeline de auditoria do incidente, do mais antigo para o mais recente.
+
+        Confirma que o incidente existe antes de listar. Sem isso, um id
+        inexistente devolveria lista vazia, e "não existe" viraria "não tem
+        histórico" — duas respostas diferentes para quem está investigando, e a
+        diferença importa.
+        """
+        return self._execute(lambda: self._events(incident_id), policy=self._retry.for_read())
+
+    def _events(self, incident_id: UUID) -> list[IncidentEvent]:
+        """Valida a existência do incidente e devolve os eventos.
+
+        A busca **inclui os removidos**: a timeline de um incidente com soft
+        delete continua legível. Se ela sumisse junto com o incidente, "remover
+        sem apagar o histórico" seria falso — e é justamente o histórico que se
+        quer consultar depois.
+        """
+        if self._repository.get_by_id(incident_id, include_deleted=True) is None:
+            raise IncidentNotFoundError(details={"id": str(incident_id)})
+        return self._repository.list_events(incident_id)
 
     def create(self, payload: IncidentCreate) -> Incident:
         """Cria o incidente com status ABERTO, SLA e score calculados no servidor.

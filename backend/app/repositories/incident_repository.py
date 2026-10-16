@@ -49,6 +49,12 @@ MAX_CODE_ATTEMPTS: Final[int] = 5
 CODE_PREFIX_TEMPLATE: Final[str] = "INC-{year}-"
 CODE_DIGITS: Final[int] = 6
 
+#: Tipos de evento da timeline de auditoria. São estáveis, como os códigos de
+#: erro da API: renomear quebraria a leitura do histórico já gravado.
+EVENT_CREATED: Final[str] = "CREATED"
+EVENT_STATUS_CHANGED: Final[str] = "STATUS_CHANGED"
+EVENT_DELETED: Final[str] = "DELETED"
+
 _EPOCH = datetime(1970, 1, 1)
 _LIKE_ESCAPE = "\\"
 
@@ -196,6 +202,13 @@ class IncidentRepository:
                 if attempt == MAX_CODE_ATTEMPTS:
                     raise CodeGenerationError() from exc
                 continue
+            self._record_event(
+                incident.id,
+                event_type=EVENT_CREATED,
+                to_status=incident.status,
+                actor=incident.reported_by,
+                now=incident.created_at,
+            )
             self._session.commit()
             return incident
         raise CodeGenerationError() from last_error
@@ -287,6 +300,18 @@ class IncidentRepository:
         `WHERE id = :id AND version = :expected AND status IN (:origens)`. A comparação
         e a escrita são atômicas no banco, sem janela de corrida (TOCTOU).
         """
+        # O status de origem é lido ANTES do CAS, na mesma transação: a instrução
+        # atômica não tem como devolver o valor anterior. Se alguém alterar o
+        # incidente entre a leitura e a escrita, o `version = :expected` da
+        # própria UPDATE recusa — então o evento nunca descreve algo que não
+        # aconteceu.
+        from_status = self._session.scalar(
+            select(Incident.status).where(
+                Incident.id == incident_id,
+                Incident.deleted_at.is_(None),
+            )
+        )
+
         values: dict[str, Any] = {
             "status": new_status,
             "version": Incident.version + 1,
@@ -313,6 +338,20 @@ class IncidentRepository:
         result = cast("CursorResult[Any]", self._session.execute(statement))
         rowcount = int(result.rowcount)
         if rowcount == 1:
+            # O contexto do evento guarda o que permite explicar a decisão depois:
+            # a versão que o cliente declarou esperar e a justificativa registrada.
+            event_payload: dict[str, Any] = {"expectedVersion": expected_version}
+            if resolution_notes is not None:
+                event_payload["resolutionNotes"] = resolution_notes
+            self._record_event(
+                incident_id,
+                event_type=EVENT_STATUS_CHANGED,
+                from_status=from_status,
+                to_status=new_status,
+                actor=assigned_analyst,
+                payload=event_payload,
+                now=now,
+            )
             self._session.commit()
         else:
             self._session.rollback()
@@ -335,10 +374,62 @@ class IncidentRepository:
         result = cast("CursorResult[Any]", self._session.execute(statement))
         rowcount = int(result.rowcount)
         if rowcount == 1:
+            self._record_event(
+                incident_id,
+                event_type=EVENT_DELETED,
+                actor=None,
+                payload={"expectedVersion": expected_version},
+                now=now,
+            )
             self._session.commit()
         else:
             self._session.rollback()
         return rowcount
+
+    def list_events(self, incident_id: UUID) -> list[IncidentEvent]:
+        """Timeline do incidente, do mais antigo para o mais recente.
+
+        A ordem é cronológica porque a timeline é lida como narrativa: primeiro o
+        que aconteceu, depois o que aconteceu por causa disso. O desempate por
+        `id` existe porque dois eventos podem compartilhar o `created_at` — uma
+        transição grava o evento com o mesmo instante que carimbou a mudança.
+        """
+        statement = (
+            select(IncidentEvent)
+            .where(IncidentEvent.incident_id == incident_id)
+            .order_by(IncidentEvent.created_at.asc(), IncidentEvent.id.asc())
+        )
+        return list(self._session.scalars(statement).all())
+
+    def _record_event(
+        self,
+        incident_id: UUID,
+        *,
+        event_type: str,
+        now: datetime,
+        from_status: str | None = None,
+        to_status: str | None = None,
+        actor: str | None = None,
+        payload: dict[str, Any] | None = None,
+    ) -> None:
+        """Grava o evento de auditoria na **mesma transação** da mudança.
+
+        Não há `commit` aqui de propósito: o evento e a mudança que ele descreve
+        precisam entrar ou falhar juntos. Um evento órfão descreveria uma mudança
+        que não aconteceu; uma mudança sem evento é um buraco no histórico — e é
+        exatamente o buraco que a auditoria existe para não ter.
+        """
+        self._session.add(
+            IncidentEvent(
+                incident_id=incident_id,
+                event_type=event_type,
+                from_status=from_status,
+                to_status=to_status,
+                actor=actor,
+                payload=payload,
+                created_at=now,
+            )
+        )
 
     def clear(self) -> None:
         """Remove todos os incidentes e eventos — apoio a testes e re-seed."""
