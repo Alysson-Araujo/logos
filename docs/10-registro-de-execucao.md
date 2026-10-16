@@ -1,14 +1,14 @@
-# Registro de execução
+﻿# Registro de execuÃ§Ã£o
 
-Este documento registra **o que foi construído, em que ordem, com qual
-raciocínio e com qual evidência**. Ele não substitui o `README.md` (como rodar),
-nem o `docs/04` (como as decisões funcionam). Ele existe para responder a uma
-pergunta que a documentação técnica normalmente não responde: _por que cada coisa
-está do jeito que está, e como se sabe que funciona._
+Este documento registra **o que foi construÃ­do, em que ordem, com qual
+raciocÃ­nio e com qual evidÃªncia**. Ele nÃ£o substitui o `README.md` (como rodar),
+nem o `docs/04` (como as decisÃµes funcionam). Ele existe para responder a uma
+pergunta que a documentaÃ§Ã£o tÃ©cnica normalmente nÃ£o responde: _por que cada coisa
+estÃ¡ do jeito que estÃ¡, e como se sabe que funciona._
 
-Cada seção segue o mesmo formato: **problema → decisão → evidência → o que
-aprendi**. Onde houve erro, o erro está registrado — um registro que só conta
-acertos não serve para avaliar nada.
+Cada seÃ§Ã£o segue o mesmo formato: **problema â†’ decisÃ£o â†’ evidÃªncia â†’ o que
+aprendi**. Onde houve erro, o erro estÃ¡ registrado â€” um registro que sÃ³ conta
+acertos nÃ£o serve para avaliar nada.
 
 ---
 
@@ -16,97 +16,97 @@ acertos não serve para avaliar nada.
 
 | #   | Assunto                                            | PR                                                     | Issue | Resultado                                       |
 | --- | -------------------------------------------------- | ------------------------------------------------------ | ----- | ----------------------------------------------- |
-| 1   | Separação entre execução real e simulação (`MOCK`) | [#86](https://github.com/Alysson-Araujo/logos/pull/86) | —     | Base do projeto                                 |
-| 2   | Reconciliação da documentação com o código         | [#87](https://github.com/Alysson-Araujo/logos/pull/87) | —     | Docs deixam de prometer o que não existe        |
+| 1   | SeparaÃ§Ã£o entre execuÃ§Ã£o real e simulaÃ§Ã£o (`MOCK`) | [#86](https://github.com/Alysson-Araujo/logos/pull/86) | â€”     | Base do projeto                                 |
+| 2   | ReconciliaÃ§Ã£o da documentaÃ§Ã£o com o cÃ³digo         | [#87](https://github.com/Alysson-Araujo/logos/pull/87) | â€”     | Docs deixam de prometer o que nÃ£o existe        |
 | 3   | PostgreSQL de desenvolvimento em container         | [#89](https://github.com/Alysson-Araujo/logos/pull/89) | #88   | `pnpm db:up` sobe o banco                       |
-| 4   | Schema versionado com Alembic                      | [#90](https://github.com/Alysson-Araujo/logos/pull/90) | #11   | Migrações versionadas, `create_all` removido    |
-| 5   | `Idempotency-Key` nas mutações                     | [#91](https://github.com/Alysson-Araujo/logos/pull/91) | #22   | Reenvio não duplica incidente                   |
-| 6   | Rate limit e cabeçalhos de segurança               | [#92](https://github.com/Alysson-Araujo/logos/pull/92) | #33   | Teto por cliente, `429` com `Retry-After`       |
-| 7   | Retentativa com backoff e jitter                   | [#93](https://github.com/Alysson-Araujo/logos/pull/93) | #27   | Falha transitória não vira erro para o analista |
-| 8   | Disjuntor de banco                                 | [#94](https://github.com/Alysson-Araujo/logos/pull/94) | #29   | Falha rápido: 21 s → 10 ms                      |
+| 4   | Schema versionado com Alembic                      | [#90](https://github.com/Alysson-Araujo/logos/pull/90) | #11   | MigraÃ§Ãµes versionadas, `create_all` removido    |
+| 5   | `Idempotency-Key` nas mutaÃ§Ãµes                     | [#91](https://github.com/Alysson-Araujo/logos/pull/91) | #22   | Reenvio nÃ£o duplica incidente                   |
+| 6   | Rate limit e cabeÃ§alhos de seguranÃ§a               | [#92](https://github.com/Alysson-Araujo/logos/pull/92) | #33   | Teto por cliente, `429` com `Retry-After`       |
+| 7   | Retentativa com backoff e jitter                   | [#93](https://github.com/Alysson-Araujo/logos/pull/93) | #27   | Falha transitÃ³ria nÃ£o vira erro para o analista |
+| 8   | Disjuntor de banco                                 | [#94](https://github.com/Alysson-Araujo/logos/pull/94) | #29   | Falha rÃ¡pido: 21 s â†’ 10 ms                      |
 | 9   | Cache com _stale-while-revalidate_                 | [#95](https://github.com/Alysson-Araujo/logos/pull/95) | #30   | Lista continua na tela durante a queda          |
-| 10  | Timeouts de pool e de consulta                     | [#96](https://github.com/Alysson-Araujo/logos/pull/96) | #28   | Consulta lenta não consome o worker             |
-| 11  | Timeline de auditoria por incidente                | [#97](https://github.com/Alysson-Araujo/logos/pull/97) | #24   | Toda mudança de estado fica registrada          |
+| 10  | Timeouts de pool e de consulta                     | [#96](https://github.com/Alysson-Araujo/logos/pull/96) | #28   | Consulta lenta nÃ£o consome o worker             |
+| 11  | Timeline de auditoria por incidente                | [#97](https://github.com/Alysson-Araujo/logos/pull/97) | #24   | Toda mudanÃ§a de estado fica registrada          |
 
-Estado ao final: **214 arquivos**, **18 commits** na `main`, **63 issues abertas**,
-cobertura de **93%** — 230 testes no PostgreSQL; no SQLite, 227 passam e os 3 que
-dependem de `statement_timeout` são pulados.
+Estado ao final: **213 arquivos**, **18 commits** na `main`, **63 issues abertas**,
+cobertura de **93%** â€” 230 testes no PostgreSQL; no SQLite, 227 passam e os 3 que
+dependem de `statement_timeout` sÃ£o pulados.
 
 ---
 
-## 2. Fundação: container e migrações
+## 2. FundaÃ§Ã£o: container e migraÃ§Ãµes
 
 ### 2.1 Banco em container
 
-**Problema.** O case precisa rodar na máquina de quem avalia. Um PostgreSQL
-instalado à mão é o tipo de pré-requisito que faz a avaliação parar antes de
-começar.
+**Problema.** O case precisa rodar na mÃ¡quina de quem avalia. Um PostgreSQL
+instalado Ã  mÃ£o Ã© o tipo de prÃ©-requisito que faz a avaliaÃ§Ã£o parar antes de
+comeÃ§ar.
 
-**Decisão.** `compose.yaml` como fonte única, com o banco em `postgres:16-alpine`.
-O container expõe a porta **5433**, não 5432: a máquina já tinha um PostgreSQL
-nativo na porta padrão, e disputar porta é um erro que só aparece na hora errada.
+**DecisÃ£o.** `compose.yaml` como fonte Ãºnica, com o banco em `postgres:16-alpine`.
+O container expÃµe a porta **5433**, nÃ£o 5432: a mÃ¡quina jÃ¡ tinha um PostgreSQL
+nativo na porta padrÃ£o, e disputar porta Ã© um erro que sÃ³ aparece na hora errada.
 
 **O que deu errado.**
 
-- `podman compose` falhou com _"looking up compose provider failed"_ — não havia
-  provider instalado. Resolvido com um `podman-compose.cmd` no diretório de
-  scripts do usuário, porque o `C:\Python312\Scripts` é somente leitura.
-- `pnpm db:reset` não apagava o volume: `down -v` ignora volumes declarados com
-  `name:` no compose. Corrigido com um `podman volume rm -f` explícito.
+- `podman compose` falhou com _"looking up compose provider failed"_ â€” nÃ£o havia
+  provider instalado. Resolvido com um `podman-compose.cmd` no diretÃ³rio de
+  scripts do usuÃ¡rio, porque o `C:\Python312\Scripts` Ã© somente leitura.
+- `pnpm db:reset` nÃ£o apagava o volume: `down -v` ignora volumes declarados com
+  `name:` no compose. Corrigido com um `podman volume rm -f` explÃ­cito.
 - O `HEALTHCHECK` no `Dockerfile` era ignorado no formato OCI. Movido para o
-  `compose.yaml`, que é onde o orquestrador o lê.
+  `compose.yaml`, que Ã© onde o orquestrador o lÃª.
 
-### 2.2 Migrações com Alembic
+### 2.2 MigraÃ§Ãµes com Alembic
 
-**Problema.** A aplicação criava o schema com `Base.metadata.create_all`. Isso
-funciona até a primeira alteração de coluna em produção — e aí não há caminho.
+**Problema.** A aplicaÃ§Ã£o criava o schema com `Base.metadata.create_all`. Isso
+funciona atÃ© a primeira alteraÃ§Ã£o de coluna em produÃ§Ã£o â€” e aÃ­ nÃ£o hÃ¡ caminho.
 
-**Decisão.** Alembic como único caminho de criação de schema. `create_all` foi
-**removido**, e a aplicação agora verifica se a migração foi aplicada antes de
-servir tráfego:
+**DecisÃ£o.** Alembic como Ãºnico caminho de criaÃ§Ã£o de schema. `create_all` foi
+**removido**, e a aplicaÃ§Ã£o agora verifica se a migraÃ§Ã£o foi aplicada antes de
+servir trÃ¡fego:
 
 ```python
 REQUIRED_TABLE = "incidents"
-# se a tabela não existe, RuntimeError com o comando exato:
+# se a tabela nÃ£o existe, RuntimeError com o comando exato:
 #   cd backend && alembic upgrade head
 ```
 
-A escolha de _falhar com instrução_ em vez de _criar a tabela_ é deliberada: um
-processo que conserta o schema sozinho esconde o fato de que a migração não
-rodou — e o conserto silencioso aparece como divergência entre ambientes meses
+A escolha de _falhar com instruÃ§Ã£o_ em vez de _criar a tabela_ Ã© deliberada: um
+processo que conserta o schema sozinho esconde o fato de que a migraÃ§Ã£o nÃ£o
+rodou â€” e o conserto silencioso aparece como divergÃªncia entre ambientes meses
 depois.
 
-**Evidência.** `alembic check` sem divergências, migração `0002` aplicada em
+**EvidÃªncia.** `alembic check` sem divergÃªncias, migraÃ§Ã£o `0002` aplicada em
 desenvolvimento e no banco de teste, e um passo do CI que roda `alembic upgrade
-head` seguido de `alembic check`. A suíte de testes usa as migrações de verdade
-em vez de `create_all`, então uma migração quebrada falha no CI.
+head` seguido de `alembic check`. A suÃ­te de testes usa as migraÃ§Ãµes de verdade
+em vez de `create_all`, entÃ£o uma migraÃ§Ã£o quebrada falha no CI.
 
 ---
 
-## 3. `Idempotency-Key` — issue #22
+## 3. `Idempotency-Key` â€” issue #22
 
-**Problema.** A rede oscila, o cliente não sabe se a requisição chegou e
-reenvia. Sem proteção, o reenvio cria um **segundo incidente**: uma ocorrência
-fantasma na fila, com placa e local repetidos, e alguém liga para o mesmo
+**Problema.** A rede oscila, o cliente nÃ£o sabe se a requisiÃ§Ã£o chegou e
+reenvia. Sem proteÃ§Ã£o, o reenvio cria um **segundo incidente**: uma ocorrÃªncia
+fantasma na fila, com placa e local repetidos, e alguÃ©m liga para o mesmo
 motorista duas vezes.
 
-**Decisão.** A chave é a **chave primária** da tabela `idempotency_keys`. Quem
-impede duas execuções simultâneas é a restrição de unicidade do banco, e não um
-`if` em Python — então a garantia vale com múltiplos workers, exatamente como o
+**DecisÃ£o.** A chave Ã© a **chave primÃ¡ria** da tabela `idempotency_keys`. Quem
+impede duas execuÃ§Ãµes simultÃ¢neas Ã© a restriÃ§Ã£o de unicidade do banco, e nÃ£o um
+`if` em Python â€” entÃ£o a garantia vale com mÃºltiplos workers, exatamente como o
 compare-and-swap do lock otimista.
 
-| Situação                      | Resposta                                                      |
+| SituaÃ§Ã£o                      | Resposta                                                      |
 | ----------------------------- | ------------------------------------------------------------- |
 | Chave nova                    | Executa e guarda a resposta                                   |
 | Mesma chave, mesmo corpo      | Devolve a resposta original, com `Idempotency-Replayed: true` |
 | Mesma chave, corpo diferente  | `409 IDEMPOTENCY_KEY_REUSED`                                  |
-| Mesma chave ainda em execução | `409 IDEMPOTENCY_KEY_IN_PROGRESS`                             |
+| Mesma chave ainda em execuÃ§Ã£o | `409 IDEMPOTENCY_KEY_IN_PROGRESS`                             |
 
-**Evidência (teste ao vivo, contra a API real):**
+**EvidÃªncia (teste ao vivo, contra a API real):**
 
 ```
-1a tentativa : HTTP 201  code=INC-2026-000121  id=58222a97-…
-2a tentativa : HTTP 201  Replayed=true  code=INC-2026-000121  id=58222a97-…
+1a tentativa : HTTP 201  code=INC-2026-000121  id=58222a97-â€¦
+2a tentativa : HTTP 201  Replayed=true  code=INC-2026-000121  id=58222a97-â€¦
 3a tentativa : HTTP 409  (mesma chave, corpo diferente)
 
 incidentes antes: 121   depois: 121   criados: 0
@@ -114,253 +114,253 @@ incidentes antes: 121   depois: 121   criados: 0
 
 **Dois defeitos encontrados no caminho:**
 
-1. **Erro que levanta exceção não liberava a chave.** O `422` de validação e o
-   `409` do lock otimista sobem como exceção, então o registro da resposta nunca
-   rodava e a chave ficava presa como "em processamento". Na prática: o analista
-   corrigia o pedido e esbarrava na própria reserva até ela expirar. Dois testes
+1. **Erro que levanta exceÃ§Ã£o nÃ£o liberava a chave.** O `422` de validaÃ§Ã£o e o
+   `409` do lock otimista sobem como exceÃ§Ã£o, entÃ£o o registro da resposta nunca
+   rodava e a chave ficava presa como "em processamento". Na prÃ¡tica: o analista
+   corrigia o pedido e esbarrava na prÃ³pria reserva atÃ© ela expirar. Dois testes
    pegaram isso.
-2. **O CORS não anunciava `PATCH` nem `PUT`.** Um preflight do navegador
-   bloquearia qualquer cliente que usasse esses métodos. Bug latente, que só
-   apareceria quando alguém tentasse.
+2. **O CORS nÃ£o anunciava `PATCH` nem `PUT`.** Um preflight do navegador
+   bloquearia qualquer cliente que usasse esses mÃ©todos. Bug latente, que sÃ³
+   apareceria quando alguÃ©m tentasse.
 
-**O que aprendi.** A migração do Alembic entrou **antes** desta issue, e por
-isso a tabela nova nasceu com caminho de migração. Na ordem inversa, haveria
-dois jeitos de criar schema — e um deles sem volta.
+**O que aprendi.** A migraÃ§Ã£o do Alembic entrou **antes** desta issue, e por
+isso a tabela nova nasceu com caminho de migraÃ§Ã£o. Na ordem inversa, haveria
+dois jeitos de criar schema â€” e um deles sem volta.
 
 ---
 
-## 4. Rate limit e segurança — issue #33
+## 4. Rate limit e seguranÃ§a â€” issue #33
 
-**Problema.** Sem teto de requisições, um cliente em laço — integração mal
-configurada, retry sem backoff — ocupa a API inteira. Numa central de resposta a
-incidentes isso é grave: o sistema fica indisponível justamente durante a
-ocorrência que ele existe para tratar.
+**Problema.** Sem teto de requisiÃ§Ãµes, um cliente em laÃ§o â€” integraÃ§Ã£o mal
+configurada, retry sem backoff â€” ocupa a API inteira. Numa central de resposta a
+incidentes isso Ã© grave: o sistema fica indisponÃ­vel justamente durante a
+ocorrÃªncia que ele existe para tratar.
 
-**Decisão.** Janela **deslizante**, não fixa. Com a fixa, o cliente gasta o teto
-nos últimos segundos de um minuto e de novo nos primeiros do seguinte — o dobro
+**DecisÃ£o.** Janela **deslizante**, nÃ£o fixa. Com a fixa, o cliente gasta o teto
+nos Ãºltimos segundos de um minuto e de novo nos primeiros do seguinte â€” o dobro
 do limite em um instante curto. Com a deslizante, o teto vale a qualquer momento
-e o `Retry-After` devolvido é o tempo **exato** até a requisição mais antiga sair
+e o `Retry-After` devolvido Ã© o tempo **exato** atÃ© a requisiÃ§Ã£o mais antiga sair
 da janela.
 
-| Operação                            | Padrão                 |
+| OperaÃ§Ã£o                            | PadrÃ£o                 |
 | ----------------------------------- | ---------------------- |
 | Leitura (`GET`, `HEAD`)             | 60 req/min por cliente |
 | Escrita (`POST`, `PATCH`, `DELETE`) | 20 req/min por cliente |
 
-**Duas isenções que são detalhe operacional, não conveniência:**
+**Duas isenÃ§Ãµes que sÃ£o detalhe operacional, nÃ£o conveniÃªncia:**
 
-- **`/health/live` e `/health/ready` não consomem cota.** Recusar o healthcheck
-  faria a plataforma marcar o serviço como doente e **reiniciar o deploy** — o
-  limitador derrubaria o próprio serviço que deveria proteger.
-- Preflight de CORS também não, porque não é trabalho da API.
+- **`/health/live` e `/health/ready` nÃ£o consomem cota.** Recusar o healthcheck
+  faria a plataforma marcar o serviÃ§o como doente e **reiniciar o deploy** â€” o
+  limitador derrubaria o prÃ³prio serviÃ§o que deveria proteger.
+- Preflight de CORS tambÃ©m nÃ£o, porque nÃ£o Ã© trabalho da API.
 
-**Evidência (ao vivo, teto de leitura baixado para 3):**
+**EvidÃªncia (ao vivo, teto de leitura baixado para 3):**
 
 ```
-Cabeçalhos em 200: nosniff · no-referrer · DENY · Permissions-Policy
-                   (HSTS ausente fora de produção, correto)
-Health (cota de 3): 5 chamadas, todas 200   ← isento
-Estourando a cota:  tentativa 1 → 200
-                    tentativa 2 → 429  Retry-After=60
-                    tentativa 3 → 429  ...  e nosniff presente no 429
+CabeÃ§alhos em 200: nosniff Â· no-referrer Â· DENY Â· Permissions-Policy
+                   (HSTS ausente fora de produÃ§Ã£o, correto)
+Health (cota de 3): 5 chamadas, todas 200   â† isento
+Estourando a cota:  tentativa 1 â†’ 200
+                    tentativa 2 â†’ 429  Retry-After=60
+                    tentativa 3 â†’ 429  ...  e nosniff presente no 429
 ```
 
-**Duas decisões que valem registro:**
+**Duas decisÃµes que valem registro:**
 
-1. **O `429` é montado no middleware, não levantando exceção.** Middleware fica
-   fora do `ExceptionMiddleware` do Starlette: uma exceção levantada ali viraria
+1. **O `429` Ã© montado no middleware, nÃ£o levantando exceÃ§Ã£o.** Middleware fica
+   fora do `ExceptionMiddleware` do Starlette: uma exceÃ§Ã£o levantada ali viraria
    **`500`** em vez de passar pelos handlers globais.
-2. **A ordem dos middlewares é funcional, não estética.**
-   `request_context → security_headers → rate_limit → CORS`. O `request_id`
+2. **A ordem dos middlewares Ã© funcional, nÃ£o estÃ©tica.**
+   `request_context â†’ security_headers â†’ rate_limit â†’ CORS`. O `request_id`
    precisa existir quando o rate limit recusar, para a resposta e o log terem
-   correlação; e os cabeçalhos de segurança precisam envolver o limitador para
-   valerem no `429`. Há teste para cada uma das duas garantias.
+   correlaÃ§Ã£o; e os cabeÃ§alhos de seguranÃ§a precisam envolver o limitador para
+   valerem no `429`. HÃ¡ teste para cada uma das duas garantias.
 
 ---
 
-## 5. Retentativa com backoff e jitter — issue #27
+## 5. Retentativa com backoff e jitter â€” issue #27
 
-**Problema.** Parte das falhas de banco não é defeito e não se repete: a conexão
+**Problema.** Parte das falhas de banco nÃ£o Ã© defeito e nÃ£o se repete: a conexÃ£o
 do pool morreu por ociosidade, o banco reiniciou para aplicar um patch, duas
-transações se encontraram e uma foi abortada por _deadlock_, o
+transaÃ§Ãµes se encontraram e uma foi abortada por _deadlock_, o
 `statement_timeout` cancelou uma consulta que voltaria na segunda tentativa.
-Devolver erro ao analista nesses casos joga fora uma operação que daria certo.
+Devolver erro ao analista nesses casos joga fora uma operaÃ§Ã£o que daria certo.
 
-**Decisão — e a parte que importa.** A pergunta "posso repetir?" **não é sobre o
-método HTTP, é sobre a operação**:
+**DecisÃ£o â€” e a parte que importa.** A pergunta "posso repetir?" **nÃ£o Ã© sobre o
+mÃ©todo HTTP, Ã© sobre a operaÃ§Ã£o**:
 
-| Situação                      | Repete?             | Por quê                                                                               |
+| SituaÃ§Ã£o                      | Repete?             | Por quÃª                                                                               |
 | ----------------------------- | ------------------- | ------------------------------------------------------------------------------------- |
-| Leitura (`GET`)               | ✅ até 3 tentativas | Não muda estado                                                                       |
-| Escrita com `Idempotency-Key` | ✅ até 3 tentativas | Guardada por compare-and-swap: a 2ª execução não acha a versão esperada               |
-| Escrita sem `Idempotency-Key` | ❌                  | Repetir poderia reaplicar uma decisão humana                                          |
-| `POST /incidents` (`INSERT`)  | ❌ **sempre**       | Sem guarda natural: repetir após um commit não visto criaria um **segundo incidente** |
+| Leitura (`GET`)               | âœ… atÃ© 3 tentativas | NÃ£o muda estado                                                                       |
+| Escrita com `Idempotency-Key` | âœ… atÃ© 3 tentativas | Guardada por compare-and-swap: a 2Âª execuÃ§Ã£o nÃ£o acha a versÃ£o esperada               |
+| Escrita sem `Idempotency-Key` | âŒ                  | Repetir poderia reaplicar uma decisÃ£o humana                                          |
+| `POST /incidents` (`INSERT`)  | âŒ **sempre**       | Sem guarda natural: repetir apÃ³s um commit nÃ£o visto criaria um **segundo incidente** |
 
-O `INSERT` é o caso que justifica a terceira regra. Um `POST` que falhou depois
-de um commit que o cliente não viu é indistinguível de um que não chegou;
-repetir criaria uma ocorrência fantasma na fila. Aí a API devolve `503` e quem
-reenvia é o cliente, com a mesma chave — que é exatamente o papel da idempotência
-no nível HTTP, entregue na issue #22.
+O `INSERT` Ã© o caso que justifica a terceira regra. Um `POST` que falhou depois
+de um commit que o cliente nÃ£o viu Ã© indistinguÃ­vel de um que nÃ£o chegou;
+repetir criaria uma ocorrÃªncia fantasma na fila. AÃ­ a API devolve `503` e quem
+reenvia Ã© o cliente, com a mesma chave â€” que Ã© exatamente o papel da idempotÃªncia
+no nÃ­vel HTTP, entregue na issue #22.
 
-**Backoff.** Teto dobra a cada tentativa — 1 s, 2 s, 4 s, saturando em 8 s — e a
-espera é sorteada dentro do teto (jitter completo). O sorteio não é enfeite:
+**Backoff.** Teto dobra a cada tentativa â€” 1 s, 2 s, 4 s, saturando em 8 s â€” e a
+espera Ã© sorteada dentro do teto (jitter completo). O sorteio nÃ£o Ã© enfeite:
 quando o banco volta, todos os clientes bloqueados tentam reconectar no mesmo
 instante e derrubam o banco de novo.
 
-**A classificação é por código, não por texto.** SQLSTATE `40001`, `40P01`,
-`55P03`, `57014` e a família `08`, mais `OperationalError`, `DisconnectionError`
-e `TimeoutError`. Violação de constraint é determinística: repetir devolveria o
+**A classificaÃ§Ã£o Ã© por cÃ³digo, nÃ£o por texto.** SQLSTATE `40001`, `40P01`,
+`55P03`, `57014` e a famÃ­lia `08`, mais `OperationalError`, `DisconnectionError`
+e `TimeoutError`. ViolaÃ§Ã£o de constraint Ã© determinÃ­stica: repetir devolveria o
 mesmo erro, com o custo somado.
 
-**Duas decisões de implementação:**
+**Duas decisÃµes de implementaÃ§Ã£o:**
 
-1. **A retentativa envolve a unidade de trabalho inteira**, não cada consulta.
-   Repetir uma consulta isolada deixaria a operação pela metade, com parte das
-   escritas aplicada. Entre tentativas a sessão recebe `rollback()`.
-2. **O marcador de "requisição reenviável" é um `ContextVar`.** Quem lê o
-   cabeçalho é o middleware (contexto assíncrono); quem decide a retentativa é o
-   serviço, que roda em thread do pool. O `anyio` copia o contexto, então o
-   serviço decide sem conhecer HTTP.
+1. **A retentativa envolve a unidade de trabalho inteira**, nÃ£o cada consulta.
+   Repetir uma consulta isolada deixaria a operaÃ§Ã£o pela metade, com parte das
+   escritas aplicada. Entre tentativas a sessÃ£o recebe `rollback()`.
+2. **O marcador de "requisiÃ§Ã£o reenviÃ¡vel" Ã© um `ContextVar`.** Quem lÃª o
+   cabeÃ§alho Ã© o middleware (contexto assÃ­ncrono); quem decide a retentativa Ã© o
+   serviÃ§o, que roda em thread do pool. O `anyio` copia o contexto, entÃ£o o
+   serviÃ§o decide sem conhecer HTTP.
 
 ---
 
-## 6. Disjuntor de banco — issue #29
+## 6. Disjuntor de banco â€” issue #29
 
-**Problema.** Quando o banco fica lento, cada requisição espera o timeout
-inteiro antes de falhar. Com o pool ocupado por requisições condenadas, o serviço
+**Problema.** Quando o banco fica lento, cada requisiÃ§Ã£o espera o timeout
+inteiro antes de falhar. Com o pool ocupado por requisiÃ§Ãµes condenadas, o serviÃ§o
 inteiro trava. E a retentativa da issue anterior, **sem interruptor, trabalha
-contra**: três tentativas por requisição multiplicam a carga justamente quando o
-banco está pior.
+contra**: trÃªs tentativas por requisiÃ§Ã£o multiplicam a carga justamente quando o
+banco estÃ¡ pior.
 
-**Decisão.** `CLOSED → OPEN → HALF_OPEN`, com três escolhas que valem registro:
+**DecisÃ£o.** `CLOSED â†’ OPEN â†’ HALF_OPEN`, com trÃªs escolhas que valem registro:
 
 1. **Uma sondagem de cada vez.** Vencido o cooldown, o circuito autoriza **uma**
-   requisição. Liberar tráfego em massa para um banco que talvez não tenha
-   voltado o derrubaria de novo — seria o disjuntor causando a segunda queda.
-2. **A sonda que falha reabre na hora**, sem esperar o limiar de novo: o banco já
-   provou que não voltou.
-3. **Falha é a unidade de trabalho, não a tentativa interna.** Cinco requisições
-   que falharam, e não as quinze tentativas de cinco requisições — assim o limiar
-   não muda de significado quando alguém ajusta a política de retentativa.
+   requisiÃ§Ã£o. Liberar trÃ¡fego em massa para um banco que talvez nÃ£o tenha
+   voltado o derrubaria de novo â€” seria o disjuntor causando a segunda queda.
+2. **A sonda que falha reabre na hora**, sem esperar o limiar de novo: o banco jÃ¡
+   provou que nÃ£o voltou.
+3. **Falha Ã© a unidade de trabalho, nÃ£o a tentativa interna.** Cinco requisiÃ§Ãµes
+   que falharam, e nÃ£o as quinze tentativas de cinco requisiÃ§Ãµes â€” assim o limiar
+   nÃ£o muda de significado quando alguÃ©m ajusta a polÃ­tica de retentativa.
 
-**Erro de negócio não conta como falha.** Um `404` que chega rápido prova que o
-banco respondeu; contá-lo como doença faria o circuito abrir por causa de tráfego
+**Erro de negÃ³cio nÃ£o conta como falha.** Um `404` que chega rÃ¡pido prova que o
+banco respondeu; contÃ¡-lo como doenÃ§a faria o circuito abrir por causa de trÃ¡fego
 normal. E o `/health/live` continua respondendo com o circuito aberto: se ele
-caísse junto, a plataforma reiniciaria o serviço, o que não conserta o banco e
-ainda derruba o processo que estava de pé.
+caÃ­sse junto, a plataforma reiniciaria o serviÃ§o, o que nÃ£o conserta o banco e
+ainda derruba o processo que estava de pÃ©.
 
 ### O achado que mudou o escopo desta issue
 
-Fui testar com o container do banco **realmente parado** — e a requisição não
+Fui testar com o container do banco **realmente parado** â€” e a requisiÃ§Ã£o nÃ£o
 devolveu `503`. **Ficou pendurada por mais de doze minutos.**
 
-O engine não configurava `connect_timeout`, e o padrão do driver é **zero:
-esperar para sempre**. Sem timeout de conexão, o disjuntor **não tem o que
-contar**: nenhuma falha chega ao contador, o circuito nunca abre, e o resultado é
-exatamente a fila de timeouts que ele deveria evitar. O código estava certo, os
-testes passavam, e o critério de aceite "falhar rápido" era **inatingível**.
+O engine nÃ£o configurava `connect_timeout`, e o padrÃ£o do driver Ã© **zero:
+esperar para sempre**. Sem timeout de conexÃ£o, o disjuntor **nÃ£o tem o que
+contar**: nenhuma falha chega ao contador, o circuito nunca abre, e o resultado Ã©
+exatamente a fila de timeouts que ele deveria evitar. O cÃ³digo estava certo, os
+testes passavam, e o critÃ©rio de aceite "falhar rÃ¡pido" era **inatingÃ­vel**.
 
 | Momento                               | Antes                  | Depois                               |
 | ------------------------------------- | ---------------------- | ------------------------------------ |
-| 1ª requisição                         | pendurada **> 12 min** | `503` em 21,2 s                      |
-| 2ª requisição                         | —                      | `503` em 20,8 s _(abre o circuito)_  |
-| 3ª requisição                         | —                      | `503` em **10 ms**, `Retry-After: 5` |
-| `/health/live` e `/meta/enums`        | —                      | `200` em 38 ms                       |
-| Após o cooldown, com o banco de volta | —                      | `200` em 157 ms                      |
+| 1Âª requisiÃ§Ã£o                         | pendurada **> 12 min** | `503` em 21,2 s                      |
+| 2Âª requisiÃ§Ã£o                         | â€”                      | `503` em 20,8 s _(abre o circuito)_  |
+| 3Âª requisiÃ§Ã£o                         | â€”                      | `503` em **10 ms**, `Retry-After: 5` |
+| `/health/live` e `/meta/enums`        | â€”                      | `200` em 38 ms                       |
+| ApÃ³s o cooldown, com o banco de volta | â€”                      | `200` em 157 ms                      |
 
-**21.250 ms → 10 ms.** O `connect_timeout` é por **conexão** e entrou nesta
-issue; o `statement_timeout`, por **consulta**, continua na #28. A distinção está
-registrada em `docs/04` para não se perder.
+**21.250 ms â†’ 10 ms.** O `connect_timeout` Ã© por **conexÃ£o** e entrou nesta
+issue; o `statement_timeout`, por **consulta**, continua na #28. A distinÃ§Ã£o estÃ¡
+registrada em `docs/04` para nÃ£o se perder.
 
-**O que aprendi.** Se eu tivesse me contentado com os testes de integração —
-que passavam — teria entregue um disjuntor que não protege nada. Foi o teste
-manual com o cenário real que expôs o problema. Teste que simula a falha no
+**O que aprendi.** Se eu tivesse me contentado com os testes de integraÃ§Ã£o â€”
+que passavam â€” teria entregue um disjuntor que nÃ£o protege nada. Foi o teste
+manual com o cenÃ¡rio real que expÃ´s o problema. Teste que simula a falha no
 lugar certo nem sempre simula a falha que importa.
 
 ---
 
-## 7. Cache com _stale-while-revalidate_ — issue #30
+## 7. Cache com _stale-while-revalidate_ â€” issue #30
 
-**Problema.** Durante uma degradação do banco, a tela de triagem esvazia: o
-analista perde a lista justamente quando precisa dela. Só que, para triagem, um
-dado de trinta segundos atrás é **utilizável** — o que não é utilizável é a tela
+**Problema.** Durante uma degradaÃ§Ã£o do banco, a tela de triagem esvazia: o
+analista perde a lista justamente quando precisa dela. SÃ³ que, para triagem, um
+dado de trinta segundos atrÃ¡s Ã© **utilizÃ¡vel** â€” o que nÃ£o Ã© utilizÃ¡vel Ã© a tela
 de erro.
 
-**Decisão.** A listagem fica em cache por um TTL curto, com o estado exposto no
-cabeçalho `X-Cache-Status`:
+**DecisÃ£o.** A listagem fica em cache por um TTL curto, com o estado exposto no
+cabeÃ§alho `X-Cache-Status`:
 
 | Estado        | Quando                          | O que acontece                                  |
 | ------------- | ------------------------------- | ----------------------------------------------- |
-| `MISS`        | Não havia cópia                 | Vem do banco e passa a ser guardada             |
+| `MISS`        | NÃ£o havia cÃ³pia                 | Vem do banco e passa a ser guardada             |
 | `HIT`         | Dentro do TTL                   | Resposta imediata, sem tocar no banco           |
 | `REVALIDATED` | TTL vencido, banco respondendo  | Busca, atualiza e responde com o dado novo      |
-| `STALE`       | TTL vencido, banco indisponível | Serve a cópia antiga, **marcada como defasada** |
+| `STALE`       | TTL vencido, banco indisponÃ­vel | Serve a cÃ³pia antiga, **marcada como defasada** |
 
-**Quatro decisões que valem registro:**
+**Quatro decisÃµes que valem registro:**
 
-- **A chave é o pedido inteiro** — filtros, ordenação, limite e cursor. Servir a
-  página de um filtro para outro entregaria dado errado com aparência de certo,
-  que é o pior tipo de erro de cache, porque não parece erro.
-- **Toda mutação bem-sucedida esvazia o cache.** Invalidar só a chave afetada
-  exigiria saber quais combinações de filtro incluem o registro alterado; errar
-  isso **esconderia a mudança** de quem olha a lista. Um cache frio custa uma
-  consulta a mais; um cache errado custa a confiança no painel.
-- **O "em segundo plano" é adiado, não concorrente.** A revalidação não roda em
-  thread própria: quem revalida é a próxima requisição que encontrar o banco de
-  volta. O efeito para quem usa é o mesmo — a tela não espera por uma
-  revalidação que provavelmente vai falhar —, sem gerenciar threads, filas e
-  erros que ninguém observa.
-- **Sem cópia guardada, o `503` sobe.** Devolver lista vazia seria mentir sobre o
-  estado do sistema: "não há incidentes" e "não consigo ler os incidentes" são
-  coisas diferentes, e confundi-las numa central de incidentes é perigoso.
+- **A chave Ã© o pedido inteiro** â€” filtros, ordenaÃ§Ã£o, limite e cursor. Servir a
+  pÃ¡gina de um filtro para outro entregaria dado errado com aparÃªncia de certo,
+  que Ã© o pior tipo de erro de cache, porque nÃ£o parece erro.
+- **Toda mutaÃ§Ã£o bem-sucedida esvazia o cache.** Invalidar sÃ³ a chave afetada
+  exigiria saber quais combinaÃ§Ãµes de filtro incluem o registro alterado; errar
+  isso **esconderia a mudanÃ§a** de quem olha a lista. Um cache frio custa uma
+  consulta a mais; um cache errado custa a confianÃ§a no painel.
+- **O "em segundo plano" Ã© adiado, nÃ£o concorrente.** A revalidaÃ§Ã£o nÃ£o roda em
+  thread prÃ³pria: quem revalida Ã© a prÃ³xima requisiÃ§Ã£o que encontrar o banco de
+  volta. O efeito para quem usa Ã© o mesmo â€” a tela nÃ£o espera por uma
+  revalidaÃ§Ã£o que provavelmente vai falhar â€”, sem gerenciar threads, filas e
+  erros que ninguÃ©m observa.
+- **Sem cÃ³pia guardada, o `503` sobe.** Devolver lista vazia seria mentir sobre o
+  estado do sistema: "nÃ£o hÃ¡ incidentes" e "nÃ£o consigo ler os incidentes" sÃ£o
+  coisas diferentes, e confundi-las numa central de incidentes Ã© perigoso.
 
 ### O defeito que o teste pegou
 
-A primeira versão só servia a cópia quando o disjuntor **já estava aberto**. Isso
-deixava um furo: a requisição que _acabava de_ derrubar o banco recebia o erro
-cru (`503`) em vez da cópia, porque o circuito ainda estava fechado quando ela
-começou. Ou seja: a **primeira** requisição durante a queda mostraria tela de
-erro tendo cache — exatamente o que a issue existe para evitar.
+A primeira versÃ£o sÃ³ servia a cÃ³pia quando o disjuntor **jÃ¡ estava aberto**. Isso
+deixava um furo: a requisiÃ§Ã£o que _acabava de_ derrubar o banco recebia o erro
+cru (`503`) em vez da cÃ³pia, porque o circuito ainda estava fechado quando ela
+comeÃ§ou. Ou seja: a **primeira** requisiÃ§Ã£o durante a queda mostraria tela de
+erro tendo cache â€” exatamente o que a issue existe para evitar.
 
-Corrigido reconhecendo a degradação por **dois** caminhos: o circuito aberto e a
-falha transitória que acabou de abri-lo. Erro de cliente, como cursor inválido,
-não conta como degradação: servir dado antigo para um pedido malformado
+Corrigido reconhecendo a degradaÃ§Ã£o por **dois** caminhos: o circuito aberto e a
+falha transitÃ³ria que acabou de abri-lo. Erro de cliente, como cursor invÃ¡lido,
+nÃ£o conta como degradaÃ§Ã£o: servir dado antigo para um pedido malformado
 esconderia o defeito.
 
 ---
 
-## 8. Timeouts de pool e de consulta — issue #28
+## 8. Timeouts de pool e de consulta â€” issue #28
 
-**Problema.** Uma consulta patológica — plano ruim, lock esperando, tabela sem
-índice — consome um worker até o fim dos tempos. Num pool de tamanho fixo, três
+**Problema.** Uma consulta patolÃ³gica â€” plano ruim, lock esperando, tabela sem
+Ã­ndice â€” consome um worker atÃ© o fim dos tempos. Num pool de tamanho fixo, trÃªs
 consultas travadas derrubam a API inteira, e o sintoma aparece **longe da
-causa**: "a API está lenta", quando o problema é uma consulta.
+causa**: "a API estÃ¡ lenta", quando o problema Ã© uma consulta.
 
-**Decisão.** Dois limites no servidor, aplicados como **opção de sessão**:
+**DecisÃ£o.** Dois limites no servidor, aplicados como **opÃ§Ã£o de sessÃ£o**:
 
-| Limite                                | Padrão | O que resolve                                                              |
+| Limite                                | PadrÃ£o | O que resolve                                                              |
 | ------------------------------------- | ------ | -------------------------------------------------------------------------- |
 | `statement_timeout`                   | 5 s    | Mata a **consulta** que passa do teto. O erro chega como SQLSTATE `57014`. |
-| `idle_in_transaction_session_timeout` | 10 s   | Mata a conexão parada **dentro** de uma transação, liberando os locks.     |
+| `idle_in_transaction_session_timeout` | 10 s   | Mata a conexÃ£o parada **dentro** de uma transaÃ§Ã£o, liberando os locks.     |
 
-**Por que opção de sessão, e não um `SET` depois de conectar.** Um `SET` deixa uma
-janela em que a conexão recém-aberta ainda não tem limite — justamente a janela
-em que uma consulta travada entra. Como opção do servidor, o limite vale desde a
+**Por que opÃ§Ã£o de sessÃ£o, e nÃ£o um `SET` depois de conectar.** Um `SET` deixa uma
+janela em que a conexÃ£o recÃ©m-aberta ainda nÃ£o tem limite â€” justamente a janela
+em que uma consulta travada entra. Como opÃ§Ã£o do servidor, o limite vale desde a
 primeira consulta.
 
-**Por que o segundo limite também importa.** O `statement_timeout` cobre o caso
-"consulta lenta". Ele **não** cobre o caso "worker morreu no meio de uma
-transação": a conexão fica viva, ociosa e **segurando locks**, e os outros
-processos esperam por um lock que ninguém vai soltar. O
+**Por que o segundo limite tambÃ©m importa.** O `statement_timeout` cobre o caso
+"consulta lenta". Ele **nÃ£o** cobre o caso "worker morreu no meio de uma
+transaÃ§Ã£o": a conexÃ£o fica viva, ociosa e **segurando locks**, e os outros
+processos esperam por um lock que ninguÃ©m vai soltar. O
 `idle_in_transaction_session_timeout` fecha essa porta.
 
-**A combinação com as issues anteriores.** O `57014` já estava classificado como
-transitório pela retentativa (#27) — então a consulta que **apenas demorou** ganha
+**A combinaÃ§Ã£o com as issues anteriores.** O `57014` jÃ¡ estava classificado como
+transitÃ³rio pela retentativa (#27) â€” entÃ£o a consulta que **apenas demorou** ganha
 uma segunda tentativa, e a que trava sempre acaba abrindo o disjuntor (#29). Os
-três trabalham juntos: o timeout garante que a falha **acontece**, a retentativa
-absorve o blip, e o disjuntor para de tentar quando a falha é persistente.
+trÃªs trabalham juntos: o timeout garante que a falha **acontece**, a retentativa
+absorve o blip, e o disjuntor para de tentar quando a falha Ã© persistente.
 
-**Evidência (contra PostgreSQL 16, com o banco de desenvolvimento):**
+**EvidÃªncia (contra PostgreSQL 16, com o banco de desenvolvimento):**
 
 ```
 configurado no app  : statement=5000ms idle=10000ms
@@ -374,56 +374,56 @@ consulta que estoura o limite de 0,3s:
 conexao reutilizada do pool: 5000ms   <- o limite local nao vazou
 ```
 
-**O que ficou de fora, e por quê.** O `lock_timeout` (quanto esperar por um lock
-antes de desistir) não foi configurado: o `statement_timeout` já limita a espera
-total, e um `lock_timeout` menor só mudaria **qual** erro aparece — o `57014` que
-já tratamos em vez do `55P03`, que também já classificamos como transitório.
+**O que ficou de fora, e por quÃª.** O `lock_timeout` (quanto esperar por um lock
+antes de desistir) nÃ£o foi configurado: o `statement_timeout` jÃ¡ limita a espera
+total, e um `lock_timeout` menor sÃ³ mudaria **qual** erro aparece â€” o `57014` que
+jÃ¡ tratamos em vez do `55P03`, que tambÃ©m jÃ¡ classificamos como transitÃ³rio.
 Configurar os dois seria knob a mais sem comportamento novo.
 
-**No SQLite.** O equivalente não existe: lá o limite é o `PRAGMA busy_timeout`,
-que já estava aplicado desde o scaffold. Por isso os testes desta issue são
+**No SQLite.** O equivalente nÃ£o existe: lÃ¡ o limite Ã© o `PRAGMA busy_timeout`,
+que jÃ¡ estava aplicado desde o scaffold. Por isso os testes desta issue sÃ£o
 **pulados** no job de SQLite do CI e rodam de verdade no job de PostgreSQL.
 
 ---
 
-## 9. Timeline de auditoria — issue #24
+## 9. Timeline de auditoria â€” issue #24
 
-**Problema.** Sem registro de quem mudou o que e quando, uma decisão operacional
-vira memória de quem a tomou. Numa central de incidentes isso importa: depois de
-um fechamento questionado, alguém vai perguntar **quem fechou, quando e com qual
+**Problema.** Sem registro de quem mudou o que e quando, uma decisÃ£o operacional
+vira memÃ³ria de quem a tomou. Numa central de incidentes isso importa: depois de
+um fechamento questionado, alguÃ©m vai perguntar **quem fechou, quando e com qual
 justificativa**.
 
-**O que já existia.** A tabela `incident_events` estava no schema desde a
-primeira versão — e **nada escrevia nela**, fora o `clear()` dos testes. Era um
-modelo esperando o código: o tipo de coisa que parece pronta na documentação e
-não está.
+**O que jÃ¡ existia.** A tabela `incident_events` estava no schema desde a
+primeira versÃ£o â€” e **nada escrevia nela**, fora o `clear()` dos testes. Era um
+modelo esperando o cÃ³digo: o tipo de coisa que parece pronta na documentaÃ§Ã£o e
+nÃ£o estÃ¡.
 
-**Decisão.** Três tipos de evento, estáveis como os códigos de erro da API:
+**DecisÃ£o.** TrÃªs tipos de evento, estÃ¡veis como os cÃ³digos de erro da API:
 
 | Evento           | Quando                   | `fromStatus` / `toStatus` |
 | ---------------- | ------------------------ | ------------------------- |
-| `CREATED`        | Na criação do incidente  | `null` → `ABERTO`         |
-| `STATUS_CHANGED` | Em cada transição aceita | origem → destino          |
+| `CREATED`        | Na criaÃ§Ã£o do incidente  | `null` â†’ `ABERTO`         |
+| `STATUS_CHANGED` | Em cada transiÃ§Ã£o aceita | origem â†’ destino          |
 | `DELETED`        | No soft delete           | `null` / `null`           |
 
-**O evento é gravado na mesma transação da mudança.** Não há `commit` no registro
-do evento, de propósito: os dois precisam entrar ou falhar juntos. Um evento
-órfão descreveria uma mudança que não aconteceu; uma mudança sem evento é um
-buraco no histórico — exatamente o buraco que a auditoria existe para não ter.
+**O evento Ã© gravado na mesma transaÃ§Ã£o da mudanÃ§a.** NÃ£o hÃ¡ `commit` no registro
+do evento, de propÃ³sito: os dois precisam entrar ou falhar juntos. Um evento
+Ã³rfÃ£o descreveria uma mudanÃ§a que nÃ£o aconteceu; uma mudanÃ§a sem evento Ã© um
+buraco no histÃ³rico â€” exatamente o buraco que a auditoria existe para nÃ£o ter.
 
-**O status de origem é lido antes do compare-and-swap**, na mesma transação: a
-instrução atômica não tem como devolver o valor anterior. Se alguém alterar o
-incidente entre a leitura e a escrita, o `version = :expected` da própria UPDATE
-recusa — então o evento nunca descreve algo que não aconteceu.
+**O status de origem Ã© lido antes do compare-and-swap**, na mesma transaÃ§Ã£o: a
+instruÃ§Ã£o atÃ´mica nÃ£o tem como devolver o valor anterior. Se alguÃ©m alterar o
+incidente entre a leitura e a escrita, o `version = :expected` da prÃ³pria UPDATE
+recusa â€” entÃ£o o evento nunca descreve algo que nÃ£o aconteceu.
 
 **A timeline sobrevive ao soft delete.** O detalhe do incidente passa a devolver
-`404` depois da remoção, mas `GET /incidents/{id}/events` continua respondendo.
-Se a timeline sumisse junto, "remover sem apagar o histórico" seria **falso**.
+`404` depois da remoÃ§Ã£o, mas `GET /incidents/{id}/events` continua respondendo.
+Se a timeline sumisse junto, "remover sem apagar o histÃ³rico" seria **falso**.
 
-**Id inexistente devolve `404`, não lista vazia.** "Não existe" e "não tem
-histórico" são respostas diferentes para quem está investigando.
+**Id inexistente devolve `404`, nÃ£o lista vazia.** "NÃ£o existe" e "nÃ£o tem
+histÃ³rico" sÃ£o respostas diferentes para quem estÃ¡ investigando.
 
-**Evidência (ao vivo, contra a API):**
+**EvidÃªncia (ao vivo, contra a API):**
 
 ```
 criado: INC-2026-000122  versao=1  status=ABERTO
@@ -440,16 +440,16 @@ apos o soft delete:
   GET events   -> HTTP 200 com 2 eventos: CREATED, DELETED
 ```
 
-**Um contrato que a documentação já tinha.** `docs/03` descrevia este endpoint
-desde o planejamento, com o corpo `{"items": [...]}`. A primeira versão do código
-devolvia `{"events": [...], "incidentId": ...}` — divergência que só apareceu
-porque fui conferir a documentação **antes** de commitar. Adotei `items`: é
-consistente com a listagem, e `incidentId` era redundante, já que o cliente sabe
+**Um contrato que a documentaÃ§Ã£o jÃ¡ tinha.** `docs/03` descrevia este endpoint
+desde o planejamento, com o corpo `{"items": [...]}`. A primeira versÃ£o do cÃ³digo
+devolvia `{"events": [...], "incidentId": ...}` â€” divergÃªncia que sÃ³ apareceu
+porque fui conferir a documentaÃ§Ã£o **antes** de commitar. Adotei `items`: Ã©
+consistente com a listagem, e `incidentId` era redundante, jÃ¡ que o cliente sabe
 de qual incidente pediu a timeline.
 
-**O que ficou de fora.** Não há paginação na timeline. Um incidente tem poucos
-eventos (criação, algumas transições, remoção), então paginar seria complexidade
-sem demanda — e a tabela é _append-only_, o que mantém o conjunto pequeno.
+**O que ficou de fora.** NÃ£o hÃ¡ paginaÃ§Ã£o na timeline. Um incidente tem poucos
+eventos (criaÃ§Ã£o, algumas transiÃ§Ãµes, remoÃ§Ã£o), entÃ£o paginar seria complexidade
+sem demanda â€” e a tabela Ã© _append-only_, o que mantÃ©m o conjunto pequeno.
 
 ---
 
@@ -457,45 +457,45 @@ sem demanda — e a tabela é _append-only_, o que mantém o conjunto pequeno.
 
 | Achado                                               | Impacto                                                       | Onde ficou registrado          |
 | ---------------------------------------------------- | ------------------------------------------------------------- | ------------------------------ |
-| `create_all` criava schema fora do Alembic           | Divergência entre ambientes sem volta                         | `app/core/database.py`, PR #90 |
-| `conftest` forçava SQLite                            | O job de PostgreSQL do CI testava SQLite — **falso positivo** | `tests/conftest.py`            |
-| Sem `connect_timeout`                                | Requisição pendurava > 12 min; disjuntor inoperante           | `app/core/database.py`, PR #94 |
-| Documentação descrevia rate limit por _token bucket_ | Descrevia algo que o código não fazia                         | `docs/04`, PR #92              |
-| Documentação citava `test_backoff.py`                | Arquivo inexistente                                           | `docs/07`, PR #93              |
-| `#<número>` no corpo do commit                       | Quebrava o `commitlint` (`footer-leading-blank`)              | `CONTRIBUTING.md` §4.5         |
-| Documentação citava `RATE_LIMIT_PER_MINUTE`          | Variável que nunca existiu                                    | `README.md`, `docs/03`         |
+| `create_all` criava schema fora do Alembic           | DivergÃªncia entre ambientes sem volta                         | `app/core/database.py`, PR #90 |
+| `conftest` forÃ§ava SQLite                            | O job de PostgreSQL do CI testava SQLite â€” **falso positivo** | `tests/conftest.py`            |
+| Sem `connect_timeout`                                | RequisiÃ§Ã£o pendurava > 12 min; disjuntor inoperante           | `app/core/database.py`, PR #94 |
+| DocumentaÃ§Ã£o descrevia rate limit por _token bucket_ | Descrevia algo que o cÃ³digo nÃ£o fazia                         | `docs/04`, PR #92              |
+| DocumentaÃ§Ã£o citava `test_backoff.py`                | Arquivo inexistente                                           | `docs/07`, PR #93              |
+| `#<nÃºmero>` no corpo do commit                       | Quebrava o `commitlint` (`footer-leading-blank`)              | `CONTRIBUTING.md` Â§4.5         |
+| DocumentaÃ§Ã£o citava `RATE_LIMIT_PER_MINUTE`          | VariÃ¡vel que nunca existiu                                    | `README.md`, `docs/03`         |
 
-O denominador comum é **documentação escrita antes do código**. Ela é útil como
-plano — foi ela que definiu os critérios de aceite —, mas vira mentira se não for
-reconciliada a cada issue. Por isso cada PR desta série termina atualizando a
-documentação, e não apenas o código.
+O denominador comum Ã© **documentaÃ§Ã£o escrita antes do cÃ³digo**. Ela Ã© Ãºtil como
+plano â€” foi ela que definiu os critÃ©rios de aceite â€”, mas vira mentira se nÃ£o for
+reconciliada a cada issue. Por isso cada PR desta sÃ©rie termina atualizando a
+documentaÃ§Ã£o, e nÃ£o apenas o cÃ³digo.
 
 ---
 
 ## 11. Erros de processo (meus)
 
-Registrados porque são o tipo de coisa que se repete se não for anotada.
+Registrados porque sÃ£o o tipo de coisa que se repete se nÃ£o for anotada.
 
 1. **Commitei na `main` em vez de numa branch (issue #33).** Percebi no momento do
    push. Corrigido criando a branch no commit atual e devolvendo a `main` ao
-   estado do remoto — nada se perdeu, mas foi falha de processo. A proteção da
+   estado do remoto â€” nada se perdeu, mas foi falha de processo. A proteÃ§Ã£o da
    `main` no GitHub bloquearia o push; o que faltou foi o bloqueio local.
 2. **Repeti o risco na issue #27**, e desta vez peguei **antes** de commitar: o
    `git status` mostrou a branch `main` com todo o trabalho pronto. A branch foi
    criada antes de qualquer commit.
-3. **`connect_timeout` só apareceu no teste manual.** Os 203 testes passavam. Um
-   disjuntor que passa em tudo e não protege nada é o pior resultado possível —
+3. **`connect_timeout` sÃ³ apareceu no teste manual.** Os 203 testes passavam. Um
+   disjuntor que passa em tudo e nÃ£o protege nada Ã© o pior resultado possÃ­vel â€”
    pior que um erro, porque parece pronto.
 
-A partir da #30 o primeiro passo de toda issue é criar a branch, antes de abrir o
+A partir da #30 o primeiro passo de toda issue Ã© criar a branch, antes de abrir o
 editor.
 
 ---
 
-## 12. Como verificar o que está aqui
+## 12. Como verificar o que estÃ¡ aqui
 
 ```bash
-# Banco e dependências
+# Banco e dependÃªncias
 pnpm db:up                 # PostgreSQL em container na porta 5433
 
 # Qualidade
@@ -504,64 +504,64 @@ ruff check . && ruff format --check .
 mypy app
 pytest                     # 218 testes, cobertura ~93%
 
-# Contra PostgreSQL de verdade, e não só SQLite
+# Contra PostgreSQL de verdade, e nÃ£o sÃ³ SQLite
 TEST_DATABASE_URL="postgresql+psycopg://logos:logos@localhost:5433/logos_test" pytest
 ```
 
-Cada afirmação numérica deste documento sai de um destes comandos, ou de um
-teste ao vivo registrado na seção correspondente.
+Cada afirmaÃ§Ã£o numÃ©rica deste documento sai de um destes comandos, ou de um
+teste ao vivo registrado na seÃ§Ã£o correspondente.
 
 ---
 
-## 13. Mapa do projeto — o que cada parte faz
+## 13. Mapa do projeto â€” o que cada parte faz
 
-Para não se perder: a função de cada arquivo, em uma linha. A ordem segue o
-caminho de uma requisição.
+Para nÃ£o se perder: a funÃ§Ã£o de cada arquivo, em uma linha. A ordem segue o
+caminho de uma requisiÃ§Ã£o.
 
-### Backend — o caminho de uma requisição
+### Backend â€” o caminho de uma requisiÃ§Ã£o
 
 | Arquivo                                   | O que faz                                                                                                                   |
 | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `app/main.py`                             | Monta a aplicação: middlewares **na ordem que importa**, handlers de erro, CORS e lifespan.                                 |
-| `app/api/v1/incidents.py`                 | As rotas. É onde mora a decisão do cache (`X-Cache-Status`) e a invalidação por mutação.                                    |
-| `app/api/deps.py`                         | Monta o serviço por requisição, lendo a configuração e o marcador de "requisição reenviável".                               |
-| `app/services/incident_service.py`        | Regras de aplicação. É onde o **disjuntor** e a **retentativa** envolvem a unidade de trabalho.                             |
-| `app/repositories/incident_repository.py` | SQL. O compare-and-swap do lock otimista e a geração do código do incidente.                                                |
+| `app/main.py`                             | Monta a aplicaÃ§Ã£o: middlewares **na ordem que importa**, handlers de erro, CORS e lifespan.                                 |
+| `app/api/v1/incidents.py`                 | As rotas. Ã‰ onde mora a decisÃ£o do cache (`X-Cache-Status`) e a invalidaÃ§Ã£o por mutaÃ§Ã£o.                                    |
+| `app/api/deps.py`                         | Monta o serviÃ§o por requisiÃ§Ã£o, lendo a configuraÃ§Ã£o e o marcador de "requisiÃ§Ã£o reenviÃ¡vel".                               |
+| `app/services/incident_service.py`        | Regras de aplicaÃ§Ã£o. Ã‰ onde o **disjuntor** e a **retentativa** envolvem a unidade de trabalho.                             |
+| `app/repositories/incident_repository.py` | SQL. O compare-and-swap do lock otimista e a geraÃ§Ã£o do cÃ³digo do incidente.                                                |
 | `app/models/`                             | Tabelas do SQLAlchemy (`incidents`, `incident_events`, `idempotency_keys`).                                                 |
 | `app/schemas/`                            | Contrato da API em Pydantic v2, com alias camelCase.                                                                        |
-| `app/domain/`                             | Regras puras: máquina de estados, SLA e priority score. **Sem HTTP e sem banco** — é o que dá para testar em milissegundos. |
+| `app/domain/`                             | Regras puras: mÃ¡quina de estados, SLA e priority score. **Sem HTTP e sem banco** â€” Ã© o que dÃ¡ para testar em milissegundos. |
 
-### Backend — a camada de resiliência (onde está o interesse do case)
+### Backend â€” a camada de resiliÃªncia (onde estÃ¡ o interesse do case)
 
 | Arquivo                       | O que faz                                                                                       |
 | ----------------------------- | ----------------------------------------------------------------------------------------------- |
-| `app/core/database.py`        | Engine, pool, `connect_timeout` e os timeouts de sessão. É onde o disjuntor "tem o que contar". |
-| `app/infra/retry.py`          | A classificação do que vale repetir (`is_transient`) e a política de backoff com jitter.        |
-| `app/core/circuit_breaker.py` | Máquina de estados `CLOSED`/`OPEN`/`HALF_OPEN`, com uma sondagem por vez.                       |
+| `app/core/database.py`        | Engine, pool, `connect_timeout` e os timeouts de sessÃ£o. Ã‰ onde o disjuntor "tem o que contar". |
+| `app/infra/retry.py`          | A classificaÃ§Ã£o do que vale repetir (`is_transient`) e a polÃ­tica de backoff com jitter.        |
+| `app/core/circuit_breaker.py` | MÃ¡quina de estados `CLOSED`/`OPEN`/`HALF_OPEN`, com uma sondagem por vez.                       |
 | `app/core/cache.py`           | Cache da listagem com TTL e os quatro estados de `X-Cache-Status`.                              |
 | `app/core/rate_limit.py`      | Janela deslizante por cliente, com cotas separadas de leitura e escrita.                        |
-| `app/core/security.py`        | Cabeçalhos de segurança e identificação do cliente atrás de proxy.                              |
+| `app/core/security.py`        | CabeÃ§alhos de seguranÃ§a e identificaÃ§Ã£o do cliente atrÃ¡s de proxy.                              |
 | `app/core/idempotency.py`     | Leitura da `Idempotency-Key`, replay da resposta e o marcador em `ContextVar`.                  |
-| `app/core/errors.py`          | Envelope de erro único e a tradução de falha de banco em `503` ou `500`.                        |
+| `app/core/errors.py`          | Envelope de erro Ãºnico e a traduÃ§Ã£o de falha de banco em `503` ou `500`.                        |
 
 ### Frontend
 
 | Arquivo                   | O que faz                                                                                 |
 | ------------------------- | ----------------------------------------------------------------------------------------- |
 | `src/lib/http.ts`         | Cliente HTTP e tratamento por status, incluindo `409` e `429`.                            |
-| `src/lib/queryClient.ts`  | Política global do TanStack Query: `staleTime`, retry só em `GET`, zero retry em mutação. |
-| `src/features/incidents/` | Listagem, filtros, detalhe e a mutação otimista com rollback.                             |
+| `src/lib/queryClient.ts`  | PolÃ­tica global do TanStack Query: `staleTime`, retry sÃ³ em `GET`, zero retry em mutaÃ§Ã£o. |
+| `src/features/incidents/` | Listagem, filtros, detalhe e a mutaÃ§Ã£o otimista com rollback.                             |
 
-### Infraestrutura e documentação
+### Infraestrutura e documentaÃ§Ã£o
 
 | Arquivo                           | O que faz                                                                              |
 | --------------------------------- | -------------------------------------------------------------------------------------- |
-| `compose.yaml`                    | O PostgreSQL de desenvolvimento. Fonte única — `pnpm db:up` usa isto.                  |
-| `.github/workflows/ci.yml`        | Os quatro checks obrigatórios de todo PR.                                              |
+| `compose.yaml`                    | O PostgreSQL de desenvolvimento. Fonte Ãºnica â€” `pnpm db:up` usa isto.                  |
+| `.github/workflows/ci.yml`        | Os quatro checks obrigatÃ³rios de todo PR.                                              |
 | `scripts/github-bootstrap.ps1`    | Cria labels, milestones e as 72 issues do planejamento.                                |
-| `docs/02` a `docs/09`             | Arquitetura, API, resiliência, design system, Git, testes, deploy e escolhas técnicas. |
-| `docs/10-registro-de-execucao.md` | Este documento: o porquê de cada decisão e a evidência.                                |
-| `PLANO-LOGOS.md`                  | Planejamento mestre, com o cronograma de 5 dias. Fica **fora** do repositório.         |
+| `docs/02` a `docs/09`             | Arquitetura, API, resiliÃªncia, design system, Git, testes, deploy e escolhas tÃ©cnicas. |
+| `docs/10-registro-de-execucao.md` | Este documento: o porquÃª de cada decisÃ£o e a evidÃªncia.                                |
+| `PLANO-LOGOS.md`                  | Planejamento mestre, com o cronograma de 5 dias. Fica **fora** do repositÃ³rio.         |
 
 ---
 
@@ -569,66 +569,66 @@ caminho de uma requisição.
 
 ### O resumo de 30 segundos
 
-> É uma central de resposta a incidentes logísticos: o analista vê uma fila
-> priorizada, abre o incidente e muda o status. O interesse do case não é a tela,
-> é **o que acontece quando a rede oscila ou o banco cai**. Então o backend trata
-> três coisas que aparecem juntas: reenvio que não pode duplicar, falha
-> transitória que não deveria virar erro, e degradação que não pode virar tela
+> Ã‰ uma central de resposta a incidentes logÃ­sticos: o analista vÃª uma fila
+> priorizada, abre o incidente e muda o status. O interesse do case nÃ£o Ã© a tela,
+> Ã© **o que acontece quando a rede oscila ou o banco cai**. EntÃ£o o backend trata
+> trÃªs coisas que aparecem juntas: reenvio que nÃ£o pode duplicar, falha
+> transitÃ³ria que nÃ£o deveria virar erro, e degradaÃ§Ã£o que nÃ£o pode virar tela
 > em branco.
 
-### Os três pilares, em duas frases cada
+### Os trÃªs pilares, em duas frases cada
 
-| Pilar            | A explicação                                                                                                                                                                                                                                                        |
+| Pilar            | A explicaÃ§Ã£o                                                                                                                                                                                                                                                        |
 | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Concorrência** | Duas analistas abrem o mesmo incidente; quem salva primeiro ganha, o segundo recebe `409` com a versão atual e a interface mostra o conflito. A decisão acontece **numa instrução SQL** (compare-and-swap), não em código Python, então vale com múltiplos workers. |
-| **Idempotência** | A rede cai no meio do `POST` e o cliente não sabe se criou. Ele reenvia com a mesma `Idempotency-Key` e recebe a resposta original, sem um segundo incidente. A garantia é a **chave primária** da tabela: quem impede a dupla execução é o banco, não um `if`.     |
-| **Resiliência**  | Timeout para a falha **acontecer**, retry com jitter para absorver o blip, disjuntor para parar de tentar quando a falha é persistente, e cache para a tela continuar mostrando dado de 30 segundos atrás. Cada camada existe porque a anterior tem um limite.      |
+| **ConcorrÃªncia** | Duas analistas abrem o mesmo incidente; quem salva primeiro ganha, o segundo recebe `409` com a versÃ£o atual e a interface mostra o conflito. A decisÃ£o acontece **numa instruÃ§Ã£o SQL** (compare-and-swap), nÃ£o em cÃ³digo Python, entÃ£o vale com mÃºltiplos workers. |
+| **IdempotÃªncia** | A rede cai no meio do `POST` e o cliente nÃ£o sabe se criou. Ele reenvia com a mesma `Idempotency-Key` e recebe a resposta original, sem um segundo incidente. A garantia Ã© a **chave primÃ¡ria** da tabela: quem impede a dupla execuÃ§Ã£o Ã© o banco, nÃ£o um `if`.     |
+| **ResiliÃªncia**  | Timeout para a falha **acontecer**, retry com jitter para absorver o blip, disjuntor para parar de tentar quando a falha Ã© persistente, e cache para a tela continuar mostrando dado de 30 segundos atrÃ¡s. Cada camada existe porque a anterior tem um limite.      |
 
-### Perguntas prováveis, e a resposta curta
+### Perguntas provÃ¡veis, e a resposta curta
 
-**"Por que não `SELECT … FOR UPDATE`?"**
-Seguraria a linha durante a requisição inteira, incluindo o tempo em que a
-analista está pensando. O lock otimista só falha na escrita, e o conflito é
-tratado como dado — não como erro.
+**"Por que nÃ£o `SELECT â€¦ FOR UPDATE`?"**
+Seguraria a linha durante a requisiÃ§Ã£o inteira, incluindo o tempo em que a
+analista estÃ¡ pensando. O lock otimista sÃ³ falha na escrita, e o conflito Ã©
+tratado como dado â€” nÃ£o como erro.
 
-**"Por que a chave de idempotência é a chave primária?"**
+**"Por que a chave de idempotÃªncia Ã© a chave primÃ¡ria?"**
 Porque `SELECT` seguido de `INSERT` tem uma janela entre a leitura e a escrita. A
-restrição de unicidade não tem: ou a linha entra, ou o banco recusa. É a única
-forma que continua correta com múltiplos workers.
+restriÃ§Ã£o de unicidade nÃ£o tem: ou a linha entra, ou o banco recusa. Ã‰ a Ãºnica
+forma que continua correta com mÃºltiplos workers.
 
-**"Por que repetir só leitura, e não toda escrita?"**
-Porque repetir uma escrita pode duplicar efeito. A exceção é a escrita guardada
-por compare-and-swap: a segunda execução não acha a versão esperada, então não
-produz efeito novo. E o `INSERT` **nunca** é repetido — é essa regra que
+**"Por que repetir sÃ³ leitura, e nÃ£o toda escrita?"**
+Porque repetir uma escrita pode duplicar efeito. A exceÃ§Ã£o Ã© a escrita guardada
+por compare-and-swap: a segunda execuÃ§Ã£o nÃ£o acha a versÃ£o esperada, entÃ£o nÃ£o
+produz efeito novo. E o `INSERT` **nunca** Ã© repetido â€” Ã© essa regra que
 justifica a `Idempotency-Key`.
 
-**"O disjuntor não é exagero para um MVP?"**
-Sem ele, o retry trabalha contra: três tentativas por requisição multiplicam a
-carga justamente quando o banco está pior. E foi medido — com o banco fora, a
+**"O disjuntor nÃ£o Ã© exagero para um MVP?"**
+Sem ele, o retry trabalha contra: trÃªs tentativas por requisiÃ§Ã£o multiplicam a
+carga justamente quando o banco estÃ¡ pior. E foi medido â€” com o banco fora, a
 resposta caiu de **21 s para 10 ms**.
 
-**"Por que o cache não é a fonte de verdade?"**
-Porque toda mutação vai ao banco e **esvazia** o cache. Ele serve só a listagem, e
-é marcado como `STALE` quando é cópia. Sem cópia, a API devolve `503` em vez de
-lista vazia: "não há incidentes" e "não consigo ler os incidentes" são coisas
+**"Por que o cache nÃ£o Ã© a fonte de verdade?"**
+Porque toda mutaÃ§Ã£o vai ao banco e **esvazia** o cache. Ele serve sÃ³ a listagem, e
+Ã© marcado como `STALE` quando Ã© cÃ³pia. Sem cÃ³pia, a API devolve `503` em vez de
+lista vazia: "nÃ£o hÃ¡ incidentes" e "nÃ£o consigo ler os incidentes" sÃ£o coisas
 diferentes.
 
-**"Como você sabe que funciona?"**
-Cada afirmação tem uma medição atrás. O disjuntor foi testado com o container do
-banco **realmente parado** — e foi assim que descobri que faltava
-`connect_timeout`: a requisição pendurava 12 minutos e o disjuntor não tinha o que
+**"Como vocÃª sabe que funciona?"**
+Cada afirmaÃ§Ã£o tem uma mediÃ§Ã£o atrÃ¡s. O disjuntor foi testado com o container do
+banco **realmente parado** â€” e foi assim que descobri que faltava
+`connect_timeout`: a requisiÃ§Ã£o pendurava 12 minutos e o disjuntor nÃ£o tinha o que
 contar, embora os 203 testes passassem.
 
-**"O que você faria diferente?"**
-Duas coisas. A documentação foi escrita **antes** do código e várias vezes
-descrevia algo que o código não fazia — reconciliei a cada issue, mas o certo era
+**"O que vocÃª faria diferente?"**
+Duas coisas. A documentaÃ§Ã£o foi escrita **antes** do cÃ³digo e vÃ¡rias vezes
+descrevia algo que o cÃ³digo nÃ£o fazia â€” reconciliei a cada issue, mas o certo era
 documentar junto. E teria feito o `connect_timeout` **antes** do disjuntor: o
-disjuntor estava "pronto" e não funcionava no cenário real.
+disjuntor estava "pronto" e nÃ£o funcionava no cenÃ¡rio real.
 
 ### Se pedirem para rodar
 
 ```bash
 pnpm db:up     # PostgreSQL em container, porta 5433
 pnpm dev       # API em :8000 e frontend em :5173
-pnpm verify    # o mesmo conjunto de verificações do CI
+pnpm verify    # o mesmo conjunto de verificaÃ§Ãµes do CI
 ```
