@@ -26,9 +26,10 @@ acertos não serve para avaliar nada.
 | 8   | Disjuntor de banco                                 | [#94](https://github.com/Alysson-Araujo/logos/pull/94) | #29   | Falha rápido: 21 s → 10 ms                      |
 | 9   | Cache com _stale-while-revalidate_                 | [#95](https://github.com/Alysson-Araujo/logos/pull/95) | #30   | Lista continua na tela durante a queda          |
 | 10  | Timeouts de pool e de consulta                     | [#96](https://github.com/Alysson-Araujo/logos/pull/96) | #28   | Consulta lenta não consome o worker             |
+| 11  | Timeline de auditoria por incidente                | [#97](https://github.com/Alysson-Araujo/logos/pull/97) | #24   | Toda mudança de estado fica registrada          |
 
-Estado ao final: **212 arquivos**, **17 commits** na `main`, **64 issues abertas**,
-cobertura de **93%** — 222 testes no PostgreSQL; no SQLite, 219 passam e os 3 que
+Estado ao final: **214 arquivos**, **18 commits** na `main`, **63 issues abertas**,
+cobertura de **93%** — 230 testes no PostgreSQL; no SQLite, 227 passam e os 3 que
 dependem de `statement_timeout` são pulados.
 
 ---
@@ -385,7 +386,74 @@ que já estava aplicado desde o scaffold. Por isso os testes desta issue são
 
 ---
 
-## 9. Achados que atravessam as issues
+## 9. Timeline de auditoria — issue #24
+
+**Problema.** Sem registro de quem mudou o que e quando, uma decisão operacional
+vira memória de quem a tomou. Numa central de incidentes isso importa: depois de
+um fechamento questionado, alguém vai perguntar **quem fechou, quando e com qual
+justificativa**.
+
+**O que já existia.** A tabela `incident_events` estava no schema desde a
+primeira versão — e **nada escrevia nela**, fora o `clear()` dos testes. Era um
+modelo esperando o código: o tipo de coisa que parece pronta na documentação e
+não está.
+
+**Decisão.** Três tipos de evento, estáveis como os códigos de erro da API:
+
+| Evento           | Quando                   | `fromStatus` / `toStatus` |
+| ---------------- | ------------------------ | ------------------------- |
+| `CREATED`        | Na criação do incidente  | `null` → `ABERTO`         |
+| `STATUS_CHANGED` | Em cada transição aceita | origem → destino          |
+| `DELETED`        | No soft delete           | `null` / `null`           |
+
+**O evento é gravado na mesma transação da mudança.** Não há `commit` no registro
+do evento, de propósito: os dois precisam entrar ou falhar juntos. Um evento
+órfão descreveria uma mudança que não aconteceu; uma mudança sem evento é um
+buraco no histórico — exatamente o buraco que a auditoria existe para não ter.
+
+**O status de origem é lido antes do compare-and-swap**, na mesma transação: a
+instrução atômica não tem como devolver o valor anterior. Se alguém alterar o
+incidente entre a leitura e a escrita, o `version = :expected` da própria UPDATE
+recusa — então o evento nunca descreve algo que não aconteceu.
+
+**A timeline sobrevive ao soft delete.** O detalhe do incidente passa a devolver
+`404` depois da remoção, mas `GET /incidents/{id}/events` continua respondendo.
+Se a timeline sumisse junto, "remover sem apagar o histórico" seria **falso**.
+
+**Id inexistente devolve `404`, não lista vazia.** "Não existe" e "não tem
+histórico" são respostas diferentes para quem está investigando.
+
+**Evidência (ao vivo, contra a API):**
+
+```
+criado: INC-2026-000122  versao=1  status=ABERTO
+transicao para EM_INVESTIGACAO -> HTTP 200  nova versao=2
+transicao para FECHADO         -> HTTP 200  nova versao=3
+
+GET /incidents/{id}/events
+  CREATED         -                 -> ABERTO            ator=Roteiro de teste
+  STATUS_CHANGED  ABERTO            -> EM_INVESTIGACAO   ator=
+  STATUS_CHANGED  EM_INVESTIGACAO   -> FECHADO           ator=
+
+apos o soft delete:
+  GET detalhe  -> HTTP 404  (saiu da listagem)
+  GET events   -> HTTP 200 com 2 eventos: CREATED, DELETED
+```
+
+**Um contrato que a documentação já tinha.** `docs/03` descrevia este endpoint
+desde o planejamento, com o corpo `{"items": [...]}`. A primeira versão do código
+devolvia `{"events": [...], "incidentId": ...}` — divergência que só apareceu
+porque fui conferir a documentação **antes** de commitar. Adotei `items`: é
+consistente com a listagem, e `incidentId` era redundante, já que o cliente sabe
+de qual incidente pediu a timeline.
+
+**O que ficou de fora.** Não há paginação na timeline. Um incidente tem poucos
+eventos (criação, algumas transições, remoção), então paginar seria complexidade
+sem demanda — e a tabela é _append-only_, o que mantém o conjunto pequeno.
+
+---
+
+## 10. Achados que atravessam as issues
 
 | Achado                                               | Impacto                                                       | Onde ficou registrado          |
 | ---------------------------------------------------- | ------------------------------------------------------------- | ------------------------------ |
@@ -404,7 +472,7 @@ documentação, e não apenas o código.
 
 ---
 
-## 10. Erros de processo (meus)
+## 11. Erros de processo (meus)
 
 Registrados porque são o tipo de coisa que se repete se não for anotada.
 
@@ -424,7 +492,7 @@ editor.
 
 ---
 
-## 11. Como verificar o que está aqui
+## 12. Como verificar o que está aqui
 
 ```bash
 # Banco e dependências
@@ -445,7 +513,7 @@ teste ao vivo registrado na seção correspondente.
 
 ---
 
-## 12. Mapa do projeto — o que cada parte faz
+## 13. Mapa do projeto — o que cada parte faz
 
 Para não se perder: a função de cada arquivo, em uma linha. A ordem segue o
 caminho de uma requisição.
@@ -497,7 +565,7 @@ caminho de uma requisição.
 
 ---
 
-## 13. Como explicar na entrevista
+## 14. Como explicar na entrevista
 
 ### O resumo de 30 segundos
 

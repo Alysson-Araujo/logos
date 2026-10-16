@@ -27,10 +27,12 @@ from app.repositories.incident_repository import IncidentFilter, decode_cursor
 from app.schemas.common import ErrorResponse
 from app.schemas.incident import (
     IncidentCreate,
+    IncidentEventRead,
     IncidentListMeta,
     IncidentListResponse,
     IncidentRead,
     IncidentStatusChange,
+    IncidentTimelineResponse,
 )
 
 ERROR_RESPONSES: Final[dict[int | str, dict[str, Any]]] = {
@@ -197,6 +199,23 @@ def get_incident(incident_id: UUID, service: ServiceDep, response: Response) -> 
     incident = service.get(incident_id)
     response.headers["ETag"] = f'"{incident.version}"'
     return IncidentRead.model_validate(incident)
+
+
+@router.get(
+    "/{incident_id}/events",
+    response_model=IncidentTimelineResponse,
+    summary="Timeline de auditoria",
+    description=(
+        "Histórico do incidente em ordem cronológica: criação, transições de status e "
+        "remoção, com o autor e a versão que o cliente declarou esperar."
+    ),
+    responses=ERROR_RESPONSES,
+)
+def list_incident_events(incident_id: UUID, service: ServiceDep) -> IncidentTimelineResponse:
+    """Devolve a timeline de auditoria do incidente."""
+    return IncidentTimelineResponse(
+        items=[IncidentEventRead.model_validate(event) for event in service.events(incident_id)]
+    )
 
 
 @router.post(

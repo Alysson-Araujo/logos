@@ -314,7 +314,7 @@ preserva o histórico e mantém a auditoria limpa.
       "fromStatus": null,
       "toStatus": "ABERTO",
       "actor": "Rádio Frota 12",
-      "payload": { "reportedBy": "Rádio Frota 12" },
+      "payload": null,
       "createdAt": "2026-02-11T12:04:00Z"
     },
     {
@@ -323,7 +323,10 @@ preserva o histórico e mantém a auditoria limpa.
       "fromStatus": "EM_INVESTIGACAO",
       "toStatus": "FECHADO",
       "actor": "Marina S.",
-      "payload": { "resolutionNotes": "Vítimas atendidas pelo SAMU." },
+      "payload": {
+        "expectedVersion": 4,
+        "resolutionNotes": "Vítimas atendidas pelo SAMU."
+      },
       "createdAt": "2026-02-11T14:12:40Z"
     }
   ]
@@ -331,7 +334,14 @@ preserva o histórico e mantém a auditoria limpa.
 ```
 
 A timeline é **append-only**: nenhum evento é editado ou removido, inclusive
-quando o incidente recebe soft delete.
+quando o incidente recebe soft delete. O detalhe do incidente passa a devolver
+`404` depois da remoção, mas `GET /incidents/{id}/events` continua respondendo —
+senão "remover sem apagar o histórico" seria falso.
+
+O `payload` guarda o contexto do evento, não o estado inteiro: em `CREATED` ele é
+nulo, porque quem criou já está em `actor`; em `STATUS_CHANGED` ele traz a versão
+que o cliente declarou esperar (o que permite explicar depois por que uma
+transição foi aceita e outra recusada) e a justificativa, quando houve.
 
 ## 9. `GET /meta/enums`
 

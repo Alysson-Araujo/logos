@@ -82,6 +82,7 @@ de método interno.
 | `test_circuit_breaker_http.py` | Depois do limiar a API **para de chamar o banco** e responde `503` com `Retry-After`; passado o cooldown uma sondagem passa e o tráfego volta; `404` não abre o circuito; `/health/live` responde com o circuito aberto.                                         |
 | `test_cache_http.py`           | `MISS` na primeira leitura e `HIT` na seguinte, sem tocar no banco; mutação esvazia o cache e o registro novo aparece; `REVALIDATED` no TTL vencido; `STALE` com o banco fora, devolvendo a cópia antiga; sem cópia, o `503` sobe.                               |
 | `test_database_timeouts.py`    | **Só roda no PostgreSQL** (pulado no SQLite, que usa `PRAGMA busy_timeout`): a sessão recebe o `statement_timeout` configurado; a consulta que estoura é cancelada com SQLSTATE `57014` e conta como transitória; o `SET LOCAL` não vaza para a conexão do pool. |
+| `test_timeline.py`             | Toda mudança de estado gera evento (`CREATED`, `STATUS_CHANGED`, `DELETED`) com origem, destino e autor; mudança **recusada** (`409`, `422`) não gera; a timeline sobrevive ao soft delete; id inexistente devolve `404` em vez de lista vazia.                  |
 
 ```bash
 cd backend
