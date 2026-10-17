@@ -34,6 +34,8 @@ class AccessToken:
     token: str
     jti: str
     expires_at: datetime
+    #: Segundos até o vencimento, já no formato que o contrato publica.
+    expires_in: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -89,7 +91,7 @@ def create_access_token(
         "exp": int(expires_at.timestamp()),
     }
     token = jwt.encode(payload, settings.auth_secret_key, algorithm=ALGORITHM)
-    return AccessToken(token=token, jti=jti, expires_at=expires_at)
+    return AccessToken(token=token, jti=jti, expires_at=expires_at, expires_in=ttl)
 
 
 def decode_access_token(token: str) -> TokenClaims:
