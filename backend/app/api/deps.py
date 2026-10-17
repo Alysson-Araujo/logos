@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import re
 from enum import StrEnum
-from typing import Annotated
+from typing import Annotated, Final
 
-from fastapi import Depends
+from fastapi import Depends, Header
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
@@ -15,10 +15,16 @@ from app.core.errors import (
     InvalidFilterError,
     PreconditionFailedError,
     PreconditionRequiredError,
+    UnauthenticatedError,
 )
 from app.core.idempotency import is_replay_safe
+from app.core.tokens import TokenClaims, decode_access_token
 from app.infra.retry import RetryConfig, RetryPolicy
+from app.models.user import User
 from app.repositories.incident_repository import IncidentRepository
+from app.repositories.revoked_token_repository import RevokedTokenRepository
+from app.repositories.user_repository import UserRepository
+from app.services.auth_service import AuthService
 from app.services.incident_service import IncidentService
 
 #: Aceita `If-Match: "3"` e a forma fraca `W/"3"`.
@@ -112,3 +118,82 @@ def resolve_expected_version(if_match: str | None, body_version: int | None) -> 
     if body_version is not None:
         return body_version
     raise PreconditionRequiredError()
+
+
+def get_user_repository(session: SessionDep) -> UserRepository:
+    """Cria o repositório de usuários para a requisição."""
+    return UserRepository(session)
+
+
+def get_revoked_token_repository(session: SessionDep) -> RevokedTokenRepository:
+    """Cria o repositório de tokens revogados para a requisição."""
+    return RevokedTokenRepository(session)
+
+
+def get_auth_service(
+    users: Annotated[UserRepository, Depends(get_user_repository)],
+    revoked: Annotated[RevokedTokenRepository, Depends(get_revoked_token_repository)],
+) -> AuthService:
+    """Cria o serviço de autenticação para a requisição."""
+    return AuthService(users, revoked)
+
+
+AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
+
+BEARER_PREFIX: Final[str] = "bearer "
+
+
+def extract_bearer_token(authorization: str | None) -> str:
+    """Extrai o token de um header `Authorization: Bearer <token>`."""
+    if authorization is None or not authorization.strip():
+        raise UnauthenticatedError("Informe o header Authorization com o token de acesso.")
+
+    valor = authorization.strip()
+    if not valor.lower().startswith(BEARER_PREFIX):
+        raise UnauthenticatedError('O header Authorization deve usar o esquema "Bearer".')
+    return valor[len(BEARER_PREFIX) :].strip()
+
+
+def get_current_claims(
+    authorization: Annotated[str | None, Header()] = None,
+) -> TokenClaims:
+    """Valida o token de acesso e devolve as claims.
+
+    Separado de `get_current_user` porque o logout precisa do `jti` e do
+    vencimento — e não do usuário.
+    """
+    token = extract_bearer_token(authorization)
+    return decode_access_token(token)
+
+
+CurrentClaims = Annotated[TokenClaims, Depends(get_current_claims)]
+
+
+def get_current_user(
+    claims: CurrentClaims,
+    users: Annotated[UserRepository, Depends(get_user_repository)],
+    revoked: Annotated[RevokedTokenRepository, Depends(get_revoked_token_repository)],
+) -> User:
+    """Resolve o usuário autenticado a partir das claims já validadas.
+
+    A ordem das checagens é o ponto:
+
+    1. Sem header, ou fora do formato `Bearer` → não sei quem você é.
+    2. Assinatura e vencimento conferidos **antes de tocar no banco**: um token
+       forjado custa zero de I/O.
+    3. Token revogado por logout → não vale mais.
+    4. Usuário apagado, ou desativado depois do login, responde **401** e não
+       403: a sessão deixou de existir. Um 403 sugeriria "você está logado, mas
+       sem permissão", que seria falso.
+    """
+    if revoked.is_revoked(claims.jti):
+        raise UnauthenticatedError("Esta sessão foi encerrada. Entre novamente.")
+
+    user = users.get_by_id(claims.user_id)
+    if user is None or not user.is_active:
+        raise UnauthenticatedError("Esta sessão não é mais válida. Entre novamente.")
+
+    return user
+
+
+CurrentUser = Annotated[User, Depends(get_current_user)]

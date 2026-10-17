@@ -15,11 +15,13 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.core.database import create_session
 from app.core.logging import configure_logging
-from app.domain.enums import IncidentCategory, IncidentCriticality, IncidentStatus
+from app.core.tokens import hash_password
+from app.domain.enums import IncidentCategory, IncidentCriticality, IncidentStatus, UserRole
 from app.domain.priority import compute_priority_score, compute_sla_due_at
 from app.models.base import utcnow
 from app.models.incident import INITIAL_VERSION, Incident
 from app.repositories.incident_repository import IncidentRepository, build_code
+from app.repositories.user_repository import UserRepository
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +50,18 @@ CATEGORY_QUOTA: Final[tuple[IncidentCategory, ...]] = (
     IncidentCategory.CONDICAO_CLIMATICA_ATIPICA,
     IncidentCategory.PROBLEMA_MECANICO,
     IncidentCategory.BLOQUEIO_DE_PISTA,
+)
+
+#: Contas de demonstração: (e-mail, nome, papel, senha).
+#:
+#: Existem para que a aplicação publicada tenha como ser usada sem cadastro —
+#: não há endpoint de registro, e cadastro aberto numa central de incidentes
+#: seria um risco, não uma funcionalidade.
+DEMO_USERS: Final[tuple[tuple[str, str, UserRole, str], ...]] = (
+    ("ana@autou.com.br", "Ana Paula Ribeiro", UserRole.ANALYST, "ana.logos2026"),
+    ("carlos@autou.com.br", "Carlos Eduardo Lima", UserRole.ANALYST, "carlos.logos2026"),
+    ("marina@autou.com.br", "Marina Souza", UserRole.REPORTER, "marina.logos2026"),
+    ("admin@autou.com.br", "Administrador Logos", UserRole.ADMIN, "admin.logos2026"),
 )
 
 
@@ -253,6 +267,28 @@ def seed_incidents(session: Session, *, count: int = SEED_COUNT) -> int:
     return len(incidents)
 
 
+def seed_users(session: Session) -> int:
+    """Cria os usuários de demonstração apenas em base vazia (idempotente).
+
+    As senhas seguem o MESMO padrao para todas as contas: `<primeiro>.logos2026`,
+    com 13 caracteres, dentro da politica minima de 12. Uma credencial de
+    demonstracao que a propria aplicacao recusaria na troca de senha seria um
+    detalhe ruim de se ver no video.
+    """
+    repository = UserRepository(session)
+    if repository.count() > 0:
+        return 0
+
+    for email, nome, papel, senha in DEMO_USERS:
+        repository.create(
+            email=email,
+            password_hash=hash_password(senha),
+            name=nome,
+            role=papel,
+        )
+    return len(DEMO_USERS)
+
+
 def main() -> None:
     """Executa o seed manualmente (`python -m app.infra.seed`).
 
@@ -261,8 +297,9 @@ def main() -> None:
     """
     configure_logging(get_settings().log_level)
     with create_session() as session:
+        usuarios = seed_users(session)
         created = seed_incidents(session)
-    logger.info("seed finalizado: %s incidentes criados", created)
+    logger.info("seed finalizado: %s usuarios e %s incidentes criados", usuarios, created)
 
 
 if __name__ == "__main__":

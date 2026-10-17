@@ -25,7 +25,7 @@ from app.core.logging import (
 )
 from app.core.rate_limit import rate_limit_middleware
 from app.core.security import security_headers_middleware
-from app.infra.seed import seed_incidents
+from app.infra.seed import seed_incidents, seed_users
 
 API_PREFIX: Final[str] = "/api/v1"
 
@@ -44,8 +44,9 @@ def initialize_database(settings: Settings) -> None:
     if not settings.seed_on_startup:
         return
     with create_session() as session:
+        usuarios = seed_users(session)
         created = seed_incidents(session)
-    logger.info("seed executado: %s incidentes criados", created)
+    logger.info("seed executado: %s usuarios e %s incidentes criados", usuarios, created)
 
 
 @asynccontextmanager
