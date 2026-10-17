@@ -3,6 +3,8 @@ import { createRoot } from 'react-dom/client';
 
 import { App } from './app/App';
 import { AppProviders } from './app/providers';
+import { AuthGate } from './features/auth/AuthGate';
+import { wireAuthSession } from './features/auth/session';
 import './styles/globals.css';
 
 /**
@@ -29,12 +31,18 @@ if (rootElement === null) {
   throw new Error('Elemento #root não encontrado no index.html.');
 }
 
+// Liga o cliente HTTP à sessão antes de qualquer render: a triagem dispara
+// consultas no primeiro efeito que rodar, e elas já precisam do token.
+wireAuthSession();
+
 void enableMocking()
   .then(() => {
     createRoot(rootElement).render(
       <StrictMode>
         <AppProviders>
-          <App />
+          <AuthGate>
+            <App />
+          </AuthGate>
         </AppProviders>
       </StrictMode>,
     );

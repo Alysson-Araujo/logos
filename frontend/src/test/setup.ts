@@ -9,8 +9,34 @@ import { handlers, resetMockDatabase } from './msw/handlers';
 /** API simulada no ambiente de teste (mesmos handlers do modo de desenvolvimento). */
 export const server = setupServer(...handlers);
 
+/**
+ * O jsdom não implementa `matchMedia`, usado pelo tema claro/escuro. Precisa
+ * existir **antes** do primeiro teste: a tela de login monta o seletor de tema
+ * já na primeira renderização.
+ */
+function installMatchMediaStub(): void {
+  const browserWindow = globalThis.window as Window | undefined;
+  if (browserWindow === undefined) return;
+  if (typeof browserWindow.matchMedia === 'function') return;
+
+  Object.defineProperty(browserWindow, 'matchMedia', {
+    writable: true,
+    value: (query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      dispatchEvent: () => false,
+    }),
+  });
+}
+
 beforeAll(() => {
   server.listen({ onUnhandledRequest: 'error' });
+  installMatchMediaStub();
 });
 
 afterEach(() => {
@@ -22,24 +48,11 @@ afterEach(() => {
   const browserWindow = globalThis.window as Window | undefined;
   if (browserWindow !== undefined) {
     browserWindow.localStorage.clear();
+    // A sessão vive em `sessionStorage`: sem isto, um teste entrega a sessão
+    // do anterior para o próximo.
+    browserWindow.sessionStorage.clear();
     browserWindow.history.replaceState(null, '', '/');
-
-    // jsdom não implementa `matchMedia`, usado pelo tema claro/escuro.
-    if (typeof browserWindow.matchMedia !== 'function') {
-      Object.defineProperty(browserWindow, 'matchMedia', {
-        writable: true,
-        value: (query: string) => ({
-          matches: false,
-          media: query,
-          onchange: null,
-          addEventListener: () => undefined,
-          removeEventListener: () => undefined,
-          addListener: () => undefined,
-          removeListener: () => undefined,
-          dispatchEvent: () => false,
-        }),
-      });
-    }
+    installMatchMediaStub();
   }
 });
 
