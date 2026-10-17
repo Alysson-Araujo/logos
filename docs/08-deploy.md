@@ -42,30 +42,47 @@ comportam mal através dele.
 
 ### 2.2 Render (API)
 
+> **Caminho recomendado:** o `render.yaml` na raiz do repositório já descreve
+> este serviço. Use **New → Blueprint** e o Render preenche a configuração
+> sozinho, pedindo apenas `DATABASE_URL` e `CORS_ORIGINS`. Os passos abaixo são
+> o equivalente manual, para quem preferir criar o serviço à mão.
+
 1. **New → Web Service** → conectar o repositório `logos`.
 2. Configurar:
 
-| Campo             | Valor                                              |
-| ----------------- | -------------------------------------------------- |
-| Root Directory    | `backend`                                          |
-| Environment       | Python 3                                           |
-| Build Command     | `pip install -e .`                                 |
-| Start Command     | `uvicorn app.main:app --host 0.0.0.0 --port $PORT` |
-| Health Check Path | `/health/ready`                                    |
+| Campo             | Valor                                                                      |
+| ----------------- | -------------------------------------------------------------------------- |
+| Root Directory    | `backend`                                                                  |
+| Environment       | Python 3                                                                   |
+| Build Command     | `pip install -e .`                                                         |
+| Start Command     | `alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT` |
+| Health Check Path | `/health/live`                                                             |
 
 3. Definir as variáveis de ambiente da [seção 3](#3-variáveis-de-ambiente).
 4. Fazer o deploy. O primeiro build pode demorar alguns minutos.
-5. O comando de start já aplica as migrações antes de subir o servidor
-   (`alembic upgrade head`, no `backend/Dockerfile`). Para popular os dados de
-   demonstração, use o **Shell** do próprio Render, que já tem as variáveis
-   carregadas:
+5. O seed dos dados de demonstração roda **sozinho**, uma vez, pelo
+   `initialDeployHook` do Blueprint. Em um serviço criado à mão, rode o seed da
+   sua máquina apontando para o Neon — o plano gratuito do Render **não tem
+   Shell**:
 
 ```bash
-alembic upgrade head
+cd backend
+export DATABASE_URL="postgresql+psycopg://…@ep-xxx.aws.neon.tech/logos?sslmode=require"
 python -m app.infra.seed
 ```
 
 6. Conferir `GET /health/ready` (deve responder `200`) e abrir `/docs`.
+
+> **Por que o health check é `/health/live`, e não `/health/ready`.** O
+> `/health/ready` consulta o banco, e o Neon suspende a computação quando fica
+> ocioso: durante um deploy essa consulta pode estourar o timeout do Render e
+> marcar como falha um deploy que estava correto. Há também uma razão de
+> desenho: o health check da plataforma responde _"o processo está de pé?"_, e
+> reiniciar o processo **não conserta** um banco fora do ar — usar um endpoint
+> que depende do banco faria o Render reiniciar o serviço em laço durante uma
+> queda. O `/health/live` é justamente o que continua respondendo com o
+> disjuntor aberto. O `/health/ready` segue sendo o alvo da verificação manual
+> da [seção 2.5](#25-verificação-pós-deploy).
 
 > **Schema e migrações.** O schema é versionado pelo Alembic e a aplicação não
 > cria tabelas: se o banco estiver vazio, ela para na subida dizendo qual comando
@@ -132,24 +149,24 @@ mal configurado e banco sem dados.
 
 ### 3.1 Backend (Render)
 
-| Variável                            | Valor em produção                        | Observação                                                                   |
-| ----------------------------------- | ---------------------------------------- | ---------------------------------------------------------------------------- |
-| `ENVIRONMENT`                       | `production`                             | Muda nível de log e política de CORS.                                        |
-| `DATABASE_URL`                      | `postgresql+psycopg://…?sslmode=require` | Do Neon, endpoint com `-pooler` para a aplicação.                            |
-| `CORS_ORIGINS`                      | `https://<projeto>.vercel.app`           | Lista separada por vírgula. Nunca `*`.                                       |
-| `LOG_LEVEL`                         | `INFO`                                   | `DEBUG` só em investigação pontual.                                          |
-| `RATE_LIMIT_ENABLED`                | `true`                                   | Desligar só para rodar carga local.                                          |
-| `RATE_LIMIT_READ_PER_MINUTE`        | `60`                                     | Leituras por cliente.                                                        |
-| `RATE_LIMIT_WRITE_PER_MINUTE`       | `20`                                     | Escritas por cliente.                                                        |
-| `DB_STATEMENT_TIMEOUT_MS`           | `5000`                                   | Teto por **consulta**; cancelada com SQLSTATE `57014`.                       |
-| `DB_IDLE_TRANSACTION_TIMEOUT_MS`    | `10000`                                  | Teto com a **transação ociosa**: libera locks de worker interrompido.        |
-| `RETRY_MAX_ATTEMPTS`                | `3`                                      | Retry interno, contando a primeira tentativa.                                |
-| `RETRY_BASE_DELAY_SECONDS`          | `1.0`                                    | Teto do backoff da primeira espera; dobra até 8s.                            |
-| `CIRCUIT_BREAKER_ENABLED`           | `true`                                   | Desligar só para observar a falha crua.                                      |
-| `CIRCUIT_BREAKER_FAILURE_THRESHOLD` | `5`                                      | Falhas consecutivas que abrem o circuito.                                    |
-| `CIRCUIT_BREAKER_COOLDOWN_SECONDS`  | `30.0`                                   | Espera antes da sondagem de recuperação.                                     |
-| `CACHE_TTL_SECONDS`                 | `30`                                     | TTL da listagem com _stale-while-revalidate_.                                |
-| `SEED_ON_STARTUP`                   | `false`                                  | Dados de demonstração são carregados uma vez, pelo Shell, não a cada deploy. |
+| Variável                            | Valor em produção                        | Observação                                                                                 |
+| ----------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `ENVIRONMENT`                       | `production`                             | Muda nível de log e política de CORS.                                                      |
+| `DATABASE_URL`                      | `postgresql+psycopg://…?sslmode=require` | Do Neon, endpoint com `-pooler` para a aplicação.                                          |
+| `CORS_ORIGINS`                      | `https://<projeto>.vercel.app`           | Lista separada por vírgula. Nunca `*`.                                                     |
+| `LOG_LEVEL`                         | `INFO`                                   | `DEBUG` só em investigação pontual.                                                        |
+| `RATE_LIMIT_ENABLED`                | `true`                                   | Desligar só para rodar carga local.                                                        |
+| `RATE_LIMIT_READ_PER_MINUTE`        | `60`                                     | Leituras por cliente.                                                                      |
+| `RATE_LIMIT_WRITE_PER_MINUTE`       | `20`                                     | Escritas por cliente.                                                                      |
+| `DB_STATEMENT_TIMEOUT_MS`           | `5000`                                   | Teto por **consulta**; cancelada com SQLSTATE `57014`.                                     |
+| `DB_IDLE_TRANSACTION_TIMEOUT_MS`    | `10000`                                  | Teto com a **transação ociosa**: libera locks de worker interrompido.                      |
+| `RETRY_MAX_ATTEMPTS`                | `3`                                      | Retry interno, contando a primeira tentativa.                                              |
+| `RETRY_BASE_DELAY_SECONDS`          | `1.0`                                    | Teto do backoff da primeira espera; dobra até 8s.                                          |
+| `CIRCUIT_BREAKER_ENABLED`           | `true`                                   | Desligar só para observar a falha crua.                                                    |
+| `CIRCUIT_BREAKER_FAILURE_THRESHOLD` | `5`                                      | Falhas consecutivas que abrem o circuito.                                                  |
+| `CIRCUIT_BREAKER_COOLDOWN_SECONDS`  | `30.0`                                   | Espera antes da sondagem de recuperação.                                                   |
+| `CACHE_TTL_SECONDS`                 | `30`                                     | TTL da listagem com _stale-while-revalidate_.                                              |
+| `SEED_ON_STARTUP`                   | `false`                                  | Dados de demonstração são carregados uma vez, pelo `initialDeployHook`, não a cada deploy. |
 
 ### 3.2 Frontend (Vercel)
 
@@ -338,10 +355,11 @@ CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
 alembic upgrade head
 ```
 
-O comando de start definido no `backend/Dockerfile` já faz isso antes de subir o
-`uvicorn`. Em um serviço configurado sem ele, use o **Shell** do Render, que já
-tem as variáveis carregadas. A regra operacional vale sempre: **deploy de código
-que depende de schema novo só termina depois da migração.**
+O `startCommand` do serviço já faz isso antes de subir o `uvicorn`. Em um serviço
+configurado sem ele, rode `alembic upgrade head` da sua máquina contra a conexão
+**direta** do Neon — o plano gratuito do Render não tem Shell. A regra
+operacional vale sempre: **deploy de código que depende de schema novo só
+termina depois da migração.**
 
 ### 5.6 Lista vazia em produção
 
@@ -350,9 +368,11 @@ vazio.
 
 **Causa.** O seed não foi executado no ambiente publicado.
 
-**Correção.** Rodar `python -m app.infra.seed` no Shell do Render, uma única
-vez. Por isso `SEED_ON_STARTUP` é `false` em produção: semear a cada deploy
-recriaria dados de demonstração por cima de dados reais.
+**Correção.** O seed roda sozinho pelo `initialDeployHook` do Blueprint, uma
+única vez, após o primeiro deploy bem-sucedido. Em um serviço criado à mão, rode
+`python -m app.infra.seed` da sua máquina contra o Neon. Por isso
+`SEED_ON_STARTUP` é `false` em produção: semear a cada deploy recriaria dados de
+demonstração por cima de dados reais.
 
 ### 5.7 SSE bufferizado
 
