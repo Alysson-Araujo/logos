@@ -111,10 +111,12 @@ interface estão sendo construídos.
 | Resiliência: timeout, retry com jitter, circuit breaker e cache _stale_        | ⏳ planejado          |
 | Estados de UI explícitos (loading, erro, vazio, offline, otimista)             | ⏳ planejado          |
 | Tema claro/escuro persistido                                                   | ⏳ planejado          |
-| Timeline de auditoria por incidente                                            | ⏳ planejado          |
+| Timeline de auditoria por incidente                                            | ✅ pronto             |
 | SSE com badge "N novos" sem reordenar a lista                                  | ⏳ planejado          |
 | Command palette (`Ctrl+K`) e atalhos de teclado                                | ⏳ planejado          |
-| Seed com 120 incidentes realistas para demonstração                            | ⏳ planejado          |
+| Seed com 120 incidentes realistas para demonstração                            | ✅ pronto             |
+| **Autenticação** com JWT, revogação real no logout e troca de senha            | ✅ pronto             |
+| **Autorização por papel** (`REPORTER`/`ANALYST`/`ADMIN`), com escopo na query  | ✅ pronto             |
 | Exportação CSV da visão filtrada                                               | ⏳ planejado          |
 | Testes E2E com Playwright                                                      | ⏳ planejado          |
 
@@ -318,7 +320,7 @@ cp backend/.env.example backend/.env      # no Windows: Copy-Item backend\.env.e
 ```bash
 cd backend
 alembic upgrade head        # cria o schema a partir das migrações
-python -m app.infra.seed    # popula 120 incidentes de demonstração
+python -m app.infra.seed    # popula 120 incidentes e as contas de demonstração
 uvicorn app.main:app --reload --port 8000
 ```
 
@@ -330,6 +332,24 @@ duas tabelas e todos os índices.
 
 Verificação: `GET http://localhost:8000/health/ready` deve responder `200` e o
 Swagger está em `http://localhost:8000/docs`.
+
+#### Contas de demonstração
+
+Criadas pelo seed. Use uma delas para entrar — **não há endpoint de cadastro**,
+porque contas abertas numa central de incidentes seriam um risco, não uma
+funcionalidade.
+
+| Conta                 | Senha              | Papel      | Enxerga                      |
+| --------------------- | ------------------ | ---------- | ---------------------------- |
+| `ana@autou.com.br`    | `ana.logos2026`    | `ANALYST`  | A fila inteira               |
+| `carlos@autou.com.br` | `carlos.logos2026` | `ANALYST`  | A fila inteira               |
+| `marina@autou.com.br` | `marina.logos2026` | `REPORTER` | Apenas o que ela mesma abriu |
+| `admin@autou.com.br`  | `admin.logos2026`  | `ADMIN`    | Tudo, e é o único que remove |
+
+Entrar como `marina` e como `ana` é a forma mais rápida de ver a autorização
+funcionando: a mesma listagem devolve recortes diferentes. O contrato completo do
+fluxo está em [`docs/03-api.md` §15](docs/03-api.md) e a decisão em
+[ADR 0015](docs/adr/0015-autenticacao-jwt.md).
 
 ### 3. Frontend
 

@@ -5,48 +5,60 @@ erro e cabeçalhos HTTP da API v1 do Logos.
 
 ## 1. Convenções gerais
 
-| Item                  | Definição                                                                |
-| --------------------- | ------------------------------------------------------------------------ |
-| Base URL              | `/api/v1` — ex.: `http://localhost:8000/api/v1`                          |
-| Content-Type          | `application/json; charset=utf-8`                                        |
-| Identificador público | `id` em UUID v4; `code` legível no formato `INC-AAAA-NNNNNN`             |
-| Datas                 | ISO-8601 em UTC, com sufixo `Z` (`2026-02-11T12:31:12Z`)                 |
-| Enumeração            | Valores em maiúsculas com underscore (`ACIDENTE_COM_VITIMAS`)            |
-| Casing                | `snake_case` nos parâmetros de query; `camelCase` no corpo e na resposta |
-| Documentação viva     | OpenAPI 3.1 em `/docs` (Swagger UI) e `/redoc` (ReDoc)                   |
+| Item                  | Definição                                                                                                                    |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Base URL              | `/api/v1` — ex.: `http://localhost:8000/api/v1`                                                                              |
+| Content-Type          | `application/json; charset=utf-8`                                                                                            |
+| Identificador público | `id` em UUID v4; `code` legível no formato `INC-AAAA-NNNNNN`                                                                 |
+| Datas                 | ISO-8601 em UTC, com sufixo `Z` (`2026-02-11T12:31:12Z`)                                                                     |
+| Enumeração            | Valores em maiúsculas com underscore (`ACIDENTE_COM_VITIMAS`)                                                                |
+| Casing                | `snake_case` nos parâmetros de query; `camelCase` no corpo e na resposta                                                     |
+| Documentação viva     | OpenAPI 3.1 em `/docs` (Swagger UI) e `/redoc` (ReDoc)                                                                       |
+| **Autenticação**      | **Toda rota de incidente exige `Authorization: Bearer <token>`.** `/health/*` e `/meta/enums` são públicas — veja a seção 15 |
+
+> **Rotas ainda não implementadas** aparecem marcadas como _planejado_ na tabela
+> abaixo. Elas estão descritas no plano do produto, mas **não existem na API**:
+> chamá-las devolve `404`.
 
 ## 2. Endpoints
 
-| Método   | Rota                     | Descrição                                                       | Códigos                                         |
-| -------- | ------------------------ | --------------------------------------------------------------- | ----------------------------------------------- |
-| `GET`    | `/health/live`           | _Liveness_: o processo está vivo.                               | `200`                                           |
-| `GET`    | `/health/ready`          | _Readiness_: o banco responde de fato.                          | `200`, `503`                                    |
-| `GET`    | `/incidents`             | Lista paginada por cursor, com filtros e ordenação.             | `200`, `400`, `422`, `429`, `503`               |
-| `GET`    | `/incidents/{id}`        | Detalhe do incidente. Devolve `ETag`.                           | `200`, `404`, `410`                             |
-| `POST`   | `/incidents`             | Cria incidente. Aceita `Idempotency-Key`.                       | `201`, `409`, `422`, `429`, `503`               |
-| `PATCH`  | `/incidents/{id}`        | Atualiza dados e/ou status. `If-Match` obrigatório para status. | `200`, `404`, `409`, `412`, `422`, `429`, `503` |
-| `POST`   | `/incidents/{id}/status` | Transição de status explícita.                                  | `200`, `404`, `409`, `412`, `422`, `429`, `503` |
-| `DELETE` | `/incidents/{id}`        | Soft delete (`deleted_at`).                                     | `204`, `404`                                    |
-| `GET`    | `/incidents/{id}/events` | Timeline de auditoria do incidente.                             | `200`, `404`                                    |
-| `GET`    | `/incidents/stream`      | SSE com eventos de incidentes em tempo real.                    | `200`                                           |
-| `GET`    | `/meta/enums`            | Categorias, criticidades e status com rótulos PT-BR e cores.    | `200`                                           |
-| `GET`    | `/docs` · `/redoc`       | Swagger UI e ReDoc.                                             | `200`                                           |
+| Método   | Rota                     | Descrição                                                    | Códigos                                                       |
+| -------- | ------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------- |
+| `GET`    | `/health/live`           | _Liveness_: o processo está vivo.                            | `200`                                                         |
+| `GET`    | `/health/ready`          | _Readiness_: o banco responde de fato.                       | `200`, `503`                                                  |
+| `POST`   | `/auth/login`            | Autentica e devolve o token de acesso.                       | `200`, `401`, `422`, `429`                                    |
+| `POST`   | `/auth/logout`           | Revoga o token apresentado.                                  | `204`, `401`, `429`, `503`                                    |
+| `GET`    | `/auth/me`               | Quem está autenticado, com o papel.                          | `200`, `401`, `429`, `503`                                    |
+| `POST`   | `/auth/change-password`  | Troca a senha do próprio usuário.                            | `204`, `401`, `422`, `429`, `503`                             |
+| `GET`    | `/incidents`             | Lista paginada por cursor, com filtros e ordenação.          | `200`, `400`, `401`, `422`, `429`, `503`                      |
+| `GET`    | `/incidents/{id}`        | Detalhe do incidente. Devolve `ETag`.                        | `200`, `401`, `404`, `429`, `503`                             |
+| `POST`   | `/incidents`             | Cria incidente. Aceita `Idempotency-Key`.                    | `201`, `401`, `409`, `422`, `429`, `503`                      |
+| `POST`   | `/incidents/{id}/status` | Transição de status explícita.                               | `200`, `401`, `403`, `404`, `409`, `412`, `428`, `429`, `503` |
+| `DELETE` | `/incidents/{id}`        | Soft delete (`deleted_at`). **Exige `ADMIN`.**               | `204`, `401`, `403`, `404`, `429`, `503`                      |
+| `GET`    | `/incidents/{id}/events` | Timeline de auditoria do incidente.                          | `200`, `401`, `404`, `429`, `503`                             |
+| `GET`    | `/meta/enums`            | Categorias, criticidades e status com rótulos PT-BR e cores. | `200`                                                         |
+| `GET`    | `/docs` · `/redoc`       | Swagger UI e ReDoc.                                          | `200`                                                         |
+| `PATCH`  | `/incidents/{id}`        | _planejado_ — editar dados do incidente.                     | —                                                             |
+| `GET`    | `/incidents/stream`      | _planejado_ — SSE com eventos em tempo real.                 | —                                                             |
 
 ## 3. `GET /incidents`
 
 ### 3.1 Parâmetros de query
 
-| Parâmetro      | Tipo                       | Padrão          | Descrição                                                                          |
-| -------------- | -------------------------- | --------------- | ---------------------------------------------------------------------------------- |
-| `status`       | lista separada por vírgula | todos           | `ABERTO`, `EM_INVESTIGACAO`, `FECHADO`, `INCONCLUSIVO`.                            |
-| `criticality`  | lista separada por vírgula | todas           | `ALTA`, `MEDIA`, `BAIXA`.                                                          |
-| `category`     | lista separada por vírgula | todas           | Uma das cinco categorias do domínio.                                               |
-| `search`       | string                     | —               | Busca textual em `title`, `description`, `code`, `location_label` e `truck_plate`. |
-| `created_from` | datetime ISO-8601          | —               | Limite inferior inclusivo de `created_at`.                                         |
-| `created_to`   | datetime ISO-8601          | —               | Limite superior inclusivo de `created_at`.                                         |
-| `sort`         | enum                       | `priority_desc` | `priority_desc`, `created_desc`, `created_asc`, `criticality_desc`.                |
-| `limit`        | int                        | `50`            | Itens por página. <!-- confirmar limite máximo aceito -->                          |
-| `cursor`       | string opaca               | —               | Cursor devolvido em `pageInfo.nextCursor`. Ausente = primeira página.              |
+| Parâmetro     | Tipo                       | Padrão          | Descrição                                                                          |
+| ------------- | -------------------------- | --------------- | ---------------------------------------------------------------------------------- |
+| `status`      | lista separada por vírgula | todos           | `ABERTO`, `EM_INVESTIGACAO`, `FECHADO`, `INCONCLUSIVO`.                            |
+| `criticality` | lista separada por vírgula | todas           | `ALTA`, `MEDIA`, `BAIXA`.                                                          |
+| `category`    | lista separada por vírgula | todas           | Uma das cinco categorias do domínio.                                               |
+| `search`      | string                     | —               | Busca textual em `title`, `description`, `code`, `location_label` e `truck_plate`. |
+| `sort`        | enum                       | `priority_desc` | `priority_desc`, `created_desc`, `created_asc`, `criticality_desc`.                |
+| `limit`       | int                        | `50`            | Itens por página.                                                                  |
+| `cursor`      | string opaca               | —               | Cursor devolvido em `pageInfo.nextCursor`. Ausente = primeira página.              |
+
+> **O resultado é escopado pelo papel.** `ANALYST` e `ADMIN` enxergam a fila
+> inteira; `REPORTER` enxerga apenas os incidentes que ele mesmo criou. O escopo
+> entra na consulta, então `meta.total` — de onde os KPIs do topo saem — já vem
+> contado dentro do recorte.
 
 Exemplo de montagem:
 
@@ -183,6 +195,11 @@ responde `410 Gone`, o que diferencia "nunca existiu" de "existiu e foi
 removido".
 
 ## 6. `PATCH /incidents/{id}`
+
+> ⚠️ **PLANEJADO — não implementado.** Esta rota **não existe** na API: chamá-la
+> devolve `404`. O contrato abaixo descreve o que está previsto, e serve de
+> referência para a implementação. Enquanto ela não existir, **não há como
+> corrigir os dados de um incidente** — só o status muda.
 
 Atualização parcial dos dados. Para **alterar o status** é obrigatório enviar
 `If-Match` com a versão conhecida, ou `expectedVersion` no corpo como
@@ -380,6 +397,11 @@ vez de duplicar a lista de categorias no código.
 
 ## 10. `GET /incidents/stream` (SSE)
 
+> ⚠️ **PLANEJADO — não implementado.** A rota **não existe** na API. Hoje a
+> lista é atualizada por _refetch_; o SSE entra como evolução, com o cuidado de
+> **não reordenar a lista sob o cursor do analista** — novos itens aparecem como
+> um selo "3 novos", e não empurrando as linhas.
+
 Stream de eventos no formato `text/event-stream`:
 
 ```
@@ -428,25 +450,29 @@ o FastAPI não devolve o formato padrão `{"detail": [...]}` nesta API.
 
 ## 12. Catálogo de códigos de erro
 
-| Código                        | HTTP  | Quando ocorre                                                                           | O que o cliente deve fazer                                                          |
-| ----------------------------- | ----- | --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| `VALIDATION_ERROR`            | `422` | Corpo ou query com tipo, formato ou faixa inválida.                                     | Destacar os campos de `details.fields`. Não repetir a requisição sem corrigir.      |
-| `INVALID_STATUS_TRANSITION`   | `422` | Tentativa de transição proibida pela máquina de estados.                                | Recarregar o recurso e oferecer apenas as transições de `details.allowed`.          |
-| `RESOLUTION_NOTES_REQUIRED`   | `422` | `FECHADO` ou `INCONCLUSIVO` sem `resolution_notes` (mínimo 10 caracteres).              | Abrir o campo de nota com foco e contador.                                          |
-| `VERSION_REQUIRED`            | `422` | Mudança de status sem `If-Match` e sem `expectedVersion`.                               | Reenviar informando a versão conhecida.                                             |
-| `INVALID_CURSOR`              | `400` | `cursor` malformado ou de outro conjunto de filtros.                                    | Reiniciar a paginação sem cursor.                                                   |
-| `INVALID_FILTER`              | `400` | Combinação de filtros incoerente (ex.: `created_from` posterior a `created_to`).        | Corrigir o parâmetro apontado em `details.parameter`.                               |
-| `INCIDENT_NOT_FOUND`          | `404` | `id` inexistente.                                                                       | Remover o item da lista.                                                            |
-| `INCIDENT_DELETED`            | `410` | Incidente com soft delete.                                                              | Remover da lista e informar que foi removido.                                       |
-| `VERSION_CONFLICT`            | `409` | CAS falhou: `version` no banco difere da esperada.                                      | **Rollback da UI otimista** e abrir o modal de conflito com `details.serverState`.  |
-| `PRECONDITION_FAILED`         | `412` | `If-Match` com ETag que nunca existiu para o recurso (malformado ou de outra entidade). | Recarregar o recurso e pedir nova confirmação.                                      |
-| `PRECONDITION_REQUIRED`       | `428` | A mudança de status chegou sem `If-Match` e sem `expectedVersion`.                      | Enviar a versão conhecida do recurso. A API recusa para não desligar o lock.        |
-| `IDEMPOTENCY_KEY_REUSED`      | `409` | Mesma `Idempotency-Key` reenviada com corpo diferente.                                  | Erro de programação do cliente: gerar chave nova por operação.                      |
-| `IDEMPOTENCY_KEY_IN_PROGRESS` | `409` | Mesma chave ainda em processamento.                                                     | Aguardar e repetir com a **mesma** chave.                                           |
-| `INVALID_IDEMPOTENCY_KEY`     | `422` | Chave vazia, com espaço ou acima de 120 caracteres.                                     | Gerar a chave como UUID v4 por operação lógica.                                     |
-| `RATE_LIMIT_EXCEEDED`         | `429` | Teto de requisições por IP excedido.                                                    | Respeitar `Retry-After` e reduzir a frequência.                                     |
-| `SERVICE_UNAVAILABLE`         | `503` | Banco indisponível ou lento, ou circuit breaker aberto.                                 | Manter o cache na tela, avisar instabilidade e repetir após `Retry-After`.          |
-| `INTERNAL_ERROR`              | `500` | Falha inesperada não classificada.                                                      | Mostrar mensagem neutra com `requestId` para suporte. Deve ser raro por construção. |
+| Código                        | HTTP  | Quando ocorre                                                                          | O que o cliente deve fazer                                                                |
+| ----------------------------- | ----- | -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `INVALID_CREDENTIALS`         | `401` | Login: e-mail inexistente, senha incorreta **ou conta desativada**.                    | Erro no formulário. **Não** limpar a sessão: este 401 não é sessão expirada.              |
+| `UNAUTHENTICATED`             | `401` | Sem token, token inválido, revogado por logout, ou usuário desativado depois do login. | Descartar a sessão e voltar ao login.                                                     |
+| `TOKEN_EXPIRED`               | `401` | Token de acesso vencido.                                                               | Único caso em que vale renovar a sessão em vez de relogar.                                |
+| `INSUFFICIENT_ROLE`           | `403` | Autenticado, mas o papel não permite a ação.                                           | Esconder ou desabilitar a ação. `details.required` diz qual permissão faltou.             |
+| `WEAK_PASSWORD`               | `422` | Senha nova fora da política (mínimo 12 caracteres).                                    | Mostrar os requisitos e o que faltou, em `details.minLength`.                             |
+| `VALIDATION_ERROR`            | `422` | Corpo ou query com tipo, formato ou faixa inválida.                                    | Destacar os campos de `details.fields`. Não repetir a requisição sem corrigir.            |
+| `INVALID_STATUS_TRANSITION`   | `422` | Tentativa de transição proibida pela máquina de estados.                               | Recarregar o recurso e oferecer apenas as transições de `details.allowed`.                |
+| `RESOLUTION_NOTES_REQUIRED`   | `422` | `FECHADO` ou `INCONCLUSIVO` sem `resolution_notes` (mínimo 10 caracteres).             | Abrir o campo de nota com foco e contador.                                                |
+| `INVALID_CURSOR`              | `400` | `cursor` malformado ou de outro conjunto de filtros.                                   | Reiniciar a paginação sem cursor.                                                         |
+| `INVALID_FILTER`              | `422` | Valor de filtro inválido para o enum (ex.: `status=RESOLVIDO`).                        | Corrigir o parâmetro apontado em `details.parameter`; `details.allowed` lista os válidos. |
+| `INCIDENT_NOT_FOUND`          | `404` | `id` inexistente **ou removido por soft delete**.                                      | Remover o item da lista.                                                                  |
+| `VERSION_CONFLICT`            | `409` | CAS falhou: `version` no banco difere da esperada.                                     | **Rollback da UI otimista** e abrir o modal de conflito com `details.serverState`.        |
+| `PRECONDITION_FAILED`         | `412` | `If-Match` em formato inválido.                                                        | Recarregar o recurso e pedir nova confirmação.                                            |
+| `PRECONDITION_REQUIRED`       | `428` | A mudança de status chegou sem `If-Match` e sem `expectedVersion`.                     | Enviar a versão conhecida do recurso. A API recusa para não desligar o lock.              |
+| `IDEMPOTENCY_KEY_REUSED`      | `409` | Mesma `Idempotency-Key` reenviada com corpo diferente.                                 | Erro de programação do cliente: gerar chave nova por operação.                            |
+| `IDEMPOTENCY_KEY_IN_PROGRESS` | `409` | Mesma chave ainda em processamento.                                                    | Aguardar e repetir com a **mesma** chave.                                                 |
+| `INVALID_IDEMPOTENCY_KEY`     | `422` | Chave vazia, com espaço ou acima de 120 caracteres.                                    | Gerar a chave como UUID v4 por operação lógica.                                           |
+| `RATE_LIMIT_EXCEEDED`         | `429` | Teto de requisições por cliente excedido.                                              | Respeitar `Retry-After` e reduzir a frequência.                                           |
+| `SERVICE_UNAVAILABLE`         | `503` | Banco indisponível ou lento, ou circuit breaker aberto.                                | Manter o cache na tela, avisar instabilidade e repetir após `Retry-After`.                |
+| `CODE_GENERATION_FAILED`      | `503` | Não foi possível gerar um código `INC-AAAA-NNNNNN` único após 5 tentativas.            | Repetir mais tarde; é colisão de sequência, não erro do payload.                          |
+| `INTERNAL_ERROR`              | `500` | Falha inesperada não classificada.                                                     | Mostrar mensagem neutra com `requestId` para suporte. Deve ser raro por construção.       |
 
 ### 12.1 Por que `409` e não `412` no conflito
 
@@ -577,3 +603,170 @@ habitual, trazendo `details.retryAfterSeconds` e `details.limitPerMinute`. O
 limite existe tanto para proteger o serviço quanto para conter um cliente com
 retry mal configurado — que é exatamente o cenário de rede instável que o produto
 precisa suportar.
+
+## 15. Autenticação e autorização
+
+> Esta seção é a referência do fluxo de login. A decisão e as alternativas
+> descartadas estão no [ADR 0015](adr/0015-autenticacao-jwt.md).
+
+### 15.1 Como o cliente se autentica
+
+`POST /auth/login` devolve um **token JWT** que acompanha toda requisição
+seguinte no cabeçalho:
+
+```
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+**Onde guardar:** `sessionStorage`, com o instante de expiração calculado
+localmente a partir de `expiresIn`. O token morre ao fechar a aba — a tela de
+login não tem "lembrar-me", então guardá-lo por mais tempo seria exposição sem
+contrapartida.
+
+### 15.2 `POST /auth/login`
+
+```jsonc
+// requisição
+{ "email": "ana@autou.com.br", "password": "ana.logos2026" }
+
+// 200
+{
+  "accessToken": "eyJhbGciOi...",
+  "tokenType": "Bearer",
+  "expiresIn": 28800,                              // SEGUNDOS (8 h)
+  "user": {
+    "id": "9f3c...",
+    "email": "ana@autou.com.br",
+    "name": "Ana Paula Ribeiro",
+    "role": "ANALYST",
+    "lastLoginAt": "2026-10-15T09:12:00Z"          // o acesso ANTERIOR; null no primeiro
+  }
+}
+```
+
+**`lastLoginAt` é o acesso anterior, não o atual.** O valor do banco só é
+atualizado **depois** de montar a resposta — devolver "agora" faria a interface
+mostrar _"último acesso: agora"_, que não informa nada a quem acabou de entrar.
+
+**E-mail inexistente, senha incorreta e conta desativada produzem a MESMA
+resposta** (`401 INVALID_CREDENTIALS`, mensagem idêntica, tempo de resposta
+equivalente). Diferenciá-las revelaria quais e-mails existem, e uma resposta
+própria para conta desativada confirmaria que a senha estava certa.
+
+### 15.3 `GET /auth/me`
+
+```jsonc
+{
+  "id": "9f3c...",
+  "email": "ana@autou.com.br",
+  "name": "Ana Paula Ribeiro",
+  "role": "ANALYST",
+  "lastLoginAt": "2026-10-16T01:18:46Z",
+}
+```
+
+É a fonte do nome e do papel que a interface exibe no cabeçalho.
+
+### 15.4 `POST /auth/logout` → `204`
+
+Revoga o token apresentado. **A revogação é real:** o `jti` entra numa lista de
+bloqueio e o token deixa de valer imediatamente, mesmo antes de vencer. Sem isso,
+sair da aplicação seria apenas o cliente esquecendo o token, e um token capturado
+continuaria válido.
+
+### 15.5 `POST /auth/change-password` → `204`
+
+```jsonc
+{ "currentPassword": "ana.logos2026", "newPassword": "uma-senha-bem-longa" }
+```
+
+A senha nova precisa de **mínimo 12 caracteres**. Não há exigência de símbolo ou
+maiúscula: regra de composição empurra o usuário para `Senha@123`, que é
+previsível e pior que uma frase longa.
+
+### 15.6 Papéis e o que cada um pode
+
+| Ação                   | `REPORTER` | `ANALYST` | `ADMIN` |
+| ---------------------- | :--------: | :-------: | :-----: |
+| Criar incidente        |     ✅     |    ✅     |   ✅    |
+| Listar e ver detalhe   | só os seus |   todos   |  todos  |
+| Ver a timeline         | só os seus |   todos   |  todos  |
+| Assumir e transicionar |     ❌     |    ✅     |   ✅    |
+| Remover (soft delete)  |     ❌     |    ❌     |   ✅    |
+
+`REPORTER` é o operador de rádio ou do 0800: registra o que aconteceu na estrada
+e acompanha o que ele mesmo abriu. `ANALYST` conduz a fila. `ADMIN` é o único que
+remove, porque remover é irreversível pela API.
+
+**Quem não enxerga um incidente recebe `404`, não `403`.** Responder _"existe, mas
+não é seu"_ revelaria a existência de um registro que a pessoa não pode ver. O
+`403` fica reservado para quando ela **pode ver** e não pode agir — aí a distinção
+é útil e não vaza nada.
+
+### 15.7 O que a interface deve fazer com cada 401
+
+| Código                | Situação                    | Ação na interface                      |
+| --------------------- | --------------------------- | -------------------------------------- |
+| `INVALID_CREDENTIALS` | Erro no formulário de login | Mostrar o erro **sem limpar a sessão** |
+| `UNAUTHENTICATED`     | Sessão inválida ou revogada | Descartar a sessão e voltar ao login   |
+| `TOKEN_EXPIRED`       | Token venceu                | Único caso em que vale tentar renovar  |
+
+> **Atenção ao implementar o interceptor:** o `401` do login é
+> `INVALID_CREDENTIALS` e **não pode** disparar o mesmo tratamento de "sessão
+> expirada" — senão uma senha digitada errada limpa a sessão e recarrega a tela.
+
+### 15.8 Contas de demonstração
+
+Criadas pelo seed quando a base está vazia:
+
+| Conta                 | Senha              | Papel      |
+| --------------------- | ------------------ | ---------- |
+| `ana@autou.com.br`    | `ana.logos2026`    | `ANALYST`  |
+| `carlos@autou.com.br` | `carlos.logos2026` | `ANALYST`  |
+| `marina@autou.com.br` | `marina.logos2026` | `REPORTER` |
+| `admin@autou.com.br`  | `admin.logos2026`  | `ADMIN`    |
+
+Todas as senhas têm 13 caracteres, dentro da política mínima de 12 — uma
+credencial de demonstração que a própria aplicação recusaria seria um detalhe
+ruim de se ver em uma demonstração.
+
+**Não existe endpoint de cadastro.** Contas abertas numa central de incidentes
+seriam um risco, não uma funcionalidade: usuários são criados pelo seed ou por
+operação administrativa.
+
+### 15.9 Autoria na auditoria
+
+Com a autenticação, o campo `actor` da timeline passa a ser **quem realmente
+agiu**, e não um texto do corpo da requisição:
+
+| Evento           | Autor registrado  |
+| ---------------- | ----------------- |
+| `CREATED`        | quem cadastrou    |
+| `STATUS_CHANGED` | quem transicionou |
+| `DELETED`        | quem removeu      |
+
+`reportedBy` **continua existindo** e continua vindo do corpo: é o **canal de
+origem** do chamado (`"Rádio Frota 12"`, `"Central 0800"`), não uma pessoa. Os
+dois convivem no registro — o rádio reporta, a analista cadastra, e a auditoria
+guarda quem cadastrou.
+
+Do mesmo modo, `assignedAnalyst` **não é mais um campo de texto**: passa a ser
+consequência da ação.
+
+| Transição para    | Efeito em `assignedAnalyst`                     |
+| ----------------- | ----------------------------------------------- |
+| `EM_INVESTIGACAO` | quem move **assume o caso**                     |
+| `ABERTO`          | **limpa** — devolver à fila é devolver sem dono |
+| `FECHADO`         | preserva quem conduziu                          |
+
+### 15.10 Configuração
+
+| Variável                 | Padrão        | Efeito                                                                            |
+| ------------------------ | ------------- | --------------------------------------------------------------------------------- |
+| `AUTH_SECRET_KEY`        | chave de dev  | Assina os tokens. **Em produção a aplicação recusa subir com o valor de exemplo** |
+| `AUTH_TOKEN_TTL_SECONDS` | `28800` (8 h) | Validade do token de acesso                                                       |
+
+A recusa em produção é deliberada: uma chave de assinatura pública é pior que
+nenhuma, porque qualquer pessoa forja um token válido para qualquer usuário,
+inclusive `ADMIN`. Falhar na subida é melhor que rodar em silêncio com a porta
+aberta.
