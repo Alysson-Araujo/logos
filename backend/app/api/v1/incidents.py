@@ -8,6 +8,7 @@ from uuid import UUID
 from fastapi import APIRouter, Header, Query, Response
 
 from app.api.deps import (
+    CurrentUser,
     ServiceDep,
     parse_enum_query,
     parse_if_match,
@@ -37,6 +38,13 @@ from app.schemas.incident import (
 
 ERROR_RESPONSES: Final[dict[int | str, dict[str, Any]]] = {
     400: {"model": ErrorResponse, "description": "Cursor de paginação inválido"},
+    401: {
+        "model": ErrorResponse,
+        "description": (
+            "Sem token, token inválido (UNAUTHENTICATED), token vencido "
+            "(TOKEN_EXPIRED) ou conta desativada"
+        ),
+    },
     404: {"model": ErrorResponse, "description": "Incidente não encontrado"},
     409: {
         "model": ErrorResponse,
@@ -96,6 +104,7 @@ def _invalidate_listing_cache() -> None:
     responses=ERROR_RESPONSES,
 )
 def list_incidents(
+    user: CurrentUser,
     service: ServiceDep,
     response: Response,
     status_filter: Annotated[
@@ -176,7 +185,7 @@ def list_incidents(
     responses=ERROR_RESPONSES,
 )
 def create_incident(
-    payload: IncidentCreate, service: ServiceDep, response: Response
+    payload: IncidentCreate, user: CurrentUser, service: ServiceDep, response: Response
 ) -> IncidentRead:
     """Cria um incidente e devolve a representação completa."""
     incident = service.create(payload)
@@ -194,7 +203,9 @@ def create_incident(
     description="Devolve o incidente e o header ETag com a versão atual.",
     responses=ERROR_RESPONSES,
 )
-def get_incident(incident_id: UUID, service: ServiceDep, response: Response) -> IncidentRead:
+def get_incident(
+    incident_id: UUID, user: CurrentUser, service: ServiceDep, response: Response
+) -> IncidentRead:
     """Devolve o detalhe do incidente com ETag para o lock otimista."""
     incident = service.get(incident_id)
     response.headers["ETag"] = f'"{incident.version}"'
@@ -211,7 +222,9 @@ def get_incident(incident_id: UUID, service: ServiceDep, response: Response) -> 
     ),
     responses=ERROR_RESPONSES,
 )
-def list_incident_events(incident_id: UUID, service: ServiceDep) -> IncidentTimelineResponse:
+def list_incident_events(
+    incident_id: UUID, user: CurrentUser, service: ServiceDep
+) -> IncidentTimelineResponse:
     """Devolve a timeline de auditoria do incidente."""
     return IncidentTimelineResponse(
         items=[IncidentEventRead.model_validate(event) for event in service.events(incident_id)]
@@ -231,6 +244,7 @@ def list_incident_events(incident_id: UUID, service: ServiceDep) -> IncidentTime
 def change_incident_status(
     incident_id: UUID,
     payload: IncidentStatusChange,
+    user: CurrentUser,
     service: ServiceDep,
     response: Response,
     if_match: Annotated[
@@ -256,6 +270,7 @@ def change_incident_status(
 )
 def delete_incident(
     incident_id: UUID,
+    user: CurrentUser,
     service: ServiceDep,
     if_match: Annotated[
         str | None,
