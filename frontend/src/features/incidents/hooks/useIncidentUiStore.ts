@@ -9,6 +9,15 @@ interface IncidentUiStore {
   /** Ordem visível da lista: base para navegação por `j`/`k`. */
   orderedIds: string[];
   focusedId: string | null;
+  /**
+   * Incrementa **somente** na navegação por teclado (`j`/`k`) e é o gatilho
+   * para a lista trazer a linha focada para a tela.
+   *
+   * O foco por mouse **não** incrementa: a linha sob o cursor já está visível,
+   * e rolar nesse momento cancela a animação do wheel e empurra a lista quando
+   * a linha está na borda (issue #114).
+   */
+  focusRevealToken: number;
   selectedId: string | null;
   /** Incidente que acabou de ser confirmado pelo servidor (linha pisca). */
   recentlyUpdatedId: string | null;
@@ -32,6 +41,7 @@ let flashTimer: ReturnType<typeof setTimeout> | null = null;
 export const useIncidentUiStore = create<IncidentUiStore>()((set) => ({
   orderedIds: [],
   focusedId: null,
+  focusRevealToken: 0,
   selectedId: null,
   recentlyUpdatedId: null,
   conflict: null,
@@ -53,7 +63,10 @@ export const useIncidentUiStore = create<IncidentUiStore>()((set) => ({
       const currentIndex =
         state.focusedId === null ? -1 : state.orderedIds.indexOf(state.focusedId);
       const nextIndex = Math.min(currentIndex + 1, state.orderedIds.length - 1);
-      return { focusedId: state.orderedIds[nextIndex] ?? null };
+      return {
+        focusedId: state.orderedIds[nextIndex] ?? null,
+        focusRevealToken: state.focusRevealToken + 1,
+      };
     });
   },
 
@@ -62,7 +75,10 @@ export const useIncidentUiStore = create<IncidentUiStore>()((set) => ({
       if (state.orderedIds.length === 0) return {};
       const currentIndex = state.focusedId === null ? 0 : state.orderedIds.indexOf(state.focusedId);
       const previousIndex = Math.max(currentIndex - 1, 0);
-      return { focusedId: state.orderedIds[previousIndex] ?? null };
+      return {
+        focusedId: state.orderedIds[previousIndex] ?? null,
+        focusRevealToken: state.focusRevealToken + 1,
+      };
     });
   },
 
