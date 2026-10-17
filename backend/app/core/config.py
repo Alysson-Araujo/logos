@@ -3,8 +3,16 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from typing import Final
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+#: Chave de assinatura usada em desenvolvimento e nos testes. Pública de
+#: propósito: em produção a validação abaixo recusa a subida com este valor.
+#: O `noqa` silencia a regra de segredo embutido — aqui o segredo embutido é
+#: intencional e o que impede o uso indevido é justamente a validação.
+DEV_AUTH_SECRET_KEY: Final[str] = "logos-dev-chave-local-nao-use-em-producao"  # noqa: S105
 
 
 class Settings(BaseSettings):
@@ -59,6 +67,29 @@ class Settings(BaseSettings):
     db_statement_timeout_ms: int = 5000
     #: Teto de tempo com uma transação aberta e ociosa, em milissegundos.
     db_idle_transaction_timeout_ms: int = 10000
+
+    # --- Autenticação ------------------------------------------------------
+    #: Chave de assinatura dos tokens. O valor padrão serve ao
+    #: desenvolvimento; em produção a aplicação se recusa a subir com ele.
+    auth_secret_key: str = DEV_AUTH_SECRET_KEY
+    #: Tempo de vida do token de acesso, em segundos. Oito horas cobrem um
+    #: turno inteiro sem exigir novo login no meio do expediente.
+    auth_token_ttl_seconds: int = 8 * 3600
+
+    @model_validator(mode="after")
+    def _require_real_secret_in_production(self) -> Settings:
+        """Recusa subir em produção com a chave de exemplo.
+
+        Uma chave de assinatura pública é pior que nenhuma: qualquer pessoa
+        forja um token válido para qualquer usuário. Falhar na subida é melhor
+        que rodar em silêncio com a porta aberta.
+        """
+        if self.is_production and self.auth_secret_key == DEV_AUTH_SECRET_KEY:
+            raise ValueError(
+                "AUTH_SECRET_KEY precisa ser definida em produção; "
+                "o valor padrão é público e permite forjar tokens."
+            )
+        return self
 
     @property
     def cors_origin_list(self) -> list[str]:
