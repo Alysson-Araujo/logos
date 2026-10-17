@@ -112,3 +112,15 @@ requisição autenticada → 401
 - **Não há refresh**: vencido o TTL, a pessoa entra de novo.
 - **A interface ainda não esconde ações por papel.** O `REPORTER` recebe a fila escopada da API, mas os botões de transição continuam visíveis e quem recusa é o servidor (`403 INSUFFICIENT_ROLE`). Esconder por papel é a próxima entrega.
 - **As credenciais de demonstração estão no bundle**, porque a tela as exibe — é o que o edital pede.
+
+## Registro da entrega
+
+**Ordem dos fatos.** A tela foi construída contra o contrato congelado, com a API simulada respondendo ao login — o backend de autenticação ainda não estava no ar quando o frontend ficou pronto.
+
+**O que apareceu no caminho.** A verificação no navegador — e não só na suíte — encontrou um defeito **anterior** a esta entrega: o bundle de produção não montava a aplicação (issue #110). O `manualChunks` na forma de objeto deixava o núcleo do React num chunk e o `react-dom` em outro, e os dois passavam a se importar; o primeiro `forwardRef` derrubava a árvore de módulos. A CI não pegava porque roda `build`, que compila sem erro — o defeito é de execução. Corrigido no PR #112: o `#root` passou a montar 20.245 bytes de DOM (antes: 1.931, só o esqueleto).
+
+**Outra armadilha, registrada para não se repetir.** Teste que passa pela camada HTTP real não roda no jsdom: o `fetch` do Node recusa o `AbortSignal` do realm do jsdom, e a chamada vaza para a rede voltando como `NETWORK_ERROR` — o teste "passa" pela razão errada. A suíte ficou dividida: contrato HTTP no ambiente `node`, componente com a camada de API mockada.
+
+**Verificação.** 85 testes, tipos, lint e formato limpos; e, além da suíte, o bundle de produção servido por `vite preview` e aberto em navegador headless — temas claro e escuro, comparado com o frame do Figma.
+
+**Entregas.** Issue [#108](https://github.com/Alysson-Araujo/logos/issues/108), PR [#113](https://github.com/Alysson-Araujo/logos/pull/113); defeito de build em [#110](https://github.com/Alysson-Araujo/logos/issues/110) / PR [#112](https://github.com/Alysson-Araujo/logos/pull/112).
