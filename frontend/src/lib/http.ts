@@ -96,6 +96,31 @@ export function isRetryableApiError(error: unknown): boolean {
 }
 
 /* ------------------------------------------------------------------ */
+/* Sessão                                                              */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Ponte com a sessão autenticada.
+ *
+ * O cliente HTTP não conhece o store: quem liga os dois é `wireAuthSession()`
+ * no bootstrap. Assim o `lib/` continua sem depender de nenhuma feature e os
+ * testes podem injetar um token falso.
+ */
+export interface AuthBridge {
+  /** Token atual, ou `null` quando não há sessão. */
+  getToken: () => string | null;
+  /** Chamado a cada 401 de requisição autenticada. */
+  onUnauthorized: (error: ApiError) => void;
+}
+
+let authBridge: AuthBridge | null = null;
+
+/** Liga (ou desliga, com `null`) a sessão ao cliente HTTP. */
+export function configureAuth(bridge: AuthBridge | null): void {
+  authBridge = bridge;
+}
+
+/* ------------------------------------------------------------------ */
 /* Tempo e retrocesso                                                  */
 /* ------------------------------------------------------------------ */
 
@@ -245,6 +270,13 @@ export interface RequestOptions {
   idempotencyKey?: string;
   /** Versão esperada do recurso (lock otimista) → header `If-Match`. */
   ifMatch?: string | number | null;
+  /**
+   * Dispensa o token e o tratamento de 401. Usado só pelo login: é a chamada
+   * que **produz** a sessão, então um 401 ali significa "senha errada", e não
+   * "sessão perdida" — derrubar a sessão nesse caso recarregaria a tela de
+   * erro dentro dela mesma.
+   */
+  skipAuth?: boolean;
   signal?: AbortSignal;
   timeoutMs?: number;
   /** Sobrescreve a política de tentativas (usado nos testes). */
@@ -421,6 +453,10 @@ export class HttpClient {
     if (options.ifMatch !== undefined && options.ifMatch !== null) {
       headers.set('If-Match', `"${String(options.ifMatch).replace(/"/g, '')}"`);
     }
+    if (options.skipAuth !== true) {
+      const token = authBridge?.getToken() ?? null;
+      if (token !== null) headers.set('Authorization', `Bearer ${token}`);
+    }
 
     const init: RequestInit = { method: options.method, headers, signal: controller.signal };
     if (options.body !== undefined) init.body = JSON.stringify(options.body);
@@ -430,7 +466,13 @@ export class HttpClient {
       const response = await fetchImpl(url, init);
       if (!response.ok) {
         const errorBody = await readBody(response);
-        throw createApiErrorFromResponse(response, errorBody);
+        const error = createApiErrorFromResponse(response, errorBody);
+        // 401 numa chamada autenticada é sessão perdida: quem reage é o
+        // ouvinte, limpando store e cache. O login fica fora por `skipAuth`.
+        if (error.status === 401 && options.skipAuth !== true) {
+          authBridge?.onUnauthorized(error);
+        }
+        throw error;
       }
       if (response.status === 204) {
         return { data: null, etag: response.headers.get('ETag'), status: response.status };

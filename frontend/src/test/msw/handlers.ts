@@ -1,5 +1,6 @@
 import { HttpResponse, delay as delayResponse, http } from 'msw';
 
+import { DEMO_CREDENTIALS, DEMO_USER_NAME } from '@/features/auth/demo';
 import {
   CATEGORY_LABELS,
   CRITICALITY_LABELS,
@@ -236,7 +237,49 @@ function readParam(value: string | readonly string[] | undefined): string | null
 /* Handlers                                                            */
 /* ------------------------------------------------------------------ */
 
+/** Mesma validade do contrato real (8 h) — aqui só para o token ter prazo. */
+const MOCK_TOKEN_TTL_SECONDS = 8 * 60 * 60;
+
+function readLoginField(body: unknown, key: 'email' | 'password'): string | null {
+  if (typeof body !== 'object' || body === null) return null;
+  const value = (body as Record<string, unknown>)[key];
+  return typeof value === 'string' ? value : null;
+}
+
 export const handlers = [
+  /**
+   * Autenticação simulada. As credenciais são exatamente as que a tela de
+   * login exibe — uma fonte só para a demonstração, e o mesmo texto do README.
+   */
+  http.post(apiPath('/auth/login'), async ({ request }) => {
+    await simulateLatency();
+
+    const body: unknown = await request.json().catch(() => null);
+    const email = readLoginField(body, 'email')?.trim().toLowerCase() ?? '';
+    const password = readLoginField(body, 'password') ?? '';
+
+    if (email !== DEMO_CREDENTIALS.email || password !== DEMO_CREDENTIALS.password) {
+      return apiError(401, 'INVALID_CREDENTIALS', 'Credenciais inválidas.', null, {
+        'WWW-Authenticate': 'Bearer',
+      });
+    }
+
+    return HttpResponse.json({
+      accessToken: `mock-token-${String(Date.now())}`,
+      tokenType: 'Bearer',
+      expiresIn: MOCK_TOKEN_TTL_SECONDS,
+      user: {
+        id: 'mock-user-ana',
+        email: DEMO_CREDENTIALS.email,
+        name: DEMO_USER_NAME,
+        role: 'ANALYST',
+        lastLoginAt: null,
+      },
+    });
+  }),
+
+  http.post(apiPath('/auth/logout'), () => new HttpResponse(null, { status: 204 })),
+
   http.get(apiPath('/health/live'), () => HttpResponse.json({ status: 'ok' })),
 
   http.get(apiPath('/health/ready'), () => HttpResponse.json({ status: 'ready', database: 'ok' })),
