@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, Enum, Float, Index, Integer, String, Text, Uuid
+from sqlalchemy import DateTime, Enum, Float, ForeignKey, Index, Integer, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.domain.enums import IncidentCategory, IncidentCriticality, IncidentStatus
@@ -49,6 +49,12 @@ class Incident(Base, TimestampMixin):
     truck_plate: Mapped[str | None] = mapped_column(String(8), nullable=True)
     driver_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
     reported_by: Mapped[str] = mapped_column(String(80), nullable=False)
+    #: Quem criou o registro. Distinto de `reported_by`, que é o CANAL de origem
+    #: ("Rádio Frota 12", "Central 0800"): o rádio reporta, a analista registra.
+    #: Anulável porque os incidentes anteriores à autenticação não têm autor.
+    created_by_id: Mapped[UUID | None] = mapped_column(
+        Uuid, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     assigned_analyst: Mapped[str | None] = mapped_column(String(80), nullable=True, index=True)
     resolution_notes: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     priority_score: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

@@ -39,3 +39,15 @@ class SortOption(StrEnum):
     CREATED_DESC = "created_desc"
     CREATED_ASC = "created_asc"
     CRITICALITY_DESC = "criticality_desc"
+
+
+class UserRole(StrEnum):
+    """Papéis de acesso da central de resposta.
+
+    O operador de rádio reporta; a analista conduz o ciclo de vida; o
+    administrador é o único que remove.
+    """
+
+    REPORTER = "REPORTER"
+    ANALYST = "ANALYST"
+    ADMIN = "ADMIN"
