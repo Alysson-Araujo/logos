@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { startTransition, useCallback, useEffect, useMemo } from 'react';
 
 import { OfflineBanner } from '@/components/feedback/OfflineBanner';
 import { AppShell } from '@/components/layout/AppShell';
@@ -37,6 +37,7 @@ export function App() {
   const statusMutation = useChangeIncidentStatus();
 
   const focusedId = useIncidentUiStore((state) => state.focusedId);
+  const focusRevealToken = useIncidentUiStore((state) => state.focusRevealToken);
   const selectedId = useIncidentUiStore((state) => state.selectedId);
   const recentlyUpdatedId = useIncidentUiStore((state) => state.recentlyUpdatedId);
   const setOrderedIds = useIncidentUiStore((state) => state.setOrderedIds);
@@ -73,6 +74,23 @@ export function App() {
   }, [statusMutation.isPending, statusMutation.variables]);
 
   const isRetrying = listQuery.isFetching && listQuery.isError;
+
+  /**
+   * Foco por mouse é atualização **não urgente**.
+   *
+   * Durante a rolagem as linhas passam sob o cursor e disparam `mouseenter` a
+   * cada passo; marcar a linha em foco é trabalho que pode esperar o próximo
+   * frame sem competir com a rolagem. O realce visual imediato fica por conta
+   * do CSS (`hover:bg-surface-sunken`), que não depende deste estado.
+   */
+  const handleRowFocus = useCallback(
+    (id: string): void => {
+      startTransition(() => {
+        setFocusedId(id);
+      });
+    },
+    [setFocusedId],
+  );
 
   const handleLoadMore = (): void => {
     if (!listQuery.hasNextPage || listQuery.isFetchingNextPage) return;
@@ -116,6 +134,7 @@ export function App() {
         total={total}
         density={density}
         focusedId={focusedId}
+        focusRevealToken={focusRevealToken}
         selectedId={selectedId}
         isInitialLoading={listQuery.isPending}
         isFetching={listQuery.isFetching}
@@ -130,7 +149,7 @@ export function App() {
         onRetry={handleRetry}
         onCreate={handleCreate}
         onOpen={openIncident}
-        onFocus={setFocusedId}
+        onFocus={handleRowFocus}
         onClearFilters={clearFilters}
       />
       <IncidentDrawer incidentId={selectedId} mutation={statusMutation} onClose={closeDrawer} />

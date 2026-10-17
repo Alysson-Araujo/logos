@@ -28,6 +28,8 @@ export interface IncidentListProps {
   total: number | null;
   density: Density;
   focusedId: string | null;
+  /** Avança só na navegação por teclado; é o gatilho de rolagem da lista. */
+  focusRevealToken: number;
   selectedId: string | null;
   isInitialLoading: boolean;
   isFetching: boolean;
@@ -57,6 +59,7 @@ export function IncidentList({
   total,
   density,
   focusedId,
+  focusRevealToken,
   selectedId,
   isInitialLoading,
   isFetching,
@@ -102,11 +105,18 @@ export function IncidentList({
     [focusedId, items],
   );
 
-  // Mantém a linha focada (navegação j/k) sempre visível.
+  // Mantém a linha focada visível — **apenas** na navegação por teclado.
+  //
+  // O token só avança em `j`/`k`; o hover e o clique mudam `focusedId` sem
+  // mexer nele. Rolar no hover empurrava a lista quando a linha estava na
+  // borda e cancelava a animação do wheel durante a rolagem (issue #114).
+  const lastRevealToken = useRef(0);
   useEffect(() => {
+    if (focusRevealToken === lastRevealToken.current) return;
+    lastRevealToken.current = focusRevealToken;
     if (focusedIndex < 0) return;
     virtualizer.scrollToIndex(focusedIndex, { align: 'auto' });
-  }, [focusedIndex, virtualizer]);
+  }, [focusRevealToken, focusedIndex, virtualizer]);
 
   const isFiltered = countActiveFilters(filters) > 0;
 
@@ -168,7 +178,7 @@ export function IncidentList({
           role="list"
           aria-label="Lista de incidentes ordenada por prioridade"
           tabIndex={-1}
-          className="h-[70vh] min-h-[360px] overflow-auto md:h-[calc(100vh-27rem)] md:min-h-[420px]"
+          className="h-[70vh] min-h-[360px] overflow-auto overscroll-contain md:h-[calc(100vh-27rem)] md:min-h-[420px]"
         >
           <div
             style={{
