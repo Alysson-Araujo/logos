@@ -95,7 +95,7 @@ interface estão sendo construídos.
 | Estrutura do monorepo, workspaces e higiene de repositório                     | ✅ pronto             |
 | Lint, formatação, tipagem e hooks de Git (`Ruff`, `mypy`, `ESLint`, `Husky`)   | ✅ pronto             |
 | Integração contínua (lint, types, testes e build em cada PR)                   | ✅ pronto             |
-| Documentação: 9 documentos temáticos + 14 ADRs                                 | ✅ pronto             |
+| Documentação: 10 documentos temáticos + 15 ADRs                                | ✅ pronto             |
 | Modelo de domínio, enums e máquina de estados                                  | 🚧 em desenvolvimento |
 | Cadastro de incidentes (5 categorias, 3 criticidades, 4 status)                | 🚧 em desenvolvimento |
 | Listagem paginada por cursor com filtros combináveis                           | ⏳ planejado          |
@@ -111,6 +111,7 @@ interface estão sendo construídos.
 | Resiliência: timeout, retry com jitter, circuit breaker e cache _stale_        | ⏳ planejado          |
 | Estados de UI explícitos (loading, erro, vazio, offline, otimista)             | ⏳ planejado          |
 | Tema claro/escuro persistido                                                   | ⏳ planejado          |
+| **Login e sessão autenticada** (token na aba; `401` devolve ao login)          | ✅ pronto             |
 | Timeline de auditoria por incidente                                            | ✅ pronto             |
 | SSE com badge "N novos" sem reordenar a lista                                  | ⏳ planejado          |
 | Command palette (`Ctrl+K`) e atalhos de teclado                                | ⏳ planejado          |
@@ -361,6 +362,27 @@ pnpm --filter web dev
 ```
 
 Aplicação em `http://localhost:5173`.
+
+#### Acesso de demonstração
+
+A aplicação abre na tela de login, com a credencial de demonstração já
+preenchida:
+
+| Campo  | Valor              |
+| ------ | ------------------ |
+| E-mail | `ana@autou.com.br` |
+| Senha  | `ana.logos2026`    |
+
+O usuário vem do `seed` da API (perfil `ANALYST`, que enxerga a fila inteira).
+Sem o backend no ar, o frontend sobe com a API simulada (`VITE_USE_MOCK`) e
+aceita as mesmas credenciais: o mock lê a constante que a tela exibe, então as
+duas não têm como divergir.
+
+A sessão fica em `sessionStorage` — recarregar mantém o acesso, fechar a aba
+encerra. O token vai em `Authorization: Bearer`, e um `401` devolve à tela de
+login com aviso de sessão expirada. O porquê dessas escolhas está no
+[ADR 0015](docs/adr/0015-sessao-no-sessionstorage.md) e em
+[`docs/11`](docs/11-autenticacao-frontend.md).
 
 ### 4. Ou simplesmente os dois de uma vez
 

@@ -28,9 +28,9 @@ const ERROR_ID = 'login-error';
  * `sombra/e3`, divisor de 1 px em `color/border`, campos de 36 px com
  * `radius/sm` e caixa de demonstração em `color/surface-sunken`.
  *
- * Desvio consciente: o frame ancora o card a 250 px do topo de um canvas de
- * 900 px; aqui ele é centralizado, porque a altura da tela do avaliador não é
- * conhecida e o card não pode ser cortado.
+ * Desvio consciente: o frame ancora o card a 210 px do topo de um canvas de
+ * 900 px; aqui ele é centralizado (≈226 px), porque a altura da tela de quem
+ * avalia não é conhecida e o card não pode ser cortado.
  */
 export function LoginScreen() {
   const emailRef = useRef<HTMLInputElement>(null);
