@@ -133,14 +133,15 @@ def test_transicao_repetida_nao_avanca_a_versao_duas_vezes(
 
 
 def test_soft_delete_reenviado_devolve_204_novamente(
-    client: TestClient, incident_factory: Callable[..., dict[str, Any]]
+    admin_client: TestClient, incident_factory: Callable[..., dict[str, Any]]
 ) -> None:
     incidente = incident_factory()
     url = f"{INCIDENTS_URL}/{incidente['id']}"
     cabecalhos = com_chave("remove-0001")
 
-    primeira = client.delete(url, headers=cabecalhos)
-    segunda = client.delete(url, headers=cabecalhos)
+    # Remover exige ADMIN; a criação continua vindo da analista.
+    primeira = admin_client.delete(url, headers=cabecalhos)
+    segunda = admin_client.delete(url, headers=cabecalhos)
 
     assert primeira.status_code == 204
     assert segunda.status_code == 204

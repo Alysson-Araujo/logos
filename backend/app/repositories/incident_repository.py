@@ -78,6 +78,10 @@ class IncidentFilter:
     sort: SortOption = SortOption.PRIORITY_DESC
     limit: int = 50
     cursor: Cursor | None = None
+    #: Restringe a consulta a um autor. `None` enxerga todos os incidentes.
+    #: Entra em `_conditions`, que é compartilhada entre a listagem e a
+    #: contagem — então o total do `meta` fica escopado junto, de graça.
+    created_by: UUID | None = None
 
 
 def build_code(reference: datetime, number: int) -> str:
@@ -188,8 +192,13 @@ class IncidentRepository:
         statement = select(func.count()).select_from(Incident)
         return int(self._session.scalar(statement) or 0)
 
-    def create(self, incident: Incident) -> Incident:
-        """Persiste o incidente gerando um código legível e único."""
+    def create(self, incident: Incident, *, actor: str) -> Incident:
+        """Persiste o incidente gerando um código legível e único.
+
+        `actor` é o nome de quem está autenticado — e não `incident.reported_by`,
+        que é o CANAL de origem ("Rádio Frota 12"). Os dois convivem no registro:
+        o rádio reporta, a analista cadastra, e a auditoria guarda quem cadastrou.
+        """
         last_error: IntegrityError | None = None
         for attempt in range(1, MAX_CODE_ATTEMPTS + 1):
             incident.code = self._next_code(incident.created_at)
@@ -206,7 +215,7 @@ class IncidentRepository:
                 incident.id,
                 event_type=EVENT_CREATED,
                 to_status=incident.status,
-                actor=incident.reported_by,
+                actor=actor,
                 now=incident.created_at,
             )
             self._session.commit()
@@ -293,6 +302,8 @@ class IncidentRepository:
         assigned_analyst: str | None,
         resolution_notes: str | None,
         closed_at: datetime | None,
+        actor: str,
+        clear_assignment: bool = False,
     ) -> int:
         """Executa o compare-and-swap atômico da transição de status.
 
@@ -319,6 +330,9 @@ class IncidentRepository:
         }
         if assigned_analyst is not None:
             values["assigned_analyst"] = assigned_analyst
+        elif clear_assignment:
+            # Voltar para ABERTO devolve o incidente à fila: sem dono.
+            values["assigned_analyst"] = None
         if resolution_notes is not None:
             values["resolution_notes"] = resolution_notes
         if closed_at is not None:
@@ -348,7 +362,10 @@ class IncidentRepository:
                 event_type=EVENT_STATUS_CHANGED,
                 from_status=from_status,
                 to_status=new_status,
-                actor=assigned_analyst,
+                # Quem AGIU, do token. Antes daqui vinha o `assignedAnalyst` do
+                # corpo da requisição: o histórico registrava quem o cliente
+                # dizia ser, e a auditoria não valia nada.
+                actor=actor,
                 payload=event_payload,
                 now=now,
             )
@@ -357,7 +374,9 @@ class IncidentRepository:
             self._session.rollback()
         return rowcount
 
-    def soft_delete(self, incident_id: UUID, *, expected_version: int | None, now: datetime) -> int:
+    def soft_delete(
+        self, incident_id: UUID, *, expected_version: int | None, now: datetime, actor: str
+    ) -> int:
         """Marca o incidente como removido sem apagar o histórico."""
         conditions: list[ColumnElement[bool]] = [
             Incident.id == incident_id,
@@ -377,7 +396,7 @@ class IncidentRepository:
             self._record_event(
                 incident_id,
                 event_type=EVENT_DELETED,
-                actor=None,
+                actor=actor,
                 payload={"expectedVersion": expected_version},
                 now=now,
             )
@@ -440,6 +459,8 @@ class IncidentRepository:
     def _conditions(self, filters: IncidentFilter) -> list[ColumnElement[bool]]:
         """Monta as condições compartilhadas entre listagem e contagem."""
         conditions: list[ColumnElement[bool]] = [Incident.deleted_at.is_(None)]
+        if filters.created_by is not None:
+            conditions.append(Incident.created_by_id == filters.created_by)
         if filters.statuses:
             conditions.append(Incident.status.in_(list(filters.statuses)))
         if filters.criticalities:

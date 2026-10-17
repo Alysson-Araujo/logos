@@ -8,7 +8,7 @@ from uuid import UUID
 from fastapi import APIRouter, Header, Query, Response
 
 from app.api.deps import (
-    CurrentUser,
+    CurrentActor,
     ServiceDep,
     parse_enum_query,
     parse_if_match,
@@ -23,6 +23,7 @@ from app.domain.enums import (
     IncidentStatus,
     SortOption,
 )
+from app.domain.permissions import Permission, ensure_permission, visibility_scope
 from app.infra.retry import is_transient
 from app.repositories.incident_repository import IncidentFilter, decode_cursor
 from app.schemas.common import ErrorResponse
@@ -104,7 +105,7 @@ def _invalidate_listing_cache() -> None:
     responses=ERROR_RESPONSES,
 )
 def list_incidents(
-    user: CurrentUser,
+    actor: CurrentActor,
     service: ServiceDep,
     response: Response,
     status_filter: Annotated[
@@ -143,6 +144,11 @@ def list_incidents(
         sort=sort,
         limit=limit,
         cursor=decode_cursor(cursor) if cursor else None,
+        # O escopo por papel entra na QUERY, e não num filtro em memória depois
+        # de carregar: filtrar depois vazaria o total do `meta` e o esforço de
+        # paginação. Como a contagem usa as mesmas condições, os KPIs do topo
+        # ficam escopados de graça.
+        created_by=visibility_scope(actor),
     )
 
     cache = get_listing_cache()
@@ -185,10 +191,11 @@ def list_incidents(
     responses=ERROR_RESPONSES,
 )
 def create_incident(
-    payload: IncidentCreate, user: CurrentUser, service: ServiceDep, response: Response
+    payload: IncidentCreate, actor: CurrentActor, service: ServiceDep, response: Response
 ) -> IncidentRead:
     """Cria um incidente e devolve a representação completa."""
-    incident = service.create(payload)
+    ensure_permission(actor, Permission.CREATE_INCIDENT)
+    incident = service.create(payload, actor)
     # Só depois do sucesso: uma criação que falhou não muda a listagem.
     _invalidate_listing_cache()
     response.headers["Location"] = f"/api/v1/incidents/{incident.id}"
@@ -204,10 +211,10 @@ def create_incident(
     responses=ERROR_RESPONSES,
 )
 def get_incident(
-    incident_id: UUID, user: CurrentUser, service: ServiceDep, response: Response
+    incident_id: UUID, actor: CurrentActor, service: ServiceDep, response: Response
 ) -> IncidentRead:
     """Devolve o detalhe do incidente com ETag para o lock otimista."""
-    incident = service.get(incident_id)
+    incident = service.get(incident_id, actor)
     response.headers["ETag"] = f'"{incident.version}"'
     return IncidentRead.model_validate(incident)
 
@@ -223,11 +230,13 @@ def get_incident(
     responses=ERROR_RESPONSES,
 )
 def list_incident_events(
-    incident_id: UUID, user: CurrentUser, service: ServiceDep
+    incident_id: UUID, actor: CurrentActor, service: ServiceDep
 ) -> IncidentTimelineResponse:
     """Devolve a timeline de auditoria do incidente."""
     return IncidentTimelineResponse(
-        items=[IncidentEventRead.model_validate(event) for event in service.events(incident_id)]
+        items=[
+            IncidentEventRead.model_validate(event) for event in service.events(incident_id, actor)
+        ]
     )
 
 
@@ -244,7 +253,7 @@ def list_incident_events(
 def change_incident_status(
     incident_id: UUID,
     payload: IncidentStatusChange,
-    user: CurrentUser,
+    actor: CurrentActor,
     service: ServiceDep,
     response: Response,
     if_match: Annotated[
@@ -253,8 +262,11 @@ def change_incident_status(
     ] = None,
 ) -> IncidentRead:
     """Aplica a transição de status sob lock otimista."""
+    ensure_permission(actor, Permission.TRANSITION_INCIDENT)
     expected_version = resolve_expected_version(if_match, payload.expected_version)
-    incident = service.change_status(incident_id, payload, expected_version=expected_version)
+    incident = service.change_status(
+        incident_id, payload, expected_version=expected_version, actor=actor
+    )
     _invalidate_listing_cache()
     response.headers["ETag"] = f'"{incident.version}"'
     return IncidentRead.model_validate(incident)
@@ -270,7 +282,7 @@ def change_incident_status(
 )
 def delete_incident(
     incident_id: UUID,
-    user: CurrentUser,
+    actor: CurrentActor,
     service: ServiceDep,
     if_match: Annotated[
         str | None,
@@ -278,6 +290,7 @@ def delete_incident(
     ] = None,
 ) -> Response:
     """Executa o soft delete do incidente."""
-    service.soft_delete(incident_id, expected_version=parse_if_match(if_match))
+    ensure_permission(actor, Permission.DELETE_INCIDENT)
+    service.soft_delete(incident_id, expected_version=parse_if_match(if_match), actor=actor)
     _invalidate_listing_cache()
     return Response(status_code=204)
