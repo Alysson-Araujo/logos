@@ -53,12 +53,31 @@ from fastapi.testclient import TestClient
 from alembic import command
 from app.core.cache import get_listing_cache
 from app.core.database import create_session
+from app.core.tokens import hash_password
+from app.domain.enums import UserRole
 from app.main import app
 from app.repositories.idempotency_repository import IdempotencyRepository
 from app.repositories.incident_repository import IncidentRepository
+from app.repositories.revoked_token_repository import RevokedTokenRepository
+from app.repositories.user_repository import UserRepository
 
 TEST_DATABASE_PATH = _DB_FILE
 INCIDENTS_URL = "/api/v1/incidents"
+LOGIN_URL = "/api/v1/auth/login"
+
+#: Contas usadas pela suíte, criadas uma vez por sessão.
+#:
+#: Os e-mails ficam num domínio próprio (`.teste.local`) para NÃO colidirem com
+#: os do seed de demonstração: se um teste limpasse a base, apagaria as contas
+#: que a sessão inteira usa para autenticar.
+CONTAS_DA_SUITE: tuple[tuple[str, str, UserRole], ...] = (
+    ("analista-suite@teste.local", "Analista da Suite", UserRole.ANALYST),
+    ("reporter-suite@teste.local", "Reporter da Suite", UserRole.REPORTER),
+    ("admin-suite@teste.local", "Admin da Suite", UserRole.ADMIN),
+)
+
+#: Senha das contas da suíte. Cumpre a política mínima de 12 caracteres.
+SENHA_DA_SUITE = "senha-da-suite-2026"
 
 _BACKEND_DIR = Path(__file__).resolve().parent.parent
 
@@ -79,10 +98,89 @@ apply_migrations()
 
 
 @pytest.fixture(scope="session")
-def client() -> Iterator[TestClient]:
-    """Cliente HTTP apoiado no ASGI da aplicação, com lifespan executado."""
+def anonymous_client() -> Iterator[TestClient]:
+    """Cliente **sem** credencial.
+
+    Existe para os testes que verificam a própria autenticação: sem ele, não
+    haveria como pedir uma rota protegida sem token.
+    """
     with TestClient(app, raise_server_exceptions=False) as test_client:
         yield test_client
+
+
+@pytest.fixture(scope="session")
+def contas_da_suite() -> dict[UserRole, str]:
+    """Cria as contas da suíte e devolve o e-mail de cada papel.
+
+    Idempotente por consulta: rodar a suíte duas vezes não acumula contas nem
+    falha por e-mail duplicado.
+    """
+    with create_session() as session:
+        repositorio = UserRepository(session)
+        for email, nome, papel in CONTAS_DA_SUITE:
+            if repositorio.get_by_email(email) is None:
+                repositorio.create(
+                    email=email,
+                    password_hash=hash_password(SENHA_DA_SUITE),
+                    name=nome,
+                    role=papel,
+                )
+    return {papel: email for email, _nome, papel in CONTAS_DA_SUITE}
+
+
+@pytest.fixture(scope="session")
+def tokens_da_suite(
+    anonymous_client: TestClient, contas_da_suite: dict[UserRole, str]
+) -> dict[UserRole, str]:
+    """Autentica uma vez por papel e guarda o token de cada um.
+
+    Uma vez por **sessão**, e não por teste: cada login custa uma derivação
+    Argon2 (~100 ms) e a suíte tem centenas de testes.
+
+    Regra de ouro para quem for escrever teste novo: `logout`, troca de senha e
+    desativar conta **invalidam** este token. Um teste que faça qualquer uma
+    dessas coisas precisa de token e USUÁRIO próprios, obtidos com
+    `anonymous_client` — senão derruba os testes seguintes, e o 401 vai parecer
+    um bug de outra coisa.
+    """
+    tokens: dict[UserRole, str] = {}
+    for papel, email in contas_da_suite.items():
+        resposta = anonymous_client.post(
+            LOGIN_URL, json={"email": email, "password": SENHA_DA_SUITE}
+        )
+        assert resposta.status_code == 200, resposta.text
+        tokens[papel] = resposta.json()["accessToken"]
+    return tokens
+
+
+def _cliente_autenticado(papel: UserRole, tokens: dict[UserRole, str]) -> Iterator[TestClient]:
+    """Abre um cliente já com o header Authorization do papel informado."""
+    with TestClient(app, raise_server_exceptions=False) as test_client:
+        test_client.headers["Authorization"] = f"Bearer {tokens[papel]}"
+        yield test_client
+
+
+@pytest.fixture(scope="session")
+def client(tokens_da_suite: dict[UserRole, str]) -> Iterator[TestClient]:
+    """Cliente HTTP autenticado como ANALYST — o padrão da suíte.
+
+    Autenticado por padrão de propósito: as rotas de incidentes exigem token, e
+    sem isto os ~270 testes existentes precisariam declarar o papel um a um. Os
+    testes que verificam a autenticação usam `anonymous_client`.
+    """
+    yield from _cliente_autenticado(UserRole.ANALYST, tokens_da_suite)
+
+
+@pytest.fixture()
+def reporter_client(tokens_da_suite: dict[UserRole, str]) -> Iterator[TestClient]:
+    """Cliente autenticado como REPORTER, para os testes de permissão."""
+    yield from _cliente_autenticado(UserRole.REPORTER, tokens_da_suite)
+
+
+@pytest.fixture()
+def admin_client(tokens_da_suite: dict[UserRole, str]) -> Iterator[TestClient]:
+    """Cliente autenticado como ADMIN, para os testes de permissão."""
+    yield from _cliente_autenticado(UserRole.ADMIN, tokens_da_suite)
 
 
 @pytest.fixture(autouse=True)
@@ -99,6 +197,10 @@ def clean_database() -> Iterator[None]:
     with create_session() as session:
         IncidentRepository(session).clear()
         IdempotencyRepository(session).clear()
+        # Tokens revogados também: um teste de logout que use o token da sessão
+        # o revogaria para todos os testes seguintes. `users` NÃO entra aqui —
+        # é justamente o que mantém o token da sessão válido.
+        RevokedTokenRepository(session).clear()
     get_listing_cache().clear()
     yield
 
