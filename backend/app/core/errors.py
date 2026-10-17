@@ -113,6 +113,56 @@ class IdempotencyKeyInProgressError(DomainError):
     )
 
 
+class InvalidCredentialsError(DomainError):
+    """E-mail ou senha incorretos na tentativa de login.
+
+    Cobre de propósito três situações distintas — e-mail inexistente, senha
+    errada e conta desativada — com a MESMA resposta. Distingui-las permitiria
+    descobrir quais e-mails existem, e uma resposta diferente para conta
+    desativada confirmaria que a senha estava certa.
+    """
+
+    code = "INVALID_CREDENTIALS"
+    status_code = 401
+    default_message = "E-mail ou senha inválidos."
+
+
+class UnauthenticatedError(DomainError):
+    """Requisição sem credencial válida."""
+
+    code = "UNAUTHENTICATED"
+    status_code = 401
+    default_message = "Autenticação necessária."
+
+
+class TokenExpiredError(DomainError):
+    """Token de acesso vencido.
+
+    Deliberadamente separado de `UNAUTHENTICATED`: é o único caso em que vale
+    tentar renovar a sessão em vez de mandar a pessoa para o login.
+    """
+
+    code = "TOKEN_EXPIRED"
+    status_code = 401
+    default_message = "Sessão expirada. Entre novamente."
+
+
+class InsufficientRoleError(DomainError):
+    """Autenticado, mas o papel não permite a ação."""
+
+    code = "INSUFFICIENT_ROLE"
+    status_code = 403
+    default_message = "Seu perfil não tem permissão para esta ação."
+
+
+class WeakPasswordError(DomainError):
+    """Senha fora da política mínima."""
+
+    code = "WEAK_PASSWORD"
+    status_code = 422
+    default_message = "A senha não atende à política mínima."
+
+
 class InvalidIdempotencyKeyError(DomainError):
     """Idempotency-Key vazia, longa demais ou com caracteres fora do permitido."""
 
