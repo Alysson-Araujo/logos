@@ -1,4 +1,4 @@
-# ADR 0015 — Sessão em `sessionStorage`
+# ADR 0016 — Sessão em `sessionStorage`
 
 - **Status:** Aceito
 - **Data:** 2026-10-17

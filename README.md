@@ -381,7 +381,7 @@ duas não têm como divergir.
 A sessão fica em `sessionStorage` — recarregar mantém o acesso, fechar a aba
 encerra. O token vai em `Authorization: Bearer`, e um `401` devolve à tela de
 login com aviso de sessão expirada. O porquê dessas escolhas está no
-[ADR 0015](docs/adr/0015-sessao-no-sessionstorage.md) e em
+[ADR 0016](docs/adr/0016-sessao-no-sessionstorage.md) e em
 [`docs/11`](docs/11-autenticacao-frontend.md).
 
 ### 4. Ou simplesmente os dois de uma vez

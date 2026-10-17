@@ -27,7 +27,7 @@ O frontend acrescenta `expiresAt` (epoch em ms, calculado no login) para decidir
 
 ### 1. `sessionStorage`, não `localStorage`
 
-Está em [ADR 0015](adr/0015-sessao-no-sessionstorage.md). Resumo: a sessão é do tamanho da aba. Recarregar mantém, fechar encerra — e o frame de login não tem "lembrar-me".
+Está em [ADR 0016](adr/0016-sessao-no-sessionstorage.md). Resumo: a sessão é do tamanho da aba. Recarregar mantém, fechar encerra — e o frame de login não tem "lembrar-me".
 
 ### 2. O 401 do login não passa pelo interceptor
 
@@ -108,7 +108,7 @@ requisição autenticada → 401
 
 ## Limites conhecidos
 
-- **O token é acessível por JavaScript** — ver ADR 0015.
+- **O token é acessível por JavaScript** — ver ADR 0016.
 - **Não há refresh**: vencido o TTL, a pessoa entra de novo.
 - **A interface ainda não esconde ações por papel.** O `REPORTER` recebe a fila escopada da API, mas os botões de transição continuam visíveis e quem recusa é o servidor (`403 INSUFFICIENT_ROLE`). Esconder por papel é a próxima entrega.
 - **As credenciais de demonstração estão no bundle**, porque a tela as exibe — é o que o edital pede.
