@@ -256,10 +256,11 @@ def test_conflito_de_versao_devolve_409_com_estado_atual(
 
 
 def test_soft_delete_devolve_204_e_remove_da_listagem(
-    client: TestClient, incident_factory: Callable[..., dict[str, Any]]
+    client: TestClient, admin_client: TestClient, incident_factory: Callable[..., dict[str, Any]]
 ) -> None:
     created = incident_factory()
-    response = client.delete(f"{INCIDENTS_URL}/{created['id']}")
+    # Remover exige ADMIN: a analista conduz o ciclo de vida, mas não apaga.
+    response = admin_client.delete(f"{INCIDENTS_URL}/{created['id']}")
     assert response.status_code == 204
     assert response.content == b""
     assert client.get(f"{INCIDENTS_URL}/{created['id']}").status_code == 404
@@ -269,8 +270,8 @@ def test_soft_delete_devolve_204_e_remove_da_listagem(
     assert listing["meta"]["total"] == 0
 
 
-def test_soft_delete_inexistente_devolve_404(client: TestClient) -> None:
-    response = client.delete(f"{INCIDENTS_URL}/2f1c9f7e-0000-4000-8000-000000000000")
+def test_soft_delete_inexistente_devolve_404(admin_client: TestClient) -> None:
+    response = admin_client.delete(f"{INCIDENTS_URL}/2f1c9f7e-0000-4000-8000-000000000000")
     assert response.status_code == 404
     assert response.json()["error"]["code"] == "INCIDENT_NOT_FOUND"
 

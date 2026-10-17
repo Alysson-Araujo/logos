@@ -16,6 +16,8 @@ from app.core.errors import (
     VersionConflictError,
 )
 from app.domain.enums import IncidentStatus
+from app.domain.identity import Actor
+from app.domain.permissions import visibility_scope
 from app.domain.priority import compute_priority_score, compute_sla_due_at
 from app.domain.rules import (
     allowed_transitions,
@@ -114,18 +116,32 @@ class IncidentService:
             on_retry=lambda _exc: self._repository.rollback(),
         )
 
-    def get(self, incident_id: UUID) -> Incident:
+    def get(self, incident_id: UUID, actor: Actor) -> Incident:
         """Devolve o incidente ou levanta 404."""
-        return self._execute(lambda: self._require(incident_id), policy=self._retry.for_read())
+        return self._execute(
+            lambda: self._require(incident_id, actor), policy=self._retry.for_read()
+        )
 
-    def _require(self, incident_id: UUID) -> Incident:
+    def _require(self, incident_id: UUID, actor: Actor) -> Incident:
         """Busca o incidente pelo id ou levanta 404."""
         incident = self._repository.get_by_id(incident_id)
         if incident is None:
             raise IncidentNotFoundError(details={"id": str(incident_id)})
+        return self._ensure_visible(incident, actor)
+
+    def _ensure_visible(self, incident: Incident, actor: Actor) -> Incident:
+        """Recusa quem não enxerga este incidente.
+
+        404 e não 403, de propósito: responder "existe, mas não é seu" revelaria
+        a existência de um registro que a pessoa não pode ver. Do ponto de vista
+        de quem pergunta, os dois casos são indistinguíveis — e devem ser.
+        """
+        scope = visibility_scope(actor)
+        if scope is not None and incident.created_by_id != scope:
+            raise IncidentNotFoundError(details={"id": str(incident.id)})
         return incident
 
-    def events(self, incident_id: UUID) -> list[IncidentEvent]:
+    def events(self, incident_id: UUID, actor: Actor) -> list[IncidentEvent]:
         """Timeline de auditoria do incidente, do mais antigo para o mais recente.
 
         Confirma que o incidente existe antes de listar. Sem isso, um id
@@ -133,21 +149,29 @@ class IncidentService:
         histórico" — duas respostas diferentes para quem está investigando, e a
         diferença importa.
         """
-        return self._execute(lambda: self._events(incident_id), policy=self._retry.for_read())
+        return self._execute(
+            lambda: self._events(incident_id, actor), policy=self._retry.for_read()
+        )
 
-    def _events(self, incident_id: UUID) -> list[IncidentEvent]:
+    def _events(self, incident_id: UUID, actor: Actor) -> list[IncidentEvent]:
         """Valida a existência do incidente e devolve os eventos.
 
         A busca **inclui os removidos**: a timeline de um incidente com soft
         delete continua legível. Se ela sumisse junto com o incidente, "remover
         sem apagar o histórico" seria falso — e é justamente o histórico que se
         quer consultar depois.
+
+        A visibilidade é checada aqui também: a timeline conta quem fez o quê, e
+        entregá-la a quem não enxerga o incidente vazaria o mesmo conteúdo por
+        outra porta.
         """
-        if self._repository.get_by_id(incident_id, include_deleted=True) is None:
+        incident = self._repository.get_by_id(incident_id, include_deleted=True)
+        if incident is None:
             raise IncidentNotFoundError(details={"id": str(incident_id)})
+        self._ensure_visible(incident, actor)
         return self._repository.list_events(incident_id)
 
-    def create(self, payload: IncidentCreate) -> Incident:
+    def create(self, payload: IncidentCreate, actor: Actor) -> Incident:
         """Cria o incidente com status ABERTO, SLA e score calculados no servidor.
 
         Não é repetido: um `INSERT` não tem guarda natural, então uma segunda
@@ -155,9 +179,9 @@ class IncidentService:
         incidente. Aqui a API devolve `503` e quem reenvia é o cliente, com a
         mesma `Idempotency-Key`.
         """
-        return self._execute(lambda: self._insert(payload), policy=self._retry.for_insert())
+        return self._execute(lambda: self._insert(payload, actor), policy=self._retry.for_insert())
 
-    def _insert(self, payload: IncidentCreate) -> Incident:
+    def _insert(self, payload: IncidentCreate, actor: Actor) -> Incident:
         now = self._now_provider()
         sla_due_at = compute_sla_due_at(payload.criticality, now)
         incident = Incident(
@@ -174,6 +198,7 @@ class IncidentService:
             truck_plate=payload.truck_plate,
             driver_name=payload.driver_name,
             reported_by=payload.reported_by,
+            created_by_id=actor.id,
             assigned_analyst=None,
             resolution_notes=None,
             priority_score=compute_priority_score(
@@ -190,7 +215,7 @@ class IncidentService:
             closed_at=None,
             deleted_at=None,
         )
-        return self._repository.create(incident)
+        return self._repository.create(incident, actor=actor.name)
 
     def list(self, filters: IncidentFilter) -> IncidentPage:
         """Lista incidentes com filtros, ordenação e paginação por cursor."""
@@ -227,6 +252,7 @@ class IncidentService:
         payload: IncidentStatusChange,
         *,
         expected_version: int,
+        actor: Actor,
     ) -> Incident:
         """Aplica a transição de status usando compare-and-swap no banco.
 
@@ -236,7 +262,9 @@ class IncidentService:
         enviou `Idempotency-Key`, a declaração de que a operação é reenviável.
         """
         return self._execute(
-            lambda: self._transition(incident_id, payload, expected_version=expected_version),
+            lambda: self._transition(
+                incident_id, payload, expected_version=expected_version, actor=actor
+            ),
             policy=self._retry.for_conditional_write(),
         )
 
@@ -246,19 +274,31 @@ class IncidentService:
         payload: IncidentStatusChange,
         *,
         expected_version: int,
+        actor: Actor,
     ) -> Incident:
         validate_resolution_notes(payload.status, payload.resolution_notes)
 
         now = self._now_provider()
+
+        # Quem move para investigação assume o caso. Sem isto, o campo ficaria
+        # nulo para sempre: a autenticação tirou o `assignedAnalyst` do corpo da
+        # requisição, e nada mais o preencheria.
+        assigned = payload.assigned_analyst
+        if assigned is None and payload.status is IncidentStatus.EM_INVESTIGACAO:
+            assigned = actor.name
+
         rowcount = self._repository.apply_status_transition(
             incident_id=incident_id,
             expected_version=expected_version,
             new_status=payload.status,
             allowed_sources=predecessors_of(payload.status),
             now=now,
-            assigned_analyst=payload.assigned_analyst,
+            assigned_analyst=assigned,
             resolution_notes=payload.resolution_notes,
             closed_at=now if payload.status is IncidentStatus.FECHADO else None,
+            actor=actor.name,
+            # Devolver para ABERTO significa devolver à fila: sem responsável.
+            clear_assignment=payload.status is IncidentStatus.ABERTO,
         )
 
         if rowcount != 1:
@@ -266,18 +306,23 @@ class IncidentService:
 
         return self._reload_with_fresh_score(incident_id)
 
-    def soft_delete(self, incident_id: UUID, *, expected_version: int | None) -> None:
+    def soft_delete(self, incident_id: UUID, *, expected_version: int | None, actor: Actor) -> None:
         """Remove logicamente o incidente, opcionalmente sob lock otimista."""
         self._execute(
-            lambda: self._do_soft_delete(incident_id, expected_version=expected_version),
+            lambda: self._do_soft_delete(
+                incident_id, expected_version=expected_version, actor=actor
+            ),
             policy=self._retry.for_conditional_write(),
         )
 
-    def _do_soft_delete(self, incident_id: UUID, *, expected_version: int | None) -> None:
+    def _do_soft_delete(
+        self, incident_id: UUID, *, expected_version: int | None, actor: Actor
+    ) -> None:
         rowcount = self._repository.soft_delete(
             incident_id,
             expected_version=expected_version,
             now=self._now_provider(),
+            actor=actor.name,
         )
         if rowcount == 1:
             return

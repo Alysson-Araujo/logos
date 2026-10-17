@@ -111,7 +111,7 @@ def test_excesso_de_leitura_recusa_com_429_e_retry_after(
 
 
 def test_leitura_e_escrita_tem_cotas_independentes(
-    client: TestClient, rate_limit_ligado: Callable[..., None]
+    client: TestClient, admin_client: TestClient, rate_limit_ligado: Callable[..., None]
 ) -> None:
     """A tela lista o tempo todo; a mutação é deliberada. Um teto único não serve."""
     rate_limit_ligado(leitura=1, escrita=1)
@@ -120,18 +120,20 @@ def test_leitura_e_escrita_tem_cotas_independentes(
     assert client.get(INCIDENTS_URL).status_code == 429
 
     # A cota de escrita continua intacta, mesmo com a de leitura esgotada.
-    assert client.delete(INEXISTENTE).status_code == 404
+    # `admin_client` porque remover exige ADMIN — o que interessa aqui é que a
+    # requisição seja uma ESCRITA, e não o resultado dela.
+    assert admin_client.delete(INEXISTENTE).status_code == 404
 
 
 def test_escrita_que_falha_tambem_consome_a_cota(
-    client: TestClient, rate_limit_ligado: Callable[..., None]
+    admin_client: TestClient, rate_limit_ligado: Callable[..., None]
 ) -> None:
     """O trabalho foi feito; contar só o sucesso deixaria a porta aberta."""
     rate_limit_ligado(escrita=2)
 
-    assert client.delete(INEXISTENTE).status_code == 404
-    assert client.delete(INEXISTENTE).status_code == 404
-    assert client.delete(INEXISTENTE).status_code == 429
+    assert admin_client.delete(INEXISTENTE).status_code == 404
+    assert admin_client.delete(INEXISTENTE).status_code == 404
+    assert admin_client.delete(INEXISTENTE).status_code == 429
 
 
 def test_health_nao_consome_cota(

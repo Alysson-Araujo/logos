@@ -15,6 +15,10 @@ from fastapi.testclient import TestClient
 
 INCIDENTS_URL = "/api/v1/incidents"
 
+#: Nome da conta ANALYST da suíte (ver `CONTAS_DA_SUITE` no conftest). É o autor
+#: esperado nos eventos, porque o `client` compartilhado está autenticado com ela.
+NOME_DO_ANALISTA_DA_SUITE = "Analista da Suite"
+
 
 def timeline(client: TestClient, incident_id: str) -> list[dict[str, Any]]:
     """Lê a timeline do incidente e devolve os eventos."""
@@ -41,8 +45,11 @@ def test_criacao_registra_evento(
     assert tipos(eventos) == ["CREATED"]
     assert eventos[0]["toStatus"] == "ABERTO"
     assert eventos[0]["fromStatus"] is None
-    # O autor do evento de criação é quem reportou.
-    assert eventos[0]["actor"] == incidente["reportedBy"]
+    # O autor do evento é quem está AUTENTICADO, não o canal que reportou.
+    # `reportedBy` continua no registro como origem do chamado ("Rádio Frota
+    # 12"); quem cadastrou é a analista dona do token.
+    assert eventos[0]["actor"] == NOME_DO_ANALISTA_DA_SUITE
+    assert incidente["reportedBy"] != eventos[0]["actor"]
     assert eventos[0]["createdAt"]
 
 
@@ -64,7 +71,9 @@ def test_transicao_registra_origem_destino_e_autor(
     transicao = eventos[1]
     assert transicao["fromStatus"] == "ABERTO"
     assert transicao["toStatus"] == "EM_INVESTIGACAO"
-    assert transicao["actor"] == "Marina Duarte"
+    # Quem agiu veio do token. Antes da autenticação este campo era o
+    # `assignedAnalyst` do corpo: o histórico registrava quem o cliente dizia ser.
+    assert transicao["actor"] == NOME_DO_ANALISTA_DA_SUITE
     # A versão que o cliente declarou esperar fica guardada: é o que permite
     # explicar depois por que uma transição foi aceita e outra recusada.
     assert transicao["payload"]["expectedVersion"] == incidente["version"]
@@ -102,11 +111,12 @@ def test_timeline_em_ordem_cronologica(
 
 
 def test_remocao_registra_evento_e_a_timeline_continua_legivel(
-    client: TestClient, incident_factory: Callable[..., dict[str, Any]]
+    client: TestClient, admin_client: TestClient, incident_factory: Callable[..., dict[str, Any]]
 ) -> None:
     """Soft delete promete remover sem apagar o histórico; a timeline prova."""
     incidente = incident_factory()
-    assert client.delete(f"{INCIDENTS_URL}/{incidente['id']}").status_code == 204
+    # Remover exige ADMIN: a analista conduz o ciclo de vida, mas não apaga.
+    assert admin_client.delete(f"{INCIDENTS_URL}/{incidente['id']}").status_code == 204
 
     # O detalhe responde 404 porque o incidente saiu da listagem...
     assert client.get(f"{INCIDENTS_URL}/{incidente['id']}").status_code == 404

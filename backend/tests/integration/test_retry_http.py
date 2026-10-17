@@ -178,7 +178,7 @@ def test_criacao_nao_e_repetida_mesmo_com_chave(
     """
     chamadas: list[int] = []
 
-    def falha(self: IncidentRepository, incident: Any) -> Any:
+    def falha(self: IncidentRepository, incident: Any, *, actor: Any) -> Any:
         chamadas.append(1)
         raise falha_transitoria()
 

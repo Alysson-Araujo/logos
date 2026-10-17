@@ -19,6 +19,7 @@ from app.core.errors import (
 )
 from app.core.idempotency import is_replay_safe
 from app.core.tokens import TokenClaims, decode_access_token
+from app.domain.identity import Actor
 from app.infra.retry import RetryConfig, RetryPolicy
 from app.models.user import User
 from app.repositories.incident_repository import IncidentRepository
@@ -197,3 +198,15 @@ def get_current_user(
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
+
+
+def get_current_actor(user: CurrentUser) -> Actor:
+    """Projeta o usuário autenticado no ator que as regras de domínio usam.
+
+    O domínio não conhece o modelo ORM: recebe id, nome e papel. Assim as regras
+    de permissão continuam puras e testáveis sem banco.
+    """
+    return Actor(id=user.id, name=user.name, role=user.role)
+
+
+CurrentActor = Annotated[Actor, Depends(get_current_actor)]
