@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -27,6 +27,7 @@ vi.mock('@tanstack/react-virtual', () => ({
       })),
     getTotalSize: () => options.count * 86,
     scrollToIndex,
+    measureElement: () => undefined,
     measure: () => undefined,
   }),
 }));
@@ -73,6 +74,14 @@ beforeEach(() => {
 });
 
 describe('rolagem programática da lista', () => {
+  it('cada item virtualizado declara data-index para a medição da altura', () => {
+    renderList(buildProps());
+
+    const items = screen.getAllByRole('listitem');
+    expect(items.length).toBeGreaterThan(0);
+    expect(items[0]).toHaveAttribute('data-index', '0');
+  });
+
   it('não rola quando o foco muda por hover', () => {
     const props = buildProps();
     const { rerender } = renderList(props);

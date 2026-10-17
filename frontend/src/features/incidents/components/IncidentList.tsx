@@ -194,6 +194,13 @@ export function IncidentList({
                 <div
                   key={virtualItem.key}
                   role="listitem"
+                  // `data-index` + `measureElement`: a altura real da linha
+                  // manda. A estimativa de 86 px ficava 7 px abaixo da altura
+                  // medida (93 px), o que encolhia a área rolável, sobrepunha
+                  // as linhas e fazia a lista pular quando a página seguinte
+                  // entrava (#114).
+                  data-index={virtualItem.index}
+                  ref={virtualizer.measureElement}
                   style={{
                     position: 'absolute',
                     top: 0,
