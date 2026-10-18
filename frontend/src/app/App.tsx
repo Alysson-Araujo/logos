@@ -1,14 +1,14 @@
-import { startTransition, useCallback, useEffect, useMemo } from 'react';
+import { startTransition, useCallback, useEffect, useMemo, useState } from 'react';
 
 import { OfflineBanner } from '@/components/feedback/OfflineBanner';
 import { AppShell } from '@/components/layout/AppShell';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { useTheme } from '@/hooks/useTheme';
-import { useToast } from '@/hooks/useToast';
 import { useDensity, useUiStore } from '@/hooks/useUiStore';
 
 import { ConflictDialog } from '../features/incidents/components/ConflictDialog';
+import { CreateIncidentSheet } from '../features/incidents/components/CreateIncidentSheet';
 import { FiltersBar } from '../features/incidents/components/FiltersBar';
 import { IncidentDrawer } from '../features/incidents/components/IncidentDrawer';
 import { IncidentList } from '../features/incidents/components/IncidentList';
@@ -28,7 +28,7 @@ export function App() {
   const { toggleTheme } = useTheme();
   const density = useDensity();
   const isOnline = useOnlineStatus();
-  const pushToast = useToast();
+  const [isCreating, setIsCreating] = useState(false);
 
   const { filters, patchFilters, clearFilters, toggleStatus, activeFilterCount } =
     useIncidentFilters();
@@ -59,14 +59,19 @@ export function App() {
     setOrderedIds(items.map((item) => item.id));
   }, [items, setOrderedIds]);
 
-  useKeyboardShortcuts({
-    onNext: focusNext,
-    onPrevious: focusPrevious,
-    onOpen: openFocused,
-    onFocusSearch: requestSearchFocus,
-    onEscape: closeDrawer,
-    onToggleTheme: toggleTheme,
-  });
+  // Com a sheet aberta os atalhos da triagem ficam desligados: quem está
+  // digitando o formulário não deve navegar na lista por baixo do painel.
+  useKeyboardShortcuts(
+    {
+      onNext: focusNext,
+      onPrevious: focusPrevious,
+      onOpen: openFocused,
+      onFocusSearch: requestSearchFocus,
+      onEscape: closeDrawer,
+      onToggleTheme: toggleTheme,
+    },
+    !isCreating,
+  );
 
   const pendingIds = useMemo<ReadonlySet<string>>(() => {
     if (!statusMutation.isPending) return EMPTY_ID_SET;
@@ -102,12 +107,12 @@ export function App() {
   };
 
   const handleCreate = (): void => {
-    pushToast({
-      variant: 'info',
-      title: 'Criação de incidente já está no backlog',
-      description: 'O formulário validado com Zod entra na issue #55.',
-    });
+    setIsCreating(true);
   };
+
+  const handleCloseCreate = useCallback((): void => {
+    setIsCreating(false);
+  }, []);
 
   const total = listQuery.data?.pages[0]?.meta.total ?? null;
 
@@ -119,6 +124,7 @@ export function App() {
         activeStatuses={filters.statuses}
         onToggleStatus={toggleStatus}
         isLoading={counters.isLoading}
+        onCreate={handleCreate}
       />
       <FiltersBar
         filters={filters}
@@ -153,6 +159,7 @@ export function App() {
         onClearFilters={clearFilters}
       />
       <IncidentDrawer incidentId={selectedId} mutation={statusMutation} onClose={closeDrawer} />
+      <CreateIncidentSheet open={isCreating} onClose={handleCloseCreate} />
       <ConflictDialog />
     </AppShell>
   );
