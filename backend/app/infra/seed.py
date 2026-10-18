@@ -64,11 +64,15 @@ CATEGORY_QUOTA: Final[tuple[IncidentCategory, ...]] = (
 #: Os domínios são os reservados pela RFC 2606 (`example.com`, `example.org` e
 #: `example.net`) de propósito: o convite sai por SMTP de verdade (#129), e uma
 #: conta de demonstração num domínio de gente real colocaria uma credencial na
-#: caixa de entrada de um estranho no primeiro "Reenviar" clicado. As duas
-#: exceções são deliberadas: a conta do edital (`ana@autou.com.br`, que o README
-#: documenta desde a primeira entrega) e a conta pessoal de quem apresenta.
+#: caixa de entrada de um estranho no primeiro "Reenviar" clicado. As contas em
+#: `autou.com.br` não são exceção a isso: é o domínio do **próprio produto**, o
+#: das contas que o README e o edital documentam desde a primeira entrega. A única
+#: exceção de verdade é a conta pessoal de quem apresenta.
 DEMO_USERS: Final[tuple[tuple[str, str, UserRole, str], ...]] = (
     ("ana@autou.com.br", "Ana Paula Ribeiro", UserRole.ANALYST, "ana.logos2026"),
+    ("carlos@autou.com.br", "Carlos Eduardo Lima", UserRole.ANALYST, "carlos.logos2026"),
+    ("marina@autou.com.br", "Marina Souza", UserRole.REPORTER, "marina.logos2026"),
+    ("admin@autou.com.br", "Administrador Logos", UserRole.ADMIN, "admin.logos2026"),
     ("alyssonaraujowork@gmail.com", "Alysson Araújo", UserRole.ANALYST, "alysson.logos2026"),
     ("carlos.menezes@example.com", "Carlos Menezes", UserRole.ADMIN, "carlos.logos2026"),
     ("renata.lima@example.org", "Renata Lima", UserRole.ANALYST, "renata.logos2026"),
@@ -320,7 +324,8 @@ def seed_users(session: Session) -> int:
     ]
 
     # Sem administrador não há quem assine o convite: `DEMO_USERS` precisa de um
-    # `ADMIN`, e falhar aqui é melhor do que gravar autoria errada.
+    # `ADMIN`, e falhar aqui é melhor do que gravar autoria errada. Havendo mais
+    # de um, assina o primeiro da lista (`admin@autou.com.br`).
     admin = next(user for user in criados if user.role is UserRole.ADMIN)
 
     email, nome, papel = INVITED_DEMO_USER

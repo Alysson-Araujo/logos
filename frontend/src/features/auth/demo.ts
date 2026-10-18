@@ -13,11 +13,12 @@ import type { AuthRole } from './types';
  * `sessionStorage` e o TTL é curto.
  *
  * Os domínios são os reservados pela RFC 2606 (`example.com`, `example.org` e
- * `example.net`), com duas exceções deliberadas: `ana@autou.com.br`, que o
- * edital documenta desde a primeira entrega, e a conta pessoal de quem
- * apresenta. O convite sai por SMTP de verdade (#129): uma conta de
- * demonstração num domínio de gente real colocaria uma credencial na caixa de
- * entrada de um estranho no primeiro "Reenviar" clicado.
+ * `example.net`) ou o do **próprio produto**, `autou.com.br` — o das contas que o
+ * edital documenta desde a primeira entrega. O convite sai por SMTP de verdade
+ * (#129): o que não pode existir é conta de demonstração no domínio de um
+ * terceiro, que entregaria credencial na caixa de entrada de um estranho no
+ * primeiro "Reenviar" clicado. A conta pessoal de quem apresenta é a exceção
+ * deliberada.
  */
 
 /** Uma conta de demonstração: papel, e-mail e a senha que o seed grava. */
@@ -28,16 +29,22 @@ export interface DemoAccount {
   password: string | null;
 }
 
-/** As contas que a caixa "Acesso de demonstração" lista e o `seed` cria. */
+/**
+ * As contas que a caixa "Acesso de demonstração" lista e o `seed` cria — na
+ * ordem dos grupos de papel, que é como a caixa as exibe.
+ */
 export const DEMO_ACCOUNTS: readonly DemoAccount[] = [
   { role: 'ANALYST', email: 'ana@autou.com.br', password: 'ana.logos2026' },
+  { role: 'ANALYST', email: 'carlos@autou.com.br', password: 'carlos.logos2026' },
   {
     role: 'ANALYST',
     email: 'alyssonaraujowork@gmail.com',
     password: 'alysson.logos2026',
   },
   { role: 'ANALYST', email: 'renata.lima@example.org', password: 'renata.logos2026' },
+  { role: 'ADMIN', email: 'admin@autou.com.br', password: 'admin.logos2026' },
   { role: 'ADMIN', email: 'carlos.menezes@example.com', password: 'carlos.logos2026' },
+  { role: 'REPORTER', email: 'marina@autou.com.br', password: 'marina.logos2026' },
   { role: 'REPORTER', email: 'joana.prado@example.net', password: 'joana.logos2026' },
   { role: 'REPORTER', email: 'marcos.tavares@example.org', password: null },
 ];
@@ -53,9 +60,10 @@ export const DEMO_CREDENTIALS = {
 } as const;
 
 /**
- * A conta `ADMIN` do seed. É ela que abre a administração de contas no menu do
- * usuário — sem uma credencial de administrador, a tela nova ficaria
- * inalcançável na demonstração.
+ * A conta `ADMIN` do seed tomada como referência — o seed tem duas, esta e
+ * `admin@autou.com.br`. É ela que abre a administração de contas no menu do
+ * usuário: sem uma credencial de administrador, a tela nova ficaria inalcançável
+ * na demonstração.
  */
 export const DEMO_ADMIN_CREDENTIALS = {
   email: 'carlos.menezes@example.com',

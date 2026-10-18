@@ -28,12 +28,29 @@ from app.repositories.user_repository import UserRepository
 #: engano não pode ter destinatário.
 DOMINIOS_RESERVADOS = ("example.com", "example.org", "example.net")
 
-#: As duas exceções deliberadas: a conta do edital e a conta pessoal do autor.
-EMAILS_EXCECIONAIS = ("ana@autou.com.br", "alyssonaraujowork@gmail.com")
+#: O domínio do **próprio produto**: as contas de demonstração que o README e o
+#: edital documentam desde a primeira entrega.
+#:
+#: Não conta como "domínio de gente real" — o destinatário de um convite é a
+#: própria central, e não a caixa de entrada de um terceiro.
+DOMINIO_DO_PRODUTO = "autou.com.br"
 
-#: Papéis esperados no seed, em ordem alfabética: um admin, três analistas (dois
-#: do domínio reservado) e dois repórteres.
-PAPEIS_ESPERADOS = ["ADMIN", "ANALYST", "ANALYST", "ANALYST", "REPORTER", "REPORTER"]
+#: A única exceção deliberada: a conta pessoal de quem apresenta.
+EMAIL_PESSOAL = "alyssonaraujowork@gmail.com"
+
+#: Papéis esperados no seed, em ordem alfabética: dois admins, quatro analistas e
+#: três repórteres — as nove contas (oito ativas mais a do convite pendente).
+PAPEIS_ESPERADOS = [
+    "ADMIN",
+    "ADMIN",
+    "ANALYST",
+    "ANALYST",
+    "ANALYST",
+    "ANALYST",
+    "REPORTER",
+    "REPORTER",
+    "REPORTER",
+]
 
 
 def banco_vazio() -> Session:
@@ -87,7 +104,8 @@ def test_seed_deixa_a_conta_do_convite_pendente_com_o_admin_como_autor() -> None
 
         email, nome, papel = INVITED_DEMO_USER
         convidado = repository.get_by_email(email)
-        admin = repository.get_by_email("carlos.menezes@example.com")
+        # Quem assina é o primeiro `ADMIN` de `DEMO_USERS`.
+        admin = repository.get_by_email("admin@autou.com.br")
         assert convidado is not None
         assert admin is not None
 
@@ -114,11 +132,19 @@ def test_seed_deixa_a_conta_do_convite_pendente_com_o_admin_como_autor() -> None
 
 
 def test_contas_de_demonstracao_nao_usam_dominio_de_gente_real() -> None:
+    """O destinatário de um convite é o produto ou um domínio reservado.
+
+    O convite sai por SMTP de verdade (#129), então uma conta de demonstração num
+    domínio de terceiro entregaria credencial na caixa de entrada de um estranho
+    no primeiro "Reenviar" clicado. `autou.com.br` é o domínio do **próprio
+    produto** — é para lá que o convite de demonstração vai, se for o caso —, e
+    não o de gente real.
+    """
     emails = [email for email, _nome, _papel, _senha in DEMO_USERS]
     emails.append(INVITED_DEMO_USER[0])
-    reservados = tuple(f"@{dominio}" for dominio in DOMINIOS_RESERVADOS)
+    permitidos = tuple(f"@{dominio}" for dominio in (DOMINIO_DO_PRODUTO, *DOMINIOS_RESERVADOS))
 
     for email in emails:
-        if email in EMAILS_EXCECIONAIS:
+        if email == EMAIL_PESSOAL:
             continue
-        assert email.endswith(reservados), email
+        assert email.endswith(permitidos), email

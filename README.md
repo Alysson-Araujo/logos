@@ -344,24 +344,27 @@ funcionalidade.
 | Conta                         | Senha                | Papel      | Enxerga                      |
 | ----------------------------- | -------------------- | ---------- | ---------------------------- |
 | `ana@autou.com.br`            | `ana.logos2026`      | `ANALYST`  | A fila inteira               |
+| `carlos@autou.com.br`         | `carlos.logos2026`   | `ANALYST`  | A fila inteira               |
 | `alyssonaraujowork@gmail.com` | `alysson.logos2026`  | `ANALYST`  | A fila inteira               |
 | `renata.lima@example.org`     | `renata.logos2026`   | `ANALYST`  | A fila inteira               |
-| `carlos.menezes@example.com`  | `carlos.logos2026`   | `ADMIN`    | Tudo, e é o único que remove |
+| `admin@autou.com.br`          | `admin.logos2026`    | `ADMIN`    | Tudo, e remove contas        |
+| `carlos.menezes@example.com`  | `carlos.logos2026`   | `ADMIN`    | Tudo, e remove contas        |
+| `marina@autou.com.br`         | `marina.logos2026`   | `REPORTER` | Apenas o que ela mesma abriu |
 | `joana.prado@example.net`     | `joana.logos2026`    | `REPORTER` | Apenas o que ela mesma abriu |
 | `marcos.tavares@example.org`  | — convite pendente — | `REPORTER` | O que ele mesmo abrir        |
 
 Os domínios `example.com`, `example.org` e `example.net` são os reservados pela
 RFC 2606: não pertencem a ninguém, então um "Reenviar convite" clicado por engano
 não entrega credencial na caixa de entrada de um estranho — o convite sai por
-SMTP de verdade. As exceções são deliberadas: `ana@autou.com.br`, que este README
-e o edital documentam desde a primeira entrega, e a conta pessoal de quem
-apresenta.
+SMTP de verdade. As demais contas ficam em `autou.com.br`, o domínio do **próprio
+produto** (são as que este README e o edital documentam desde a primeira
+entrega). A única exceção deliberada é a conta pessoal de quem apresenta.
 
 `marcos.tavares` nasce com **convite pendente**: inativo, sem senha definitiva e
 com uma senha temporária que o seed **não envia** a ninguém. É o estado que a tela
 _Contas de acesso_ mostra com o botão **Reenviar**, que gera outra temporária e a
-entrega pelo canal configurado. A conta `ADMIN` (`carlos.menezes`) é a única que
-abre essa tela, pelo menu do usuário.
+entrega pelo canal configurado. As contas `ADMIN` (`admin@autou.com.br` e
+`carlos.menezes@example.com`) são as que abrem essa tela, pelo menu do usuário.
 
 Entrar como `joana.prado` e como `ana` é a forma mais rápida de ver a autorização
 funcionando: a mesma listagem devolve recortes diferentes. O contrato completo do

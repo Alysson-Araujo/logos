@@ -32,12 +32,15 @@ describe('API simulada — contas de acesso', () => {
   it('lista as contas do seed no formato do contrato', async () => {
     const accounts = await fetchAccounts();
 
-    expect(accounts).toHaveLength(6);
+    expect(accounts).toHaveLength(9);
     expect(accounts.map((account) => account.email)).toEqual([
       'ana@autou.com.br',
+      'carlos@autou.com.br',
       'alyssonaraujowork@gmail.com',
       'renata.lima@example.org',
+      'admin@autou.com.br',
       'carlos.menezes@example.com',
+      'marina@autou.com.br',
       'joana.prado@example.net',
       'marcos.tavares@example.org',
     ]);
@@ -45,7 +48,10 @@ describe('API simulada — contas de acesso', () => {
       'ANALYST',
       'ANALYST',
       'ANALYST',
+      'ANALYST',
       'ADMIN',
+      'ADMIN',
+      'REPORTER',
       'REPORTER',
       'REPORTER',
     ]);
@@ -132,8 +138,8 @@ describe('API simulada — contas de acesso', () => {
 
 describe('API simulada — credenciais de demonstração', () => {
   /**
-   * As contas que a caixa "Acesso de demonstração" exibe **com senha** — a
-   * `ana` (do edital) e as quatro variadas do seed.
+   * As contas que a caixa "Acesso de demonstração" exibe **com senha**: as oito
+   * contas ativas do seed — as do domínio do produto e as dos domínios reservados.
    *
    * A lista vem de `demo.ts` de propósito: se a tela anuncia uma credencial, o
    * login simulado tem que aceitá-la. A do convite pendente fica de fora porque
@@ -143,8 +149,8 @@ describe('API simulada — credenciais de demonstração', () => {
     (account): account is DemoAccount & { password: string } => account.password !== null,
   );
 
-  it('anuncia cinco contas com senha', () => {
-    expect(contas).toHaveLength(5);
+  it('anuncia oito contas com senha', () => {
+    expect(contas).toHaveLength(8);
   });
 
   it.each(contas)('aceita $email no papel $role', async ({ email, password, role }) => {

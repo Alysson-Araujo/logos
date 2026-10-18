@@ -15,12 +15,15 @@ import {
  * errado, ou uma credencial de teste que passa a apontar para outro lugar.
  */
 describe('credenciais de demonstração', () => {
-  it('usa as contas variadas e cobre os três papéis', () => {
+  it('usa as contas do seed e cobre os três papéis', () => {
     expect(DEMO_ACCOUNTS.map((account) => account.email)).toEqual([
       'ana@autou.com.br',
+      'carlos@autou.com.br',
       'alyssonaraujowork@gmail.com',
       'renata.lima@example.org',
+      'admin@autou.com.br',
       'carlos.menezes@example.com',
+      'marina@autou.com.br',
       'joana.prado@example.net',
       'marcos.tavares@example.org',
     ]);
@@ -30,14 +33,18 @@ describe('credenciais de demonstração', () => {
   });
 
   it('não aponta para domínio de gente real', () => {
-    // Domínios reservados (RFC 2606) e as duas exceções deliberadas: a conta do
-    // edital e a pessoal de quem apresenta. O convite sai por SMTP de verdade.
+    // Domínios reservados (RFC 2606), o domínio do próprio produto — as contas
+    // que o edital documenta desde a primeira entrega — e a exceção deliberada
+    // da conta pessoal de quem apresenta. O convite sai por SMTP de verdade.
     const reservados = ['example.com', 'example.org', 'example.net'];
-    const excecoes = ['ana@autou.com.br', 'alyssonaraujowork@gmail.com'];
+    const dominioDoProduto = 'autou.com.br';
+    const pessoal = 'alyssonaraujowork@gmail.com';
 
     const foraDosReservados = DEMO_ACCOUNTS.map((account) => account.email).filter(
       (email) =>
-        !excecoes.includes(email) && !reservados.some((dominio) => email.endsWith(`@${dominio}`)),
+        email !== pessoal &&
+        !email.endsWith(`@${dominioDoProduto}`) &&
+        !reservados.some((dominio) => email.endsWith(`@${dominio}`)),
     );
 
     expect(foraDosReservados).toEqual([]);

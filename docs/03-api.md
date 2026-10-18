@@ -730,9 +730,12 @@ Criadas pelo seed quando a base está vazia:
 | Conta                         | Senha                | Papel      |
 | ----------------------------- | -------------------- | ---------- |
 | `ana@autou.com.br`            | `ana.logos2026`      | `ANALYST`  |
+| `carlos@autou.com.br`         | `carlos.logos2026`   | `ANALYST`  |
 | `alyssonaraujowork@gmail.com` | `alysson.logos2026`  | `ANALYST`  |
 | `renata.lima@example.org`     | `renata.logos2026`   | `ANALYST`  |
+| `admin@autou.com.br`          | `admin.logos2026`    | `ADMIN`    |
 | `carlos.menezes@example.com`  | `carlos.logos2026`   | `ADMIN`    |
+| `marina@autou.com.br`         | `marina.logos2026`   | `REPORTER` |
 | `joana.prado@example.net`     | `joana.logos2026`    | `REPORTER` |
 | `marcos.tavares@example.org`  | — convite pendente — | `REPORTER` |
 
@@ -743,8 +746,10 @@ aplicação recusaria seria um detalhe ruim de se ver em uma demonstração.
 Os domínios `example.com`, `example.org` e `example.net` são reservados pela RFC
 2606: não pertencem a ninguém. Como o convite sai por SMTP de verdade (§16), uma
 conta de demonstração num domínio de gente real colocaria uma credencial na caixa
-de entrada de um estranho no primeiro "Reenviar" clicado. As exceções são
-deliberadas: a conta do edital e a pessoal de quem apresenta.
+de entrada de um estranho no primeiro "Reenviar" clicado. As demais ficam em
+`autou.com.br`, o domínio do **próprio produto** — é o que o README e o edital
+documentam desde a primeira entrega. A única exceção deliberada é a conta pessoal
+de quem apresenta.
 
 `marcos.tavares` nasce com **convite pendente** — inativo, com senha temporária
 dentro do prazo e sem senha definitiva —, que é o estado com que a tela de
