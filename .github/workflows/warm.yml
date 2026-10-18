@@ -1,0 +1,32 @@
+name: warm
+
+# Mantem UM container do Lambda quente, para o primeiro acesso do avaliador nao
+# pagar o cold start de 1,5 a 2,5 s.
+#
+# Bate em /health/live DE PROPOSITO: esse endpoint NAO consulta o banco. Assim o
+# Neon continua suspenso e os 100 CU-hours/mes do plano gratuito nao sao
+# consumidos. Manter o Neon acordado 24/7 gastaria ~182 CU-hours contra uma cota
+# de 100, e o compute seria suspenso ate o proximo ciclo.
+#
+# Custo: 0. O Lambda tem 1 milhao de requisicoes gratuitas por mes; um ping a
+# cada 5 minutos consome ~8.600.
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: warm
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    name: manter o container quente
+    runs-on: ubuntu-latest
+    steps:
+      - name: Aquecer o Lambda sem acordar o banco
+        run: |
+          curl -fsS --max-time 25 \
+            "https://c33z3s4di7cywi7azqthdd62mu0ufnds.lambda-url.us-east-1.on.aws/api/v1/health/live"
+          echo "container quente"
