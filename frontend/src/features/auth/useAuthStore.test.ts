@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createTestSession } from '@/test/auth';
 
-import { LOGIN_SESSION_EXPIRED } from './labels';
+import { LOGIN_SESSION_EXPIRED, LOGIN_SIGNED_OUT } from './labels';
 import { getSessionToken, useAuthStore } from './useAuthStore';
 
 const STORAGE_KEY = 'logos-session';
@@ -36,7 +36,7 @@ describe('useAuthStore', () => {
     expect(window.sessionStorage.getItem(STORAGE_KEY)).toBeNull();
   });
 
-  it('avisa quando a sessão expira e fica calado na saída manual', () => {
+  it('avisa quando a sessão expira e também quando a pessoa sai pelo menu', () => {
     useAuthStore.getState().signOut('expired');
     expect(useAuthStore.getState().notice).toBe(LOGIN_SESSION_EXPIRED);
 
@@ -44,7 +44,7 @@ describe('useAuthStore', () => {
     expect(useAuthStore.getState().notice).toBeNull();
 
     useAuthStore.getState().signOut('manual');
-    expect(useAuthStore.getState().notice).toBeNull();
+    expect(useAuthStore.getState().notice).toBe(LOGIN_SIGNED_OUT);
   });
 
   it('limpa o aviso pendente quando alguém entra', () => {

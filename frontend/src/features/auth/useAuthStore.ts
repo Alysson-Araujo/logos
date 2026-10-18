@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-import { LOGIN_SESSION_EXPIRED } from './labels';
+import { LOGIN_SESSION_EXPIRED, LOGIN_SIGNED_OUT } from './labels';
 import { storedSessionSchema, toAuthUser } from './schemas';
 import type { AuthSession, SignOutReason } from './types';
 
@@ -91,7 +91,12 @@ export const useAuthStore = create<AuthStoreState>()((set) => ({
   },
   signOut: (reason = 'manual') => {
     clearStoredSession();
-    set({ session: null, notice: reason === 'expired' ? LOGIN_SESSION_EXPIRED : null });
+    // Sair pelo menu também merece uma linha na tela: sem isso a pessoa volta
+    // ao login sem saber se saiu mesmo ou se a sessão caiu sozinha.
+    set({
+      session: null,
+      notice: reason === 'expired' ? LOGIN_SESSION_EXPIRED : LOGIN_SIGNED_OUT,
+    });
   },
   consumeNotice: () => {
     set({ notice: null });

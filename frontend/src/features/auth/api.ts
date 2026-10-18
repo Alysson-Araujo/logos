@@ -15,6 +15,9 @@ export const LOGIN_TIMEOUT_MS = 45_000;
 /** Revogação é higiene: não vale segurar a interface esperando por ela. */
 export const LOGOUT_TIMEOUT_MS = 5_000;
 
+/** A troca de senha roda o Argon2 dos dois lados; o padrão do cliente é curto. */
+export const CHANGE_PASSWORD_TIMEOUT_MS = 15_000;
+
 export async function login(
   credentials: LoginCredentials,
   signal?: AbortSignal,
@@ -53,4 +56,23 @@ export async function revokeSessionToken(): Promise<void> {
   } catch {
     // Best effort deliberado: ver comentário acima.
   }
+}
+
+/** Corpo de `POST /auth/change-password` — camelCase, como o `CamelModel` da API. */
+export interface ChangePasswordPayload {
+  currentPassword: string;
+  newPassword: string;
+}
+
+/**
+ * Troca a senha do próprio usuário. Diferente do logout, a falha **importa**:
+ * a pessoa precisa saber que a senha não mudou, então o erro sobe tipado.
+ */
+export async function changePassword(payload: ChangePasswordPayload): Promise<void> {
+  await httpClient.post('/auth/change-password', payload, {
+    timeoutMs: CHANGE_PASSWORD_TIMEOUT_MS,
+    // 401 aqui é "senha atual errada", não sessão perdida: sem esta dispensa,
+    // um erro de digitação expulsaria a pessoa para a tela de login.
+    ignoreUnauthorized: true,
+  });
 }
