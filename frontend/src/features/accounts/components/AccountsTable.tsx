@@ -24,6 +24,19 @@ const COLUMNS = [
  *
  * Card branco com `radius-md` e borda, cabeçalho em `surface-sunken` e rótulos
  * em caixa alta via CSS — o texto no DOM continua legível para leitor de tela.
+ *
+ * **Uma tabela só, duas leituras.** Abaixo de 768 px (`md`) o cabeçalho some e
+ * cada linha vira um bloco com moldura própria: cinco colunas não cabem em
+ * 360 px sem espremer nome, papel e situação até ninguém ler.
+ *
+ * **Por que não renderizar cartões no celular e tabela na mesa.** As duas
+ * versões ficariam no DOM ao mesmo tempo, e toda consulta por texto passaria a
+ * encontrar dois elementos iguais — o custo apareceria em cada teste futuro,
+ * que precisaria saber escopar. Aqui o DOM é um só; quem muda é o `display`.
+ *
+ * A semântica sobrevive à mudança de layout: `<tr>` continua sendo `row` e
+ * `<th>` continua sendo `columnheader` em qualquer largura, então leitor de
+ * tela e testes enxergam a mesma estrutura.
  */
 export function AccountsTable({
   accounts,
@@ -33,12 +46,12 @@ export function AccountsTable({
   onToggleActive,
 }: AccountsTableProps) {
   return (
-    <div className="overflow-hidden rounded-md border border-border bg-surface shadow-e1">
-      <table className="w-full table-fixed border-collapse text-left">
+    <div className="overflow-hidden rounded-md border border-border bg-surface shadow-e1 max-md:overflow-visible max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:shadow-none">
+      <table className="w-full table-fixed border-collapse text-left max-md:block">
         <caption className="sr-only">
           Contas de acesso da central, com papel, situação e último acesso
         </caption>
-        <colgroup>
+        <colgroup className="max-md:hidden">
           {COLUMNS.map((column) => (
             <col
               key={column.label}
@@ -46,7 +59,7 @@ export function AccountsTable({
             />
           ))}
         </colgroup>
-        <thead className="bg-surface-sunken">
+        <thead className="bg-surface-sunken max-md:hidden">
           <tr>
             {COLUMNS.map((column) => (
               <th
@@ -59,7 +72,7 @@ export function AccountsTable({
             ))}
           </tr>
         </thead>
-        <tbody>
+        <tbody className="max-md:flex max-md:flex-col max-md:gap-3">
           {accounts.map((account) => (
             <AccountRow
               key={account.id}

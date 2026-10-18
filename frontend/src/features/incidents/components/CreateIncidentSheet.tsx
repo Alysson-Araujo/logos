@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'rea
 import type { ZodError } from 'zod';
 
 import { Button } from '@/components/ui/button';
+import { Combobox } from '@/components/ui/combobox';
 import {
   Drawer,
   DrawerCloseButton,
@@ -18,6 +19,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useVehicleSearch } from '@/features/vehicles/hooks/useVehicleSearch';
+import type { Vehicle } from '@/features/vehicles/types';
 import { isApiError } from '@/lib/http';
 import { cn } from '@/lib/utils';
 
@@ -51,6 +54,16 @@ export function CreateIncidentSheet({ open, onClose }: CreateIncidentSheetProps)
   const [summary, setSummary] = useState<string | null>(null);
 
   /**
+   * Veículo da frota confirmado no autocomplete.
+   *
+   * Guarda o modelo e a transportadora para a linha de confirmação abaixo do
+   * campo — a placa identifica, mas quem está no rádio reconhece "Volvo FH 460
+   * da Transbrasil" mais rápido do que um código de sete caracteres. Some assim
+   * que a placa é editada: a confirmação vale para o que está no campo.
+   */
+  const [veiculoDaFrota, setVeiculoDaFrota] = useState<Vehicle | null>(null);
+
+  /**
    * Quem abriu a sheet, para devolver o foco ao fechar. O Radix só restaura
    * sozinho quando existe um `DrawerTrigger`; aqui o gatilho vive na barra da
    * triagem, então a captura acontece no autoFocus, antes de o foco entrar no
@@ -64,7 +77,23 @@ export function CreateIncidentSheet({ open, onClose }: CreateIncidentSheetProps)
     setForm(EMPTY_FORM);
     setFieldErrors({});
     setSummary(null);
+    setVeiculoDaFrota(null);
   }, [open]);
+
+  /**
+   * Sugestões de placa, consultadas enquanto a sheet está aberta.
+   *
+   * O termo é o que já está no campo: com o campo vazio a consulta devolve os
+   * primeiros da frota, então a lista aparece ao focar — e não vazia, que
+   * pareceria campo quebrado.
+   */
+  const frota = useVehicleSearch(form.truckPlate, open);
+
+  const opcoesDePlaca = (frota.data?.items ?? []).map((veiculo) => ({
+    value: veiculo.plate,
+    label: veiculo.plate,
+    description: `${veiculo.model} · ${veiculo.carrier}`,
+  }));
 
   const patchForm = (patch: Partial<CreateIncidentForm>): void => {
     setForm((previous) => ({ ...previous, ...patch }));
@@ -329,27 +358,37 @@ export function CreateIncidentSheet({ open, onClose }: CreateIncidentSheetProps)
               <FieldShell
                 field="truckPlate"
                 label="Placa do veículo"
-                hint="Mercosul (AAA1A23) ou antiga"
+                hint="Mercosul (AAA1A23) ou antiga — a lista sugere as placas da frota"
                 error={fieldErrors.truckPlate}
               >
                 {(a11y) => (
-                  <Input
-                    {...a11y}
-                    value={form.truckPlate}
-                    disabled={isPending}
-                    placeholder="AAA1A23"
-                    autoCapitalize="characters"
-                    spellCheck={false}
-                    className={cn(
-                      'font-mono uppercase',
-                      fieldErrors.truckPlate !== undefined && 'border-danger',
+                  <div className="flex flex-col gap-1">
+                    <Combobox
+                      {...a11y}
+                      value={form.truckPlate}
+                      disabled={isPending}
+                      placeholder="AAA1A23"
+                      options={opcoesDePlaca}
+                      isLoading={frota.isFetching}
+                      onValueChange={(valor) => {
+                        patchForm({ truckPlate: valor });
+                        // Editou a placa: a confirmação anterior não descreve
+                        // mais o que está no campo.
+                        setVeiculoDaFrota(null);
+                      }}
+                      onSelect={(opcao) => {
+                        setVeiculoDaFrota(
+                          frota.data?.items.find((veiculo) => veiculo.plate === opcao.value) ??
+                            null,
+                        );
+                      }}
+                    />
+                    {veiculoDaFrota === null ? null : (
+                      <p className="text-2xs text-fg-subtle">
+                        {veiculoDaFrota.model} · {veiculoDaFrota.carrier}
+                      </p>
                     )}
-                    onChange={(event) => {
-                      // A caixa alta aparece enquanto se digita; espaço e hífen
-                      // saem na normalização do schema, no envio.
-                      patchForm({ truckPlate: event.target.value.toUpperCase() });
-                    }}
-                  />
+                  </div>
                 )}
               </FieldShell>
 
