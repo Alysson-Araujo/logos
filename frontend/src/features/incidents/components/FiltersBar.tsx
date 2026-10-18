@@ -112,6 +112,7 @@ export function FiltersBar({
   return (
     <section
       aria-label="Filtros"
+      data-tour="filters"
       className="flex flex-col gap-3 rounded-md border border-border bg-surface p-3 shadow-e1"
     >
       <div className="flex flex-wrap items-center gap-2">

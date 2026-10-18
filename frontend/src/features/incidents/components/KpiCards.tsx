@@ -36,6 +36,7 @@ export function KpiCards({
     <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
       <section
         aria-label="Resumo por status"
+        data-tour="kpis"
         className="grid flex-1 grid-cols-2 gap-3 lg:grid-cols-4"
       >
         {INCIDENT_STATUSES.map((status) => {
@@ -79,7 +80,12 @@ export function KpiCards({
         })}
       </section>
 
-      <Button variant="primary" className="shrink-0 self-start lg:self-center" onClick={onCreate}>
+      <Button
+        variant="primary"
+        data-tour="create"
+        className="shrink-0 self-start lg:self-center"
+        onClick={onCreate}
+      >
         <Plus className="h-4 w-4" aria-hidden="true" />
         Novo incidente
       </Button>

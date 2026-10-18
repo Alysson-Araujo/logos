@@ -1,9 +1,10 @@
-import { LogOut, Radio, Truck } from 'lucide-react';
+import { CircleHelp, LogOut, Radio, Truck } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { formatSessionLabel, initialsFromName } from '@/features/auth/labels';
 import { endSession } from '@/features/auth/session';
 import { useAuthStore } from '@/features/auth/useAuthStore';
+import { startTour } from '@/features/tour/useTour';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 
 import { ThemeToggle } from './ThemeToggle';
@@ -20,6 +21,17 @@ export function Header() {
   return (
     <header className="border-b border-border bg-surface">
       <div className="mx-auto flex w-full max-w-[1600px] items-center gap-4 px-4 py-3">
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Abrir o guia"
+          title="Abrir o guia"
+          onClick={startTour}
+          className="-ml-2 shrink-0 text-fg-muted"
+        >
+          <CircleHelp className="h-4 w-4" aria-hidden="true" />
+        </Button>
+
         <div className="flex items-center gap-2">
           <span
             aria-hidden="true"

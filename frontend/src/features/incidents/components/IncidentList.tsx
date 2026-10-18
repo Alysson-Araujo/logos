@@ -157,7 +157,7 @@ export function IncidentList({
   }
 
   return (
-    <section className="flex flex-col gap-2" aria-label="Incidentes">
+    <section className="flex flex-col gap-2" aria-label="Incidentes" data-tour="list">
       {/* errorRecoverable: o cache antigo continua na tela, com aviso acima. */}
       {error === null ? null : (
         <ErrorState
