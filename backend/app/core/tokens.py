@@ -46,6 +46,9 @@ class TokenClaims:
     jti: str
     role: UserRole
     expires_at: datetime
+    #: Quando o token foi emitido. Comparado com `sessions_valid_from` do
+    #: usuário para encerrar sessões antigas sem guardar os tokens emitidos.
+    issued_at: datetime
 
 
 def hash_password(password: str) -> str:
@@ -87,7 +90,12 @@ def create_access_token(
         "sub": str(user_id),
         "jti": jti,
         "role": role.value,
-        "iat": int(issued_at.timestamp()),
+        # Com FRAÇÃO de segundo, e não inteiro: o instante de emissão é
+        # comparado com o corte de sessões da conta (`sessions_valid_from`).
+        # Truncar para o segundo faria um token emitido às 12:00:00.900 parecer
+        # anterior a um corte de 12:00:00.500 — e a pessoa que acabou de trocar
+        # a senha não conseguiria entrar de novo.
+        "iat": issued_at.timestamp(),
         "exp": int(expires_at.timestamp()),
     }
     token = jwt.encode(payload, settings.auth_secret_key, algorithm=ALGORITHM)
@@ -129,4 +137,5 @@ def decode_access_token(token: str) -> TokenClaims:
         jti=str(payload["jti"]),
         role=role,
         expires_at=datetime.fromtimestamp(int(payload["exp"]), tz=UTC),
+        issued_at=datetime.fromtimestamp(float(payload["iat"]), tz=UTC),
     )

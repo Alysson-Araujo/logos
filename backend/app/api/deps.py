@@ -6,18 +6,20 @@ import re
 from enum import StrEnum
 from typing import Annotated, Final
 
-from fastapi import Depends, Header
+from fastapi import Depends, Header, Request
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.database import get_session
 from app.core.errors import (
     InvalidFilterError,
+    PasswordChangeRequiredError,
     PreconditionFailedError,
     PreconditionRequiredError,
     UnauthenticatedError,
 )
 from app.core.idempotency import is_replay_safe
+from app.core.mailer import Mailer, get_mailer
 from app.core.tokens import TokenClaims, decode_access_token
 from app.domain.identity import Actor
 from app.infra.retry import RetryConfig, RetryPolicy
@@ -27,6 +29,7 @@ from app.repositories.revoked_token_repository import RevokedTokenRepository
 from app.repositories.user_repository import UserRepository
 from app.services.auth_service import AuthService
 from app.services.incident_service import IncidentService
+from app.services.user_service import UserService
 
 #: Aceita `If-Match: "3"` e a forma fraca `W/"3"`.
 IF_MATCH_PATTERN = re.compile(r'^(?:W/)?"(?P<version>[0-9]+)"$')
@@ -141,6 +144,44 @@ def get_auth_service(
 
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
 
+
+def provide_mailer() -> Mailer:
+    """Entrega a porta de e-mail da aplicação.
+
+    Existe como dependência para poder ser trocada nos testes: o spy que conta
+    os convites enviados entra por `app.dependency_overrides` sem que o serviço
+    saiba de nada.
+    """
+    return get_mailer()
+
+
+def get_user_service(
+    users: Annotated[UserRepository, Depends(get_user_repository)],
+    mailer: Annotated[Mailer, Depends(provide_mailer)],
+) -> UserService:
+    """Cria o serviço de administração de contas para a requisição."""
+    return UserService(users, mailer, frontend_url=get_settings().frontend_url)
+
+
+UserServiceDep = Annotated[UserService, Depends(get_user_service)]
+
+#: Rotas que continuam liberadas enquanto a senha em uso é temporária.
+#:
+#: A lista é curta de propósito. Quem entrou com a senha do convite tem uma
+#: credencial que **outra pessoa escolheu** e que viajou por e-mail: liberar o
+#: resto da API faria o convite valer como acesso pleno ao papel.
+#:
+#: `logout` está aqui embora o contrato mencionasse apenas as duas primeiras.
+#: Negar a saída deixaria a sessão viva por até 8 horas, que é o oposto do que a
+#: restrição existe para proteger — e sair não concede poder nenhum.
+PASSWORD_CHANGE_ALLOWED_PATHS: Final[frozenset[str]] = frozenset(
+    {
+        "/api/v1/auth/change-password",
+        "/api/v1/auth/me",
+        "/api/v1/auth/logout",
+    }
+)
+
 BEARER_PREFIX: Final[str] = "bearer "
 
 
@@ -171,6 +212,7 @@ CurrentClaims = Annotated[TokenClaims, Depends(get_current_claims)]
 
 
 def get_current_user(
+    request: Request,
     claims: CurrentClaims,
     users: Annotated[UserRepository, Depends(get_user_repository)],
     revoked: Annotated[RevokedTokenRepository, Depends(get_revoked_token_repository)],
@@ -186,13 +228,46 @@ def get_current_user(
     4. Usuário apagado, ou desativado depois do login, responde **401** e não
        403: a sessão deixou de existir. Um 403 sugeriria "você está logado, mas
        sem permissão", que seria falso.
+    5. Token emitido antes do corte de sessões da conta → não vale mais. É o que
+       faz desativar a conta e trocar a senha encerrarem as sessões abertas.
+    6. Senha temporária de convite → só as rotas de primeiro acesso respondem.
     """
     if revoked.is_revoked(claims.jti):
         raise UnauthenticatedError("Esta sessão foi encerrada. Entre novamente.")
 
     user = users.get_by_id(claims.user_id)
-    if user is None or not user.is_active:
+    if user is None:
         raise UnauthenticatedError("Esta sessão não é mais válida. Entre novamente.")
+
+    # `is_active=False` significa duas coisas diferentes, e separá-las é o ponto:
+    #
+    # - **Conta convidada, ainda não ativada** — a senha temporária está lá, e a
+    #   sessão de primeiro acesso precisa funcionar para a pessoa concluir o
+    #   convite. É o próprio caminho de ativação.
+    # - **Conta desativada por um administrador** — a senha temporária foi
+    #   apagada junto (ver `UserRepository.set_active`), então não há primeiro
+    #   acesso pendente e a sessão morre aqui.
+    if not user.is_active and not user.must_change_password:
+        raise UnauthenticatedError("Esta sessão não é mais válida. Entre novamente.")
+
+    # `iat` é emitido com precisão de microssegundos, então a comparação é exata
+    # e não precisa de folga. Desativar já é barrado acima, independentemente de
+    # relógio; este corte existe para o token não voltar à vida numa reativação.
+    #
+    # O `issued_at` vem com fuso (o JWT é UTC) e a coluna guarda UTC **sem**
+    # fuso, como o resto do projeto. Comparar os dois direto levanta TypeError —
+    # ou seja, derrubaria a requisição com 500 em vez de recusar a sessão.
+    corte = user.sessions_valid_from
+    if corte is not None and claims.issued_at.replace(tzinfo=None) < corte:
+        raise UnauthenticatedError("Esta sessão foi encerrada. Entre novamente.")
+
+    if user.must_change_password and request.url.path not in PASSWORD_CHANGE_ALLOWED_PATHS:
+        raise PasswordChangeRequiredError(
+            details={
+                "allowed": sorted(PASSWORD_CHANGE_ALLOWED_PATHS),
+                "reason": "A senha em uso é temporária.",
+            }
+        )
 
     return user
 

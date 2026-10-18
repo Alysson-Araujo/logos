@@ -40,6 +40,11 @@ class LoginResponse(CamelModel):
     token_type: str = TOKEN_TYPE
     #: Segundos até o vencimento. O cliente calcula o instante absoluto local.
     expires_in: int
+    #: `true` quando a sessão entrou com a senha temporária do convite. Nesse
+    #: estado, só `POST /auth/change-password`, `GET /auth/me` e o logout
+    #: respondem — o restante devolve 403 `PASSWORD_CHANGE_REQUIRED`. A interface
+    #: deve levar a pessoa direto para a tela de definir senha.
+    must_change_password: bool = False
     user: UserRead
 
 

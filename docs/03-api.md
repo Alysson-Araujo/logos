@@ -37,6 +37,10 @@ erro e cabeçalhos HTTP da API v1 do Logos.
 | `DELETE` | `/incidents/{id}`        | Soft delete (`deleted_at`). **Exige `ADMIN`.**               | `204`, `401`, `403`, `404`, `429`, `503`                      |
 | `GET`    | `/incidents/{id}/events` | Timeline de auditoria do incidente.                          | `200`, `401`, `404`, `429`, `503`                             |
 | `GET`    | `/meta/enums`            | Categorias, criticidades e status com rótulos PT-BR e cores. | `200`                                                         |
+| `GET`    | `/users`                 | Lista as contas. **Exige `ADMIN`.**                          | `200`, `401`, `403`, `429`, `503`                             |
+| `POST`   | `/users`                 | Cria a conta inativa e envia o convite. **`ADMIN`.**         | `201`, `401`, `403`, `409`, `422`, `429`, `503`               |
+| `POST`   | `/users/{id}/invite`     | Reenvia o convite. **`ADMIN`.**                              | `204`, `401`, `403`, `404`, `429`, `503`                      |
+| `PATCH`  | `/users/{id}`            | Ativa ou desativa a conta. **`ADMIN`.**                      | `200`, `401`, `403`, `404`, `409`, `422`, `429`, `503`        |
 | `GET`    | `/docs` · `/redoc`       | Swagger UI e ReDoc.                                          | `200`                                                         |
 | `PATCH`  | `/incidents/{id}`        | _planejado_ — editar dados do incidente.                     | —                                                             |
 | `GET`    | `/incidents/stream`      | _planejado_ — SSE com eventos em tempo real.                 | —                                                             |
@@ -472,6 +476,10 @@ o FastAPI não devolve o formato padrão `{"detail": [...]}` nesta API.
 | `RATE_LIMIT_EXCEEDED`         | `429` | Teto de requisições por cliente excedido.                                              | Respeitar `Retry-After` e reduzir a frequência.                                           |
 | `SERVICE_UNAVAILABLE`         | `503` | Banco indisponível ou lento, ou circuit breaker aberto.                                | Manter o cache na tela, avisar instabilidade e repetir após `Retry-After`.                |
 | `CODE_GENERATION_FAILED`      | `503` | Não foi possível gerar um código `INC-AAAA-NNNNNN` único após 5 tentativas.            | Repetir mais tarde; é colisão de sequência, não erro do payload.                          |
+| `EMAIL_ALREADY_EXISTS`        | `409` | Criação de conta com e-mail já cadastrado.                                             | Mostrar o erro no campo de e-mail.                                                        |
+| `USER_NOT_FOUND`              | `404` | Identificador de conta inexistente na administração.                                   | Recarregar a lista de contas.                                                             |
+| `CANNOT_DEACTIVATE_SELF`      | `409` | Um administrador tentou desativar a própria conta.                                     | Explicar que outro administrador precisa fazer isso.                                      |
+| `PASSWORD_CHANGE_REQUIRED`    | `403` | Sessão de primeiro acesso chamando rota comum.                                         | Levar para a tela de definir senha. `details.allowed` lista o que responde.               |
 | `INTERNAL_ERROR`              | `500` | Falha inesperada não classificada.                                                     | Mostrar mensagem neutra com `requestId` para suporte. Deve ser raro por construção.       |
 
 ### 12.1 Por que `409` e não `412` no conflito
@@ -770,3 +778,225 @@ A recusa em produção é deliberada: uma chave de assinatura pública é pior q
 nenhuma, porque qualquer pessoa forja um token válido para qualquer usuário,
 inclusive `ADMIN`. Falhar na subida é melhor que rodar em silêncio com a porta
 aberta.
+
+## 16. Administração de contas
+
+> **Não existe endpoint de cadastro.** Contas abertas numa central de incidentes
+> seriam um risco, não uma funcionalidade: quem entra é convidado por um
+> administrador.
+
+### 16.1 O fluxo, do convite ao acesso pleno
+
+```mermaid
+sequenceDiagram
+    participant A as ADMIN
+    participant API as Logos API
+    participant M as E-mail
+    participant P as Pessoa convidada
+    A->>API: POST /users { email, role }
+    API->>API: cria INATIVA + senha temporária (24 h)
+    API->>M: convite com a senha
+    API-->>A: 201 { id, email, role, inviteExpiresAt }
+    Note over A,API: a senha NÃO volta na resposta
+    P->>API: POST /auth/login (senha temporária)
+    API-->>P: 200 { mustChangePassword: true }
+    P->>API: GET /incidents
+    API-->>P: 403 PASSWORD_CHANGE_REQUIRED
+    P->>API: POST /auth/change-password
+    API->>API: senha definitiva, conta ATIVA, convite concluído
+    API-->>P: 204
+    P->>API: POST /auth/login (senha nova)
+    API-->>P: 200 { mustChangePassword: false }
+```
+
+### 16.2 Rotas
+
+| Método  | Rota                 | Sucesso | Descrição                                  |
+| ------- | -------------------- | ------- | ------------------------------------------ |
+| `GET`   | `/users`             | `200`   | Lista as contas                            |
+| `POST`  | `/users`             | `201`   | Cria a conta inativa e envia o convite     |
+| `POST`  | `/users/{id}/invite` | `204`   | Reenvia: nova senha temporária, novo prazo |
+| `PATCH` | `/users/{id}`        | `200`   | `{ isActive: bool }` ativa ou desativa     |
+
+**Todas exigem `ADMIN`.** Os demais papéis recebem `403 INSUFFICIENT_ROLE` — não
+por conveniência, mas porque é a permissão que **distribui todas as outras**:
+quem administra contas escolhe quem entra e com que papel.
+
+### 16.3 `GET /users`
+
+```jsonc
+[
+  {
+    "id": "9f3c...",
+    "name": "Joana Prado",
+    "email": "joana.prado@autou.com.br",
+    "role": "REPORTER",
+    "isActive": false,
+    "invitePending": true,
+    "lastLoginAt": null,
+    "createdAt": "2026-10-17T22:31:04Z",
+  },
+]
+```
+
+Ordenado das contas mais recentes para as mais antigas. **Nenhum hash de senha
+sai nesta resposta** — nem o definitivo, nem o da temporária.
+
+`invitePending` é derivado: existe senha temporária dentro do prazo e a pessoa
+**ainda não entrou**. O primeiro acesso com a temporária não conta como entrada,
+porque é uma troca de credencial e não uma sessão de trabalho — por isso o
+convite só sai de pendente quando a senha definitiva é definida.
+
+### 16.4 `POST /users`
+
+```jsonc
+// requisição — SEM campo de senha
+{ "email": "joana.prado@autou.com.br", "role": "REPORTER", "name": "Joana Prado" }
+
+// 201
+{
+  "id": "9f3c...",
+  "email": "joana.prado@autou.com.br",
+  "role": "REPORTER",
+  "inviteExpiresAt": "2026-10-18T22:31:04Z"
+}
+```
+
+| Regra           | Comportamento                                                                                 |
+| --------------- | --------------------------------------------------------------------------------------------- |
+| E-mail          | Normalizado (minúsculo, sem espaços) e validado; duplicado devolve `409 EMAIL_ALREADY_EXISTS` |
+| `name`          | Opcional. Sem ele, é derivado do e-mail: `joana.prado@` → `Joana Prado`                       |
+| `role`          | `REPORTER`, `ANALYST` ou `ADMIN`                                                              |
+| Estado inicial  | **Inativa**, com convite pendente                                                             |
+| Senha           | **Gerada pelo servidor** e enviada por e-mail. O administrador não a vê nem a escolhe         |
+| Falha de e-mail | Vira log de erro. A conta continua criada e a resposta continua `201`                         |
+
+**Nunca aceite `password` neste corpo.** Se o campo vier, ele é descartado: quem
+define a senha é quem vai usá-la. O administrador conhecer a credencial de outra
+pessoa seria o oposto de auditoria.
+
+**Sobre a falha de e-mail não derrubar a criação:** transformar um erro de
+serviço externo em falha de cadastro faria o administrador achar que nada foi
+criado — e tentar de novo produziria um conflito de e-mail, deixando a impressão
+de que o sistema travou. O convite já está gravado quando o envio acontece; se
+falhar, existe o botão **Reenviar**.
+
+### 16.5 `POST /users/{id}/invite` → `204`
+
+Reemite o convite com **senha temporária nova** e prazo novo. A anterior deixa de
+valer no mesmo instante: dois convites válidos ao mesmo tempo seriam duas
+credenciais circulando por e-mail. É também o caminho de recuperação do convite
+vencido.
+
+### 16.6 `PATCH /users/{id}`
+
+```jsonc
+{ "isActive": false }   // desativa e encerra as sessões abertas
+{ "isActive": true }    // reativa
+```
+
+| Regra            | Comportamento                                                      |
+| ---------------- | ------------------------------------------------------------------ |
+| Desativar        | Encerra as sessões abertas **e invalida um convite pendente**      |
+| Reativar         | O token emitido antes do afastamento **não volta à vida**          |
+| PATCH sem efeito | Um pedido que não muda o estado não derruba a sessão de quem pediu |
+| A própria conta  | `409 CANNOT_DEACTIVATE_SELF`                                       |
+
+Desativar invalida o convite porque manter uma senha temporária válida numa conta
+afastada deixaria uma porta de entrada aberta exatamente em quem foi removido. E
+um administrador não se desativa porque, sem isso, o último administrador ativo
+poderia se afastar e deixar o sistema sem ninguém capaz de gerenciar contas.
+
+### 16.7 Senha temporária e primeiro acesso
+
+| Aspecto       | Definição                                                             |
+| ------------- | --------------------------------------------------------------------- |
+| Prazo         | **24 horas**                                                          |
+| Uso           | **Único**: concluir o primeiro acesso invalida a temporária           |
+| Armazenamento | **Só o hash** Argon2id, como qualquer senha                           |
+| Comprimento   | 16 caracteres                                                         |
+| Alfabeto      | Sem `0`/`O` e sem `1`/`l`/`I` — a senha é digitada à mão de um e-mail |
+| Geração       | `secrets`, e não `random`: é uma credencial, mesmo temporária         |
+
+`POST /auth/login` passa a devolver **`mustChangePassword`**:
+
+```jsonc
+{
+  "accessToken": "eyJhbGciOi...",
+  "tokenType": "Bearer",
+  "expiresIn": 28800,
+  "mustChangePassword": true,
+  "user": { "id": "9f3c...", "role": "REPORTER", "lastLoginAt": null, ... }
+}
+```
+
+Com `mustChangePassword` verdadeiro, **só estas rotas respondem**:
+
+| Rota                         | Por quê                          |
+| ---------------------------- | -------------------------------- |
+| `POST /auth/change-password` | É o objetivo da sessão           |
+| `GET /auth/me`               | A tela precisa saber quem entrou |
+| `POST /auth/logout`          | Ver a nota abaixo                |
+
+Qualquer outra devolve `403 PASSWORD_CHANGE_REQUIRED`.
+
+> **Por que o logout está na lista.** O contrato original citava apenas as duas
+> primeiras rotas. Negar a saída deixaria a sessão viva por até 8 horas — o
+> oposto do que a restrição existe para proteger — e sair não concede poder
+> nenhum. É uma ampliação deliberada, não um esquecimento.
+
+**Por que este bloqueio é o ponto de segurança mais importante da tarefa:** sem
+ele, quem recebeu um convite tem o papel de `ANALYST` por 24 horas só por ter
+aberto o e-mail. A senha temporária viajou por e-mail e foi escolhida por outra
+pessoa — ela serve para **definir uma senha**, e não para operar a central.
+
+**Convite vencido → `401 INVALID_CREDENTIALS`.** Não existe estado "logado com
+convite vencido": a credencial simplesmente deixa de valer, e a resposta é
+idêntica à de senha errada, para não revelar quais e-mails têm convite. O caminho
+de recuperação é o administrador reenviar.
+
+**A troca de senha no primeiro acesso faz três coisas numa transação só:** grava
+a senha definitiva, apaga a temporária e **ativa a conta**. Uma conta ativa que
+ainda guardasse a temporária seria uma credencial viva que ninguém controla.
+
+### 16.8 Envio do e-mail
+
+| Implementação   | Quando é usada                                                       |
+| --------------- | -------------------------------------------------------------------- |
+| `LoggingMailer` | **Padrão**, quando `SMTP_HOST` está vazio: escreve a mensagem no log |
+| `SmtpMailer`    | Quando `SMTP_HOST` está configurado                                  |
+
+Trocar de um para o outro é **configuração, não reescrita**. É o que permite
+demonstrar o fluxo completo do convite — criar conta, ler a senha temporária no
+log, entrar, trocar a senha — em qualquer máquina, sem credencial de e-mail.
+
+O e-mail de convite segue o desenho `Convite · e-mail`: assunto **"Sua conta no
+Logos foi criada"**, o papel em português, a senha temporária em destaque, o
+prazo, o botão **"Definir minha senha"** apontando para `FRONTEND_URL` e o aviso
+para ignorar a mensagem caso o convite seja inesperado.
+
+### 16.9 Códigos de erro desta seção
+
+| Código                     | HTTP  | Quando                                            |
+| -------------------------- | ----- | ------------------------------------------------- |
+| `EMAIL_ALREADY_EXISTS`     | `409` | Já existe conta com o e-mail                      |
+| `USER_NOT_FOUND`           | `404` | Identificador de conta inexistente                |
+| `CANNOT_DEACTIVATE_SELF`   | `409` | Um administrador tentou desativar a própria conta |
+| `PASSWORD_CHANGE_REQUIRED` | `403` | Sessão de primeiro acesso chamando rota comum     |
+
+### 16.10 Sessões encerradas por corte de tempo
+
+Desativar uma conta e trocar a senha gravam um instante de corte
+(`sessions_valid_from`). Todo token emitido **antes** dele deixa de ser aceito.
+
+Isso resolve dois casos que uma lista de tokens revogados não resolveria sem
+guardar tudo que já foi emitido: desativar encerra as sessões na hora, e reativar
+**não ressuscita** o token que existia antes do afastamento. Trocar a senha
+encerra as outras sessões — inclusive a que fez a troca, e é por isso que a
+interface deve pedir um novo login depois.
+
+> **Detalhe que virou bug:** o `iat` do token era emitido como inteiro (segundos)
+> e o corte é gravado com microssegundos. Um token emitido às `12:00:00.900`
+> parecia anterior a um corte de `12:00:00.500`, e a pessoa que acabou de definir
+> a senha não conseguia entrar. O `iat` passou a ser emitido com fração de
+> segundo.

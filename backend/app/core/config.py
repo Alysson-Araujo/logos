@@ -76,6 +76,20 @@ class Settings(BaseSettings):
     #: turno inteiro sem exigir novo login no meio do expediente.
     auth_token_ttl_seconds: int = 8 * 3600
 
+    # --- Convite e envio de e-mail -----------------------------------------
+    #: URL pública do frontend, usada no link "Definir minha senha" do convite.
+    frontend_url: str = "http://localhost:5173"
+    #: Sem host configurado, o envio vai para o LOG em vez de sair pela rede.
+    #: É o que permite percorrer o fluxo do convite sem credencial de e-mail.
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    #: Vazio de propósito: sem host SMTP, o envio do convite vai para o log.
+    smtp_password: str = ""
+    smtp_from: str = "Logos <nao-responda@logos.local>"
+    #: STARTTLS. Ligado por padrão: desligar só faz sentido em servidor local.
+    smtp_use_tls: bool = True
+
     @model_validator(mode="after")
     def _require_real_secret_in_production(self) -> Settings:
         """Recusa subir em produção com a chave de exemplo.
