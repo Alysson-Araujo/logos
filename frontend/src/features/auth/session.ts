@@ -17,6 +17,11 @@ export function wireAuthSession(): void {
       useAuthStore.getState().signOut('expired');
       queryClient.clear();
     },
+    onPasswordChangeRequired: () => {
+      // Ninguém logado: não há sessão de primeiro acesso para desbloquear.
+      if (useAuthStore.getState().session === null) return;
+      useAuthStore.getState().requirePasswordChange();
+    },
   });
 }
 

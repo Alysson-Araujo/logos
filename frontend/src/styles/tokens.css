@@ -25,6 +25,8 @@
   --color-accent: #1d4ed8;
   --color-accent-fg: #ffffff;
   --color-focus-ring: #1d4ed8;
+  /* Realce de linha recém-alterada (conta criada, por exemplo). */
+  --color-accent-soft: #e3ecfd;
 
   /* Criticidade — valores exatos do plano (9.3) */
   --color-crit-alta: #dc2626;
@@ -103,6 +105,7 @@
   --color-accent: #60a5fa;
   --color-accent-fg: #08111c;
   --color-focus-ring: #93c5fd;
+  --color-accent-soft: #14243d;
 
   --color-crit-alta: #f87171;
   --color-crit-alta-soft: #3a1416;

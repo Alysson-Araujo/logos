@@ -26,12 +26,28 @@ export interface AuthSession {
   expiresIn: number;
   /** Expiração em epoch ms, calculada no login — evita 401 previsível. */
   expiresAt: number;
+  /**
+   * `true` quando a sessão entrou com a senha temporária do convite. Nesse
+   * estado a API só responde `change-password`, `me` e o logout: a interface
+   * troca a triagem pela tela de definir senha.
+   */
+  mustChangePassword: boolean;
   user: AuthUser;
 }
 
 export interface LoginCredentials {
   email: string;
   password: string;
+}
+
+/**
+ * Troca de senha do próprio usuário. No primeiro acesso a `currentPassword` é
+ * a temporária que veio por e-mail — ela só existe em memória, nunca no
+ * `sessionStorage`.
+ */
+export interface ChangePasswordPayload {
+  currentPassword: string;
+  newPassword: string;
 }
 
 /**

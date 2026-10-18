@@ -1,3 +1,4 @@
+import type { AccountSummary } from '@/features/accounts/types';
 import { computePriorityScore } from '@/features/incidents/priority';
 import {
   INCIDENT_CATEGORIES,
@@ -16,6 +17,76 @@ export function createRandom(seed: number): () => number {
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
+}
+
+/**
+ * Instante de `days` dias atrás, na hora cheia indicada.
+ *
+ * Fixar a hora (em vez de "agora menos N horas") evita teste que muda de
+ * resultado conforme a hora em que a suíte roda: "hoje, 09:12" continua "hoje"
+ * às 9 da manhã e às 23h.
+ */
+function atLocalTime(days: number, hour: number, minute: number): string {
+  const date = new Date();
+  date.setDate(date.getDate() - days);
+  date.setHours(hour, minute, 0, 0);
+  return date.toISOString();
+}
+
+function daysAgo(days: number): string {
+  return atLocalTime(days, 8, 0);
+}
+
+/**
+ * As quatro contas usadas nos testes de tela.
+ *
+ * Cobrem as três situações (ativo, convite pendente, desativado) e os três
+ * papéis. `Joana Prado` é a conta do frame `Admin · contas — lista`: convite
+ * pendente e nenhum acesso registrado.
+ */
+export function createAccountFixtures(): AccountSummary[] {
+  return [
+    {
+      id: 'conta-ana',
+      name: 'Ana Paula Ribeiro',
+      email: 'ana@autou.com.br',
+      role: 'ADMIN',
+      isActive: true,
+      invitePending: false,
+      lastLoginAt: atLocalTime(0, 9, 12),
+      createdAt: daysAgo(90),
+    },
+    {
+      id: 'conta-joana',
+      name: 'Joana Prado',
+      email: 'joana.prado@autou.com.br',
+      role: 'REPORTER',
+      isActive: false,
+      invitePending: true,
+      lastLoginAt: null,
+      createdAt: daysAgo(1),
+    },
+    {
+      id: 'conta-bruno',
+      name: 'Bruno Tavares',
+      email: 'bruno.tavares@autou.com.br',
+      role: 'ANALYST',
+      isActive: true,
+      invitePending: false,
+      lastLoginAt: atLocalTime(1, 17, 40),
+      createdAt: daysAgo(20),
+    },
+    {
+      id: 'conta-carla',
+      name: 'Carla Mendes',
+      email: 'carla.mendes@autou.com.br',
+      role: 'ANALYST',
+      isActive: false,
+      invitePending: false,
+      lastLoginAt: atLocalTime(12, 8, 0),
+      createdAt: daysAgo(45),
+    },
+  ];
 }
 
 function pick<TOption>(random: () => number, options: readonly TOption[]): TOption {

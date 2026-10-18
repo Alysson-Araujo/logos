@@ -727,16 +727,34 @@ não é seu"_ revelaria a existência de um registro que a pessoa não pode ver.
 
 Criadas pelo seed quando a base está vazia:
 
-| Conta                 | Senha              | Papel      |
-| --------------------- | ------------------ | ---------- |
-| `ana@autou.com.br`    | `ana.logos2026`    | `ANALYST`  |
-| `carlos@autou.com.br` | `carlos.logos2026` | `ANALYST`  |
-| `marina@autou.com.br` | `marina.logos2026` | `REPORTER` |
-| `admin@autou.com.br`  | `admin.logos2026`  | `ADMIN`    |
+| Conta                         | Senha                | Papel      |
+| ----------------------------- | -------------------- | ---------- |
+| `ana@autou.com.br`            | `ana.logos2026`      | `ANALYST`  |
+| `carlos@autou.com.br`         | `carlos.logos2026`   | `ANALYST`  |
+| `alyssonaraujowork@gmail.com` | `alysson.logos2026`  | `ANALYST`  |
+| `renata.lima@example.org`     | `renata.logos2026`   | `ANALYST`  |
+| `admin@autou.com.br`          | `admin.logos2026`    | `ADMIN`    |
+| `carlos.menezes@example.com`  | `carlos.logos2026`   | `ADMIN`    |
+| `marina@autou.com.br`         | `marina.logos2026`   | `REPORTER` |
+| `joana.prado@example.net`     | `joana.logos2026`    | `REPORTER` |
+| `marcos.tavares@example.org`  | — convite pendente — | `REPORTER` |
 
-Todas as senhas têm 13 caracteres, dentro da política mínima de 12 — uma
-credencial de demonstração que a própria aplicação recusaria seria um detalhe
-ruim de se ver em uma demonstração.
+Todas as senhas seguem o padrão `<primeiro>.logos2026` e ficam **acima do mínimo
+de 12 caracteres** da política — uma credencial de demonstração que a própria
+aplicação recusaria seria um detalhe ruim de se ver em uma demonstração.
+
+Os domínios `example.com`, `example.org` e `example.net` são reservados pela RFC
+2606: não pertencem a ninguém. Como o convite sai por SMTP de verdade (§16), uma
+conta de demonstração num domínio de gente real colocaria uma credencial na caixa
+de entrada de um estranho no primeiro "Reenviar" clicado. As demais ficam em
+`autou.com.br`, o domínio do **próprio produto** — é o que o README e o edital
+documentam desde a primeira entrega. A única exceção deliberada é a conta pessoal
+de quem apresenta.
+
+`marcos.tavares` nasce com **convite pendente** — inativo, com senha temporária
+dentro do prazo e sem senha definitiva —, que é o estado com que a tela de
+administração de contas abre. **O seed não envia e-mail nenhum**: quem envia é o
+fluxo de administração.
 
 **Não existe endpoint de cadastro.** Contas abertas numa central de incidentes
 seriam um risco, não uma funcionalidade: usuários são criados pelo seed ou por
@@ -828,8 +846,8 @@ quem administra contas escolhe quem entra e com que papel.
 [
   {
     "id": "9f3c...",
-    "name": "Joana Prado",
-    "email": "joana.prado@autou.com.br",
+    "name": "Paula Mendes",
+    "email": "paula.mendes@example.com",
     "role": "REPORTER",
     "isActive": false,
     "invitePending": true,
@@ -851,12 +869,12 @@ convite só sai de pendente quando a senha definitiva é definida.
 
 ```jsonc
 // requisição — SEM campo de senha
-{ "email": "joana.prado@autou.com.br", "role": "REPORTER", "name": "Joana Prado" }
+{ "email": "paula.mendes@example.com", "role": "REPORTER", "name": "Paula Mendes" }
 
 // 201
 {
   "id": "9f3c...",
-  "email": "joana.prado@autou.com.br",
+  "email": "paula.mendes@example.com",
   "role": "REPORTER",
   "inviteExpiresAt": "2026-10-18T22:31:04Z"
 }
@@ -865,7 +883,7 @@ convite só sai de pendente quando a senha definitiva é definida.
 | Regra           | Comportamento                                                                                 |
 | --------------- | --------------------------------------------------------------------------------------------- |
 | E-mail          | Normalizado (minúsculo, sem espaços) e validado; duplicado devolve `409 EMAIL_ALREADY_EXISTS` |
-| `name`          | Opcional. Sem ele, é derivado do e-mail: `joana.prado@` → `Joana Prado`                       |
+| `name`          | Opcional. Sem ele, é derivado do e-mail: `paula.mendes@` → `Paula Mendes`                     |
 | `role`          | `REPORTER`, `ANALYST` ou `ADMIN`                                                              |
 | Estado inicial  | **Inativa**, com convite pendente                                                             |
 | Senha           | **Gerada pelo servidor** e enviada por e-mail. O administrador não a vê nem a escolhe         |

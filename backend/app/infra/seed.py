@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import random
+import secrets
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import StrEnum
@@ -16,10 +17,12 @@ from app.core.config import get_settings
 from app.core.database import create_session
 from app.core.logging import configure_logging
 from app.core.tokens import hash_password
+from app.domain.accounts import INVITE_TTL_HOURS, generate_temp_password
 from app.domain.enums import IncidentCategory, IncidentCriticality, IncidentStatus, UserRole
 from app.domain.priority import compute_priority_score, compute_sla_due_at
 from app.models.base import utcnow
 from app.models.incident import INITIAL_VERSION, Incident
+from app.models.user import User
 from app.repositories.incident_repository import IncidentRepository, build_code
 from app.repositories.user_repository import UserRepository
 
@@ -52,17 +55,44 @@ CATEGORY_QUOTA: Final[tuple[IncidentCategory, ...]] = (
     IncidentCategory.BLOQUEIO_DE_PISTA,
 )
 
-#: Contas de demonstração: (e-mail, nome, papel, senha).
+#: Contas de demonstração **ativas**: (e-mail, nome, papel, senha).
 #:
 #: Existem para que a aplicação publicada tenha como ser usada sem cadastro —
 #: não há endpoint de registro, e cadastro aberto numa central de incidentes
 #: seria um risco, não uma funcionalidade.
+#:
+#: Os domínios são os reservados pela RFC 2606 (`example.com`, `example.org` e
+#: `example.net`) de propósito: o convite sai por SMTP de verdade (#129), e uma
+#: conta de demonstração num domínio de gente real colocaria uma credencial na
+#: caixa de entrada de um estranho no primeiro "Reenviar" clicado. As contas em
+#: `autou.com.br` não são exceção a isso: é o domínio do **próprio produto**, o
+#: das contas que o README e o edital documentam desde a primeira entrega. A única
+#: exceção de verdade é a conta pessoal de quem apresenta.
 DEMO_USERS: Final[tuple[tuple[str, str, UserRole, str], ...]] = (
     ("ana@autou.com.br", "Ana Paula Ribeiro", UserRole.ANALYST, "ana.logos2026"),
     ("carlos@autou.com.br", "Carlos Eduardo Lima", UserRole.ANALYST, "carlos.logos2026"),
     ("marina@autou.com.br", "Marina Souza", UserRole.REPORTER, "marina.logos2026"),
     ("admin@autou.com.br", "Administrador Logos", UserRole.ADMIN, "admin.logos2026"),
+    ("alyssonaraujowork@gmail.com", "Alysson Araújo", UserRole.ANALYST, "alysson.logos2026"),
+    ("carlos.menezes@example.com", "Carlos Menezes", UserRole.ADMIN, "carlos.logos2026"),
+    ("renata.lima@example.org", "Renata Lima", UserRole.ANALYST, "renata.logos2026"),
+    ("joana.prado@example.net", "Joana Prado", UserRole.REPORTER, "joana.logos2026"),
 )
+
+#: Conta de demonstração que nasce com **convite pendente**: (e-mail, nome, papel).
+#:
+#: Está aqui para a tela de contas já abrir com o estado "Convite pendente" e a
+#: ação "Reenviar" — sem ninguém precisar criar a conta na hora da apresentação.
+#: Nasce inativa e sem senha definitiva, como qualquer conta criada por convite.
+#: O seed **não** envia e-mail nenhum: quem envia é o fluxo de administração.
+INVITED_DEMO_USER: Final[tuple[str, str, UserRole]] = (
+    "marcos.tavares@example.org",
+    "Marcos Tavares",
+    UserRole.REPORTER,
+)
+
+#: Quantas contas o seed cria: as ativas mais a do convite pendente.
+DEMO_USER_COUNT: Final[int] = len(DEMO_USERS) + 1
 
 
 @dataclass(frozen=True, slots=True)
@@ -268,25 +298,51 @@ def seed_incidents(session: Session, *, count: int = SEED_COUNT) -> int:
 
 
 def seed_users(session: Session) -> int:
-    """Cria os usuários de demonstração apenas em base vazia (idempotente).
+    """Cria as contas de demonstração apenas em base vazia (idempotente).
 
-    As senhas seguem o MESMO padrao para todas as contas: `<primeiro>.logos2026`,
-    com 13 caracteres, dentro da politica minima de 12. Uma credencial de
-    demonstracao que a propria aplicacao recusaria na troca de senha seria um
-    detalhe ruim de se ver no video.
+    As senhas seguem o MESMO padrão para todas as contas ativas:
+    `<primeiro>.logos2026`, todas acima do mínimo de 12 caracteres da política.
+    Uma credencial de demonstração que a própria aplicação recusaria na troca de
+    senha seria um detalhe ruim de se ver no vídeo.
+
+    A conta do convite pendente entra por último porque precisa de um
+    administrador já criado como autor do convite (`invited_by_id` é chave
+    estrangeira para `users`, e a lista de contas mostra quem convidou).
     """
     repository = UserRepository(session)
     if repository.count() > 0:
         return 0
 
-    for email, nome, papel, senha in DEMO_USERS:
+    criados: list[User] = [
         repository.create(
             email=email,
             password_hash=hash_password(senha),
             name=nome,
             role=papel,
         )
-    return len(DEMO_USERS)
+        for email, nome, papel, senha in DEMO_USERS
+    ]
+
+    # Sem administrador não há quem assine o convite: `DEMO_USERS` precisa de um
+    # `ADMIN`, e falhar aqui é melhor do que gravar autoria errada. Havendo mais
+    # de um, assina o primeiro da lista (`admin@autou.com.br`).
+    admin = next(user for user in criados if user.role is UserRole.ADMIN)
+
+    email, nome, papel = INVITED_DEMO_USER
+    repository.create(
+        email=email,
+        # A conta ainda não tem senha definitiva. Gravar o hash de um valor
+        # aleatório descartado garante que NENHUMA senha digitada confira —
+        # mesmo critério de `UserService.create_user`.
+        password_hash=hash_password(secrets.token_urlsafe(32)),
+        name=nome,
+        role=papel,
+        is_active=False,
+        temp_password_hash=hash_password(generate_temp_password()),
+        invite_expires_at=utcnow() + timedelta(hours=INVITE_TTL_HOURS),
+        invited_by_id=admin.id,
+    )
+    return DEMO_USER_COUNT
 
 
 def main() -> None:

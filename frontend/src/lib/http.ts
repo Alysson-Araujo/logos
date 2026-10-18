@@ -100,6 +100,13 @@ export function isRetryableApiError(error: unknown): boolean {
 /* ------------------------------------------------------------------ */
 
 /**
+ * Código de negócio do primeiro acesso: a sessão existe, mas só pode trocar a
+ * senha. Fica aqui porque é do protocolo de autenticação — como o 401 —, e não
+ * de uma tela.
+ */
+export const PASSWORD_CHANGE_REQUIRED_CODE = 'PASSWORD_CHANGE_REQUIRED';
+
+/**
  * Ponte com a sessão autenticada.
  *
  * O cliente HTTP não conhece o store: quem liga os dois é `wireAuthSession()`
@@ -111,6 +118,12 @@ export interface AuthBridge {
   getToken: () => string | null;
   /** Chamado a cada 401 de requisição autenticada. */
   onUnauthorized: (error: ApiError) => void;
+  /**
+   * Chamado quando a API recusa uma rota comum porque a sessão ainda usa a
+   * senha temporária do convite (`403 PASSWORD_CHANGE_REQUIRED`). É o par do
+   * 401: um diz "entre de novo", este diz "defina a senha".
+   */
+  onPasswordChangeRequired?: (error: ApiError) => void;
 }
 
 let authBridge: AuthBridge | null = null;
@@ -482,6 +495,12 @@ export class HttpClient {
           options.ignoreUnauthorized !== true
         ) {
           authBridge?.onUnauthorized(error);
+        }
+        // 403 de senha temporária não é falta de permissão: é a sessão do
+        // primeiro acesso, e a interface troca a tela em vez de mostrar erro —
+        // qualquer rota comum pode ser a que revelou o estado.
+        if (error.code === PASSWORD_CHANGE_REQUIRED_CODE && options.skipAuth !== true) {
+          authBridge?.onPasswordChangeRequired?.(error);
         }
         throw error;
       }

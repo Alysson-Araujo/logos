@@ -4,7 +4,7 @@ import { cleanup } from '@testing-library/react';
 import { setupServer } from 'msw/node';
 import { afterAll, afterEach, beforeAll } from 'vitest';
 
-import { handlers, resetMockDatabase } from './msw/handlers';
+import { handlers, resetMockAccounts, resetMockDatabase } from './msw/handlers';
 
 /** API simulada no ambiente de teste (mesmos handlers do modo de desenvolvimento). */
 export const server = setupServer(...handlers);
@@ -123,6 +123,9 @@ afterEach(() => {
   cleanup();
   server.resetHandlers();
   resetMockDatabase();
+  // O "banco" de contas também é estado de módulo: convite criado num teste
+  // não pode aparecer no seguinte.
+  resetMockAccounts();
 
   // Alguns testes rodam no ambiente `node` (sem DOM) — daí a checagem.
   const browserWindow = globalThis.window as Window | undefined;

@@ -203,6 +203,12 @@ pnpm test:run
 
 ## 10. Mock (MSW)
 
+Se o backend estiver fora do ar, o login simulado aceita as **mesmas contas de
+demonstração do seed** — as do domínio do produto (`autou.com.br`) e as dos
+domínios reservados —, com o papel de cada uma, além da conta de convite pendente
+(que entra pela senha temporária e exige a troca). A tabela completa está no
+README da raiz.
+
 `src/test/factories.ts` gera **120 incidentes realistas em pt-BR** (BR-116, BR-101,
 SP-330, BR-376, placas Mercosul, nomes brasileiros, SLA coerente com a criticidade)
 com semente determinística. `src/test/msw/handlers.ts` implementa o contrato
