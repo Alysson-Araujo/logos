@@ -2,7 +2,7 @@ import { parseContract } from '@/features/incidents/schemas';
 import { httpClient } from '@/lib/http';
 
 import { loginResponseSchema, toAuthUser } from './schemas';
-import type { AuthSession, LoginCredentials } from './types';
+import type { AuthSession, ChangePasswordPayload, LoginCredentials } from './types';
 
 /**
  * Margem só do login. A API no plano gratuito hiberna depois de ~15 minutos
@@ -36,8 +36,34 @@ export async function login(
     tokenType: response.tokenType,
     expiresIn: response.expiresIn,
     expiresAt: Date.now() + response.expiresIn * 1000,
+    mustChangePassword: response.mustChangePassword,
     user: toAuthUser(response.user),
   };
+}
+
+/**
+ * Troca a senha do próprio usuário (`POST /auth/change-password` → 204).
+ *
+ * O mesmo endpoint serve aos dois fluxos: a troca voluntária pelo diálogo do
+ * menu (#126), em que `currentPassword` é a senha vigente digitada, e o
+ * primeiro acesso do convite (#128), em que é a temporária que veio por e-mail
+ * e só existe em memória. A API confere a senha atual, conclui o convite e
+ * mantém a sessão válida. A senha viaja no corpo, nunca na URL.
+ *
+ * Diferente do logout, a falha **importa**: a pessoa precisa saber que a senha
+ * não mudou, então o erro sobe tipado.
+ */
+export async function changePassword(
+  payload: ChangePasswordPayload,
+  signal?: AbortSignal,
+): Promise<void> {
+  await httpClient.post('/auth/change-password', payload, {
+    timeoutMs: CHANGE_PASSWORD_TIMEOUT_MS,
+    // 401 aqui é "senha atual errada", não sessão perdida: sem esta dispensa,
+    // um erro de digitação expulsaria a pessoa para a tela de login.
+    ignoreUnauthorized: true,
+    signal,
+  });
 }
 
 /**
@@ -56,23 +82,4 @@ export async function revokeSessionToken(): Promise<void> {
   } catch {
     // Best effort deliberado: ver comentário acima.
   }
-}
-
-/** Corpo de `POST /auth/change-password` — camelCase, como o `CamelModel` da API. */
-export interface ChangePasswordPayload {
-  currentPassword: string;
-  newPassword: string;
-}
-
-/**
- * Troca a senha do próprio usuário. Diferente do logout, a falha **importa**:
- * a pessoa precisa saber que a senha não mudou, então o erro sobe tipado.
- */
-export async function changePassword(payload: ChangePasswordPayload): Promise<void> {
-  await httpClient.post('/auth/change-password', payload, {
-    timeoutMs: CHANGE_PASSWORD_TIMEOUT_MS,
-    // 401 aqui é "senha atual errada", não sessão perdida: sem esta dispensa,
-    // um erro de digitação expulsaria a pessoa para a tela de login.
-    ignoreUnauthorized: true,
-  });
 }

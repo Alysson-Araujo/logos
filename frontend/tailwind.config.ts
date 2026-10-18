@@ -30,6 +30,7 @@ const config: Config = {
         accent: {
           DEFAULT: 'var(--color-accent)',
           fg: 'var(--color-accent-fg)',
+          soft: 'var(--color-accent-soft)',
         },
         overlay: 'var(--color-overlay)',
         danger: {

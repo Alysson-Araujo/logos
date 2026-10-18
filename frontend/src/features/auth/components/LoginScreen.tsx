@@ -5,7 +5,7 @@ import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
-import { DEMO_CREDENTIALS } from '../demo';
+import { DEMO_ADMIN_CREDENTIALS, DEMO_CREDENTIALS } from '../demo';
 import { useLogin } from '../hooks/useLogin';
 import { describeLoginError } from '../labels';
 import { loginFormSchema } from '../schemas';
@@ -168,6 +168,12 @@ export function LoginScreen() {
             </p>
             <p className="whitespace-pre font-mono text-2xs text-fg">
               {`${DEMO_CREDENTIALS.email}  ·  ${DEMO_CREDENTIALS.password}`}
+            </p>
+            <p className="whitespace-pre font-mono text-2xs text-fg">
+              {`${DEMO_ADMIN_CREDENTIALS.email}  ·  ${DEMO_ADMIN_CREDENTIALS.password}`}
+            </p>
+            <p className="text-2xs text-fg-muted">
+              A conta ADMIN abre &quot;Contas de acesso&quot; no menu do usuário.
             </p>
           </div>
         </form>

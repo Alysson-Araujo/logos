@@ -1,6 +1,6 @@
-import { HttpResponse, delay as delayResponse, http } from 'msw';
+import { HttpResponse, http } from 'msw';
 
-import { DEMO_CREDENTIALS, DEMO_USER_NAME } from '@/features/auth/demo';
+import { PASSWORD_MIN_LENGTH } from '@/features/auth/schemas';
 import {
   CATEGORY_LABELS,
   CRITICALITY_LABELS,
@@ -27,6 +27,15 @@ import {
 } from '@/features/incidents/types';
 
 import { MOCK_INCIDENT_COUNT, createIncidentFixtures } from '../factories';
+import { apiError, apiPath, simulateLatency } from './http';
+import {
+  accountHandlers,
+  authenticateMockAccount,
+  checkMockPassword,
+  completeMockPasswordChange,
+  findMockAccountByPassword,
+  readLastAuthenticatedEmail,
+} from './users';
 
 /**
  * API simulada (MSW) usada quando o backend não está no ar.
@@ -35,54 +44,14 @@ import { MOCK_INCIDENT_COUNT, createIncidentFixtures } from '../factories';
  */
 
 const STORAGE_KEY = 'logos.mock.incidents.v1';
-const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api/v1').replace(
-  /\/+$/,
-  '',
-);
-
-const MOCK_LATENCY_MIN_MS = 90;
-const MOCK_LATENCY_JITTER_MS = 170;
 
 let database: Incident[] | null = null;
-let requestCounter = 0;
 
-function apiPath(path: string): string {
-  return `${API_BASE}${path}`;
-}
+/** Contas de acesso: handlers e "banco" ficam em `./users`. */
+export { resetMockAccounts } from './users';
 
 function pad(value: number, size: number): string {
   return String(value).padStart(size, '0');
-}
-
-function createRequestId(): string {
-  requestCounter += 1;
-  return `mock-${Date.now().toString(36)}-${String(requestCounter)}`;
-}
-
-function apiError(
-  status: number,
-  code: string,
-  message: string,
-  details: unknown = null,
-  headers: Record<string, string> = {},
-) {
-  return HttpResponse.json(
-    {
-      error: {
-        code,
-        message,
-        details,
-        requestId: createRequestId(),
-        timestamp: new Date().toISOString(),
-      },
-    },
-    { status, headers },
-  );
-}
-
-async function simulateLatency(): Promise<void> {
-  if (import.meta.env.MODE === 'test') return;
-  await delayResponse(MOCK_LATENCY_MIN_MS + Math.random() * MOCK_LATENCY_JITTER_MS);
 }
 
 /* ------------------------------------------------------------------ */
@@ -240,7 +209,10 @@ function readParam(value: string | readonly string[] | undefined): string | null
 /** Mesma validade do contrato real (8 h) — aqui só para o token ter prazo. */
 const MOCK_TOKEN_TTL_SECONDS = 8 * 60 * 60;
 
-function readBodyField(body: unknown, key: string): string | null {
+function readLoginField(
+  body: unknown,
+  key: 'email' | 'password' | 'currentPassword' | 'newPassword',
+): string | null {
   if (typeof body !== 'object' || body === null) return null;
   const value = (body as Record<string, unknown>)[key];
   return typeof value === 'string' ? value : null;
@@ -248,17 +220,22 @@ function readBodyField(body: unknown, key: string): string | null {
 
 export const handlers = [
   /**
-   * Autenticação simulada. As credenciais são exatamente as que a tela de
-   * login exibe — uma fonte só para a demonstração, e o mesmo texto do README.
+   * Autenticação simulada.
+   *
+   * Aceita a senha da conta (as mesmas do seed da API) e a temporária do
+   * convite. A segunda entra em primeiro acesso: a resposta vem com
+   * `mustChangePassword: true` e a interface troca a triagem pela tela de
+   * definir senha.
    */
   http.post(apiPath('/auth/login'), async ({ request }) => {
     await simulateLatency();
 
     const body: unknown = await request.json().catch(() => null);
-    const email = readBodyField(body, 'email')?.trim().toLowerCase() ?? '';
-    const password = readBodyField(body, 'password') ?? '';
+    const email = readLoginField(body, 'email')?.trim().toLowerCase() ?? '';
+    const password = readLoginField(body, 'password') ?? '';
 
-    if (email !== DEMO_CREDENTIALS.email || password !== DEMO_CREDENTIALS.password) {
+    const authenticated = authenticateMockAccount(email, password);
+    if (authenticated === null) {
       return apiError(401, 'INVALID_CREDENTIALS', 'Credenciais inválidas.', null, {
         'WWW-Authenticate': 'Bearer',
       });
@@ -268,41 +245,53 @@ export const handlers = [
       accessToken: `mock-token-${String(Date.now())}`,
       tokenType: 'Bearer',
       expiresIn: MOCK_TOKEN_TTL_SECONDS,
+      mustChangePassword: authenticated.mustChangePassword,
       user: {
-        id: 'mock-user-ana',
-        email: DEMO_CREDENTIALS.email,
-        name: DEMO_USER_NAME,
-        role: 'ANALYST',
-        lastLoginAt: null,
+        id: authenticated.account.id,
+        email: authenticated.account.email,
+        name: authenticated.account.name,
+        role: authenticated.role,
+        // O último acesso mostrado é o ANTERIOR, como no backend.
+        lastLoginAt: authenticated.previousLoginAt,
       },
     });
   }),
 
-  http.post(apiPath('/auth/logout'), () => new HttpResponse(null, { status: 204 })),
-
   /**
-   * Troca de senha: confere a senha atual e recusa nova fora da política —
-   * mesmo mínimo de 12 que `app/domain/accounts.py` aplica de verdade.
+   * Troca de senha: 204, conclui o convite e aplica a política mínima.
+   *
+   * A senha atual é conferida, como na API — é ela que separa a troca
+   * voluntária do menu (#126) do primeiro acesso do convite (#128): nas duas o
+   * corpo traz `currentPassword` (a vigente, ou a temporária do convite). O
+   * token do mock não carrega identidade, então a conta é a da última
+   * autenticação ou, quando o teste montou a sessão direto no store sem passar
+   * pelo login, a dona da senha informada.
    */
   http.post(apiPath('/auth/change-password'), async ({ request }) => {
     await simulateLatency();
-
     const body: unknown = await request.json().catch(() => null);
-    const currentPassword = readBodyField(body, 'currentPassword') ?? '';
-    const newPassword = readBodyField(body, 'newPassword') ?? '';
+    const currentPassword = readLoginField(body, 'currentPassword') ?? '';
+    const newPassword = readLoginField(body, 'newPassword') ?? '';
 
-    if (currentPassword !== DEMO_CREDENTIALS.password) {
+    const email = readLastAuthenticatedEmail() ?? findMockAccountByPassword(currentPassword);
+    if (email === null || !checkMockPassword(email, currentPassword)) {
       return apiError(401, 'INVALID_CREDENTIALS', 'A senha atual está incorreta.', null, {
         'WWW-Authenticate': 'Bearer',
       });
     }
 
-    if (newPassword.length < 12) {
-      return apiError(422, 'VALIDATION_ERROR', 'A senha deve ter ao menos 12 caracteres.');
+    if (newPassword.length < PASSWORD_MIN_LENGTH) {
+      return apiError(422, 'WEAK_PASSWORD', 'A senha não atende à política mínima.', {
+        minLength: PASSWORD_MIN_LENGTH,
+        received: newPassword.length,
+      });
     }
 
+    completeMockPasswordChange(email, newPassword);
     return new HttpResponse(null, { status: 204 });
   }),
+
+  http.post(apiPath('/auth/logout'), () => new HttpResponse(null, { status: 204 })),
 
   http.get(apiPath('/health/live'), () => HttpResponse.json({ status: 'ok' })),
 
@@ -482,4 +471,7 @@ export const handlers = [
     persistIncidents(incidents.filter((candidate) => candidate.id !== id));
     return new HttpResponse(null, { status: 204 });
   }),
+
+  // Administração de contas (`GET/POST/PATCH /users`).
+  ...accountHandlers,
 ];

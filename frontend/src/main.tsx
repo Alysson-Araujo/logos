@@ -1,7 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
-import { App } from './app/App';
+import { RootScreen } from './app/RootScreen';
 import { AppProviders } from './app/providers';
 import { AuthGate } from './features/auth/AuthGate';
 import { wireAuthSession } from './features/auth/session';
@@ -41,7 +41,7 @@ void enableMocking()
       <StrictMode>
         <AppProviders>
           <AuthGate>
-            <App />
+            <RootScreen />
           </AuthGate>
         </AppProviders>
       </StrictMode>,

@@ -17,6 +17,8 @@ export interface ErrorStateProps {
   failureCount?: number;
   /** `true` quando renderizado como faixa acima do cache antigo. */
   compact?: boolean;
+  /** Título do bloco; o padrão é o da triagem de incidentes. */
+  title?: string;
 }
 
 function describeError(error: unknown): string {
@@ -36,6 +38,7 @@ export function ErrorState({
   isRetrying = false,
   failureCount = 0,
   compact = false,
+  title,
 }: ErrorStateProps) {
   const pushToast = useToast();
   const [isCopying, setIsCopying] = useState(false);
@@ -76,7 +79,7 @@ export function ErrorState({
         <p className="text-sm font-semibold text-danger-text">
           {variant === 'fatal'
             ? 'A API respondeu algo fora do contrato'
-            : 'Não foi possível carregar os incidentes'}
+            : (title ?? 'Não foi possível carregar os incidentes')}
         </p>
         <p className="text-xs text-danger-text">{message}</p>
         {variant === 'recoverable' && failureCount > 0 ? (

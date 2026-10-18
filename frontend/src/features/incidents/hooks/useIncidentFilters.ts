@@ -1,5 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 
+import {
+  readLocationSearch,
+  useLocationSearch,
+  writeLocationSearch,
+  type HistoryMode,
+} from '@/lib/location';
 import { toggleInArray } from '@/lib/utils';
 
 import {
@@ -15,10 +21,10 @@ import {
   type IncidentStatus,
 } from '../types';
 
-export type HistoryMode = 'push' | 'replace';
+export type { HistoryMode };
+export { LOCATION_CHANGE_EVENT, useLocationSearch } from '@/lib/location';
 
 export const FILTER_CSV_SEPARATOR = ',';
-const LOCATION_CHANGE_EVENT = 'logos:locationchange';
 
 /* ------------------------------------------------------------------ */
 /* Serialização (funções puras — cobertas por teste)                   */
@@ -82,43 +88,6 @@ export function isSortActive(filters: IncidentFilters): boolean {
 /* ------------------------------------------------------------------ */
 /* Estado na URL                                                       */
 /* ------------------------------------------------------------------ */
-
-function readLocationSearch(): string {
-  return window.location.search;
-}
-
-function notifyLocationChange(): void {
-  window.dispatchEvent(new Event(LOCATION_CHANGE_EVENT));
-}
-
-function writeLocationSearch(search: string, mode: HistoryMode): void {
-  const url = `${window.location.pathname}${search}${window.location.hash}`;
-  if (mode === 'push') {
-    window.history.pushState(null, '', url);
-  } else {
-    window.history.replaceState(null, '', url);
-  }
-  notifyLocationChange();
-}
-
-/** Observa a query string (inclusive o botão voltar do navegador). */
-export function useLocationSearch(): string {
-  const [search, setSearch] = useState<string>(() => readLocationSearch());
-
-  useEffect(() => {
-    const syncSearch = (): void => {
-      setSearch(readLocationSearch());
-    };
-    window.addEventListener('popstate', syncSearch);
-    window.addEventListener(LOCATION_CHANGE_EVENT, syncSearch);
-    return () => {
-      window.removeEventListener('popstate', syncSearch);
-      window.removeEventListener(LOCATION_CHANGE_EVENT, syncSearch);
-    };
-  }, []);
-
-  return search;
-}
 
 export interface UseIncidentFiltersResult {
   filters: IncidentFilters;

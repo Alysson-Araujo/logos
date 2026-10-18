@@ -14,5 +14,15 @@ export const DEMO_CREDENTIALS = {
   password: 'ana.logos2026',
 } as const;
 
+/**
+ * A conta `ADMIN` do seed. É ela que abre a administração de contas no menu do
+ * usuário — sem uma credencial de administrador, a tela nova ficaria
+ * inalcançável na demonstração.
+ */
+export const DEMO_ADMIN_CREDENTIALS = {
+  email: 'admin@autou.com.br',
+  password: 'admin.logos2026',
+} as const;
+
 /** Nome exibido no header quando a API simulada responde ao login. */
 export const DEMO_USER_NAME = 'Ana Paula Ribeiro';

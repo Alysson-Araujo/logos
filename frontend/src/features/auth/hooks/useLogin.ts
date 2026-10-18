@@ -16,8 +16,10 @@ export function useLogin() {
 
   return useMutation<AuthSession, ApiError, LoginCredentials>({
     mutationFn: (credentials) => login(credentials),
-    onSuccess: (session) => {
-      signIn(session);
+    onSuccess: (session, credentials) => {
+      // No primeiro acesso a senha digitada é a temporária: ela fica só em
+      // memória, porque a troca obrigatória precisa dela como senha atual.
+      signIn(session, session.mustChangePassword ? credentials.password : undefined);
     },
   });
 }

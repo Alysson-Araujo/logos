@@ -1,6 +1,7 @@
-import { ChevronDown, Lock, LogOut } from 'lucide-react';
+import { ChevronDown, Lock, LogOut, Users } from 'lucide-react';
 import { useState } from 'react';
 
+import { useAppView } from '@/app/useAppView';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,12 +23,19 @@ import { useAuthStore } from '@/features/auth/useAuthStore';
  * navegação por setas. O menu mostra nome **e** e-mail porque quem opera a
  * central costuma ter mais de uma conta aberta na mesma máquina — e o papel
  * continua visível no gatilho, que é o que a triagem precisa saber de relance.
+ *
+ * "Contas de acesso" (administração de contas, #128) aparece só para
+ * `role === 'ADMIN'`: é o único ponto de entrada de `?view=contas`, e para os
+ * demais papéis a API responderia `403` de qualquer forma.
  */
 export function UserMenu() {
   const user = useAuthStore((state) => state.session?.user ?? null);
+  const { openAccounts } = useAppView();
   const [isChangingPassword, setChangingPassword] = useState(false);
 
   if (user === null) return null;
+
+  const isAdmin = user.role === 'ADMIN';
 
   return (
     <>
@@ -55,6 +63,16 @@ export function UserMenu() {
             <p className="text-2xs text-fg-muted">{user.email}</p>
           </div>
           <DropdownMenuSeparator />
+          {isAdmin ? (
+            <DropdownMenuItem
+              onSelect={() => {
+                openAccounts();
+              }}
+            >
+              <Users className="h-4 w-4 text-fg-muted" aria-hidden="true" />
+              Contas de acesso
+            </DropdownMenuItem>
+          ) : null}
           <DropdownMenuItem
             onSelect={() => {
               setChangingPassword(true);
