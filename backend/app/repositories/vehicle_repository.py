@@ -59,7 +59,5 @@ class VehicleRepository:
         """
         statement = select(Vehicle).order_by(Vehicle.plate).limit(limit)
         if prefix:
-            statement = statement.where(
-                Vehicle.plate.like(f"{escape_like(prefix)}%", escape="\\")
-            )
+            statement = statement.where(Vehicle.plate.like(f"{escape_like(prefix)}%", escape="\\"))
         return list(self._session.scalars(statement))

@@ -378,7 +378,8 @@ export function CreateIncidentSheet({ open, onClose }: CreateIncidentSheetProps)
                       }}
                       onSelect={(opcao) => {
                         setVeiculoDaFrota(
-                          frota.data?.items.find((veiculo) => veiculo.plate === opcao.value) ?? null,
+                          frota.data?.items.find((veiculo) => veiculo.plate === opcao.value) ??
+                            null,
                         );
                       }}
                     />
