@@ -17,6 +17,7 @@ import {
   setAccountActive,
 } from '@/features/accounts/api';
 import { changePassword, login } from '@/features/auth/api';
+import { DEMO_ACCOUNTS, type DemoAccount } from '@/features/auth/demo';
 import { isApiError } from '@/lib/http';
 
 import { readMockInvitePassword } from './users';
@@ -31,9 +32,23 @@ describe('API simulada — contas de acesso', () => {
   it('lista as contas do seed no formato do contrato', async () => {
     const accounts = await fetchAccounts();
 
-    expect(accounts).toHaveLength(4);
-    expect(accounts.map((account) => account.email)).toContain('admin@autou.com.br');
-    expect(accounts.map((account) => account.role)).toContain('ADMIN');
+    expect(accounts).toHaveLength(6);
+    expect(accounts.map((account) => account.email)).toEqual([
+      'ana@autou.com.br',
+      'alyssonaraujowork@gmail.com',
+      'renata.lima@example.org',
+      'carlos.menezes@example.com',
+      'joana.prado@example.net',
+      'marcos.tavares@example.org',
+    ]);
+    expect(accounts.map((account) => account.role)).toEqual([
+      'ANALYST',
+      'ANALYST',
+      'ANALYST',
+      'ADMIN',
+      'REPORTER',
+      'REPORTER',
+    ]);
     // `UserSummary` não carrega senha nem hash.
     expect(Object.keys(accounts[0] ?? {}).sort()).toEqual([
       'createdAt',
@@ -45,6 +60,14 @@ describe('API simulada — contas de acesso', () => {
       'name',
       'role',
     ]);
+  });
+
+  it('traz a conta do convite pendente inativa e sem senha definitiva', async () => {
+    const accounts = await fetchAccounts();
+    const convidada = accounts.find((account) => account.email === 'marcos.tavares@example.org');
+
+    expect(convidada).toMatchObject({ isActive: false, invitePending: true, lastLoginAt: null });
+    expect(Object.keys(convidada ?? {})).not.toContain('password');
   });
 
   it('cria a conta como convite pendente, sem devolver senha', async () => {
@@ -104,6 +127,50 @@ describe('API simulada — contas de acesso', () => {
     const segunda = readMockInvitePassword(EMAIL);
     expect(segunda).toHaveLength(16);
     expect(segunda).not.toBe(primeira);
+  });
+});
+
+describe('API simulada — credenciais de demonstração', () => {
+  /**
+   * As contas que a caixa "Acesso de demonstração" exibe **com senha** — a
+   * `ana` (do edital) e as quatro variadas do seed.
+   *
+   * A lista vem de `demo.ts` de propósito: se a tela anuncia uma credencial, o
+   * login simulado tem que aceitá-la. A do convite pendente fica de fora porque
+   * não tem senha para anunciar (o teste dela vem logo abaixo).
+   */
+  const contas = DEMO_ACCOUNTS.filter(
+    (account): account is DemoAccount & { password: string } => account.password !== null,
+  );
+
+  it('anuncia cinco contas com senha', () => {
+    expect(contas).toHaveLength(5);
+  });
+
+  it.each(contas)('aceita $email no papel $role', async ({ email, password, role }) => {
+    const session = await login({ email, password });
+
+    expect(session.user.email).toBe(email);
+    expect(session.user.role).toBe(role);
+    expect(session.mustChangePassword).toBe(false);
+  });
+
+  it('aceita a senha temporária do convite pendente e exige a troca', async () => {
+    const tempPassword = readMockInvitePassword('marcos.tavares@example.org');
+    expect(tempPassword).not.toBeNull();
+
+    const session = await login({
+      email: 'marcos.tavares@example.org',
+      password: tempPassword ?? '',
+    });
+
+    expect(session.user.role).toBe('REPORTER');
+    expect(session.mustChangePassword).toBe(true);
+    // A temporária não é um acesso de trabalho: o convite segue pendente.
+    expect(session.user.lastLoginAt).toBeNull();
+    const accounts = await fetchAccounts();
+    const marcos = accounts.find((account) => account.email === 'marcos.tavares@example.org');
+    expect(marcos?.invitePending).toBe(true);
   });
 });
 

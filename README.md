@@ -341,14 +341,29 @@ Criadas pelo seed. Use uma delas para entrar — **não há endpoint de cadastro
 porque contas abertas numa central de incidentes seriam um risco, não uma
 funcionalidade.
 
-| Conta                 | Senha              | Papel      | Enxerga                      |
-| --------------------- | ------------------ | ---------- | ---------------------------- |
-| `ana@autou.com.br`    | `ana.logos2026`    | `ANALYST`  | A fila inteira               |
-| `carlos@autou.com.br` | `carlos.logos2026` | `ANALYST`  | A fila inteira               |
-| `marina@autou.com.br` | `marina.logos2026` | `REPORTER` | Apenas o que ela mesma abriu |
-| `admin@autou.com.br`  | `admin.logos2026`  | `ADMIN`    | Tudo, e é o único que remove |
+| Conta                         | Senha                | Papel      | Enxerga                      |
+| ----------------------------- | -------------------- | ---------- | ---------------------------- |
+| `ana@autou.com.br`            | `ana.logos2026`      | `ANALYST`  | A fila inteira               |
+| `alyssonaraujowork@gmail.com` | `alysson.logos2026`  | `ANALYST`  | A fila inteira               |
+| `renata.lima@example.org`     | `renata.logos2026`   | `ANALYST`  | A fila inteira               |
+| `carlos.menezes@example.com`  | `carlos.logos2026`   | `ADMIN`    | Tudo, e é o único que remove |
+| `joana.prado@example.net`     | `joana.logos2026`    | `REPORTER` | Apenas o que ela mesma abriu |
+| `marcos.tavares@example.org`  | — convite pendente — | `REPORTER` | O que ele mesmo abrir        |
 
-Entrar como `marina` e como `ana` é a forma mais rápida de ver a autorização
+Os domínios `example.com`, `example.org` e `example.net` são os reservados pela
+RFC 2606: não pertencem a ninguém, então um "Reenviar convite" clicado por engano
+não entrega credencial na caixa de entrada de um estranho — o convite sai por
+SMTP de verdade. As exceções são deliberadas: `ana@autou.com.br`, que este README
+e o edital documentam desde a primeira entrega, e a conta pessoal de quem
+apresenta.
+
+`marcos.tavares` nasce com **convite pendente**: inativo, sem senha definitiva e
+com uma senha temporária que o seed **não envia** a ninguém. É o estado que a tela
+_Contas de acesso_ mostra com o botão **Reenviar**, que gera outra temporária e a
+entrega pelo canal configurado. A conta `ADMIN` (`carlos.menezes`) é a única que
+abre essa tela, pelo menu do usuário.
+
+Entrar como `joana.prado` e como `ana` é a forma mais rápida de ver a autorização
 funcionando: a mesma listagem devolve recortes diferentes. O contrato completo do
 fluxo está em [`docs/03-api.md` §15](docs/03-api.md) e a decisão em
 [ADR 0015](docs/adr/0015-autenticacao-jwt.md).
@@ -356,14 +371,14 @@ fluxo está em [`docs/03-api.md` §15](docs/03-api.md) e a decisão em
 #### Criar uma conta (convite)
 
 Contas não se cadastram sozinhas: quem entra é convidado por um administrador.
-Entre como `admin@autou.com.br` e use `POST /api/v1/users` (ou a tela de
-administração, quando ela existir):
+Entre como `carlos.menezes@example.com` e use `POST /api/v1/users` (ou a tela de
+administração de contas, no menu do usuário):
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/users \
   -H "Authorization: Bearer <token do admin>" \
   -H "Content-Type: application/json" \
-  -d '{"email": "joana.prado@autou.com.br", "role": "REPORTER"}'
+  -d '{"email": "paula.mendes@example.com", "role": "REPORTER"}'
 ```
 
 A conta nasce **inativa**, com uma senha temporária válida por **24 horas**. A
@@ -373,7 +388,7 @@ sem credencial de e-mail:
 
 ```bash
 # no terminal da API, procure a linha do convite:
-#   email_para_log destinatario=joana.prado@autou.com.br assunto=Sua conta no Logos foi criada
+#   email_para_log destinatario=paula.mendes@example.com assunto=Sua conta no Logos foi criada
 ```
 
 No primeiro login, `POST /auth/login` responde `mustChangePassword: true`, e a
@@ -407,6 +422,11 @@ O usuário vem do `seed` da API (perfil `ANALYST`, que enxerga a fila inteira).
 Sem o backend no ar, o frontend sobe com a API simulada (`VITE_USE_MOCK`) e
 aceita as mesmas credenciais: o mock lê a constante que a tela exibe, então as
 duas não têm como divergir.
+
+A caixa **Acesso de demonstração**, no rodapé do card, lista as contas do seed
+agrupadas por papel — a mesma tabela deste README, com a senha de cada uma. A do
+convite pendente aparece sem senha, porque ela ainda não tem uma: o primeiro
+acesso é definido a partir do convite.
 
 A sessão fica em `sessionStorage` — recarregar mantém o acesso, fechar a aba
 encerra. O token vai em `Authorization: Bearer`, e um `401` devolve à tela de

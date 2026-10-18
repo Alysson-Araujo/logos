@@ -70,7 +70,7 @@ describe('RootScreen', () => {
     );
 
     expect(await screen.findByRole('heading', { name: 'Contas de acesso' })).toBeInTheDocument();
-    // A lista vem da API simulada (as quatro contas do seed).
-    expect(await screen.findByText('marina@autou.com.br')).toBeInTheDocument();
+    // A lista vem da API simulada (as contas do seed).
+    expect(await screen.findByText('joana.prado@example.net')).toBeInTheDocument();
   });
 });

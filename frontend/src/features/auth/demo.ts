@@ -1,13 +1,51 @@
+import type { AuthRole } from './types';
+
 /**
  * Credenciais de demonstração.
  *
  * Ficam no bundle de propósito: o edital pede a orientação de acesso na tela
  * inicial, o frame `Login · padrão` já as exibe e o `seed` da API cria
- * exatamente este usuário (perfil `ANALYST`, o que vê a fila inteira).
+ * exatamente estas contas. A lista é uma só e a tela a agrupa por papel — a
+ * mesma que o README repete.
  *
- * Não são segredo — são parte da demonstração — e o README as repete. A única
- * consequência real é que qualquer pessoa com o link entra; por isso o token
- * vive em `sessionStorage` e o TTL é curto.
+ * Não são segredo — são parte da demonstração — e a única consequência real é
+ * que qualquer pessoa com o link entra; por isso o token vive em
+ * `sessionStorage` e o TTL é curto.
+ *
+ * Os domínios são os reservados pela RFC 2606 (`example.com`, `example.org` e
+ * `example.net`), com duas exceções deliberadas: `ana@autou.com.br`, que o
+ * edital documenta desde a primeira entrega, e a conta pessoal de quem
+ * apresenta. O convite sai por SMTP de verdade (#129): uma conta de
+ * demonstração num domínio de gente real colocaria uma credencial na caixa de
+ * entrada de um estranho no primeiro "Reenviar" clicado.
+ */
+
+/** Uma conta de demonstração: papel, e-mail e a senha que o seed grava. */
+export interface DemoAccount {
+  role: AuthRole;
+  email: string;
+  /** `null` no convite pendente: a senha temporária só existe no e-mail. */
+  password: string | null;
+}
+
+/** As contas que a caixa "Acesso de demonstração" lista e o `seed` cria. */
+export const DEMO_ACCOUNTS: readonly DemoAccount[] = [
+  { role: 'ANALYST', email: 'ana@autou.com.br', password: 'ana.logos2026' },
+  {
+    role: 'ANALYST',
+    email: 'alyssonaraujowork@gmail.com',
+    password: 'alysson.logos2026',
+  },
+  { role: 'ANALYST', email: 'renata.lima@example.org', password: 'renata.logos2026' },
+  { role: 'ADMIN', email: 'carlos.menezes@example.com', password: 'carlos.logos2026' },
+  { role: 'REPORTER', email: 'joana.prado@example.net', password: 'joana.logos2026' },
+  { role: 'REPORTER', email: 'marcos.tavares@example.org', password: null },
+];
+
+/**
+ * A credencial já preenchida no card do login.
+ *
+ * É a conta do edital: a tela abre pronta para entrar com um clique.
  */
 export const DEMO_CREDENTIALS = {
   email: 'ana@autou.com.br',
@@ -20,9 +58,35 @@ export const DEMO_CREDENTIALS = {
  * inalcançável na demonstração.
  */
 export const DEMO_ADMIN_CREDENTIALS = {
-  email: 'admin@autou.com.br',
-  password: 'admin.logos2026',
+  email: 'carlos.menezes@example.com',
+  password: 'carlos.logos2026',
 } as const;
 
 /** Nome exibido no header quando a API simulada responde ao login. */
 export const DEMO_USER_NAME = 'Ana Paula Ribeiro';
+
+/** O que a caixa mostra no lugar da senha de quem ainda não definiu uma. */
+export const DEMO_INVITE_LABEL = 'convite pendente';
+
+export interface DemoRoleGroup {
+  role: AuthRole;
+  accounts: readonly DemoAccount[];
+}
+
+/**
+ * A ordem dos papéis na caixa: primeiro quem enxerga a fila inteira, por último
+ * quem só abre chamado — a mesma ordem em que alguém apresenta a aplicação.
+ */
+const DEMO_ROLE_ORDER: readonly AuthRole[] = ['ANALYST', 'ADMIN', 'REPORTER'];
+
+/**
+ * As mesmas contas agrupadas por papel — é assim que a tela de login as lista.
+ *
+ * Agrupado, e não numa linha por conta, porque a lista passou de duas contas: o
+ * rótulo do papel cabe no cabeçalho do grupo e a linha fica só com o que se
+ * copia (`e-mail · senha`).
+ */
+export const DEMO_ACCOUNTS_BY_ROLE: readonly DemoRoleGroup[] = DEMO_ROLE_ORDER.map((role) => ({
+  role,
+  accounts: DEMO_ACCOUNTS.filter((account) => account.role === role),
+})).filter((group) => group.accounts.length > 0);

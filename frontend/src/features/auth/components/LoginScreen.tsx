@@ -5,7 +5,7 @@ import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
-import { DEMO_ADMIN_CREDENTIALS, DEMO_CREDENTIALS } from '../demo';
+import { DEMO_ACCOUNTS_BY_ROLE, DEMO_CREDENTIALS, DEMO_INVITE_LABEL } from '../demo';
 import { useLogin } from '../hooks/useLogin';
 import { describeLoginError } from '../labels';
 import { loginFormSchema } from '../schemas';
@@ -162,18 +162,25 @@ export function LoginScreen() {
             )}
           </Button>
 
-          <div className="flex flex-col gap-1 rounded-md bg-surface-sunken p-3">
+          <div className="flex flex-col gap-2 rounded-md bg-surface-sunken p-3">
             <p className="text-2xs font-semibold uppercase tracking-[0.025em] text-fg-muted">
               Acesso de demonstração
             </p>
-            <p className="whitespace-pre font-mono text-2xs text-fg">
-              {`${DEMO_CREDENTIALS.email}  ·  ${DEMO_CREDENTIALS.password}`}
-            </p>
-            <p className="whitespace-pre font-mono text-2xs text-fg">
-              {`${DEMO_ADMIN_CREDENTIALS.email}  ·  ${DEMO_ADMIN_CREDENTIALS.password}`}
-            </p>
+            {DEMO_ACCOUNTS_BY_ROLE.map((group) => (
+              <div key={group.role} className="flex flex-col gap-1">
+                <p className="text-2xs font-semibold uppercase tracking-[0.025em] text-fg-muted">
+                  {group.role}
+                </p>
+                {group.accounts.map((account) => (
+                  <p key={account.email} className="whitespace-pre font-mono text-2xs text-fg">
+                    {`${account.email}  ·  ${account.password ?? DEMO_INVITE_LABEL}`}
+                  </p>
+                ))}
+              </div>
+            ))}
             <p className="text-2xs text-fg-muted">
-              A conta ADMIN abre &quot;Contas de acesso&quot; no menu do usuário.
+              A conta ADMIN abre &quot;Contas de acesso&quot; no menu do usuário. A do convite
+              pendente entra com a senha temporária, que o &quot;Reenviar&quot; gera de novo.
             </p>
           </div>
         </form>

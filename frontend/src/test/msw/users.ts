@@ -12,8 +12,9 @@ import { apiError, apiPath, simulateLatency } from './http';
  * `403 INSUFFICIENT_ROLE`.
  *
  * O "banco" é em memória e o seed é o mesmo da API real (`app/infra/seed.py`),
- * então entrar com `admin@autou.com.br` no modo de desenvolvimento mostra as
- * mesmas contas que o backend mostraria.
+ * então entrar com `carlos.menezes@example.com` no modo de desenvolvimento
+ * mostra as mesmas contas que o backend mostraria — inclusive a do convite
+ * pendente.
  */
 
 /** Senha temporária: 16 caracteres, sem ambíguos (`l o O 0 1 I`). */
@@ -55,7 +56,7 @@ function hoursFromNow(hours: number): string {
   return new Date(Date.now() + hours * 3_600_000).toISOString();
 }
 
-/** Mesmas quatro contas do seed da API (senhas `<primeiro>.logos2026`). */
+/** Mesmas contas do seed da API (senhas `<primeiro>.logos2026`). */
 function createSeedAccounts(): MockAccount[] {
   return [
     {
@@ -72,43 +73,76 @@ function createSeedAccounts(): MockAccount[] {
       inviteExpiresAt: null,
     },
     {
-      id: 'mock-user-carlos',
-      name: 'Carlos Eduardo Lima',
-      email: 'carlos@autou.com.br',
+      id: 'mock-user-alysson',
+      name: 'Alysson Araújo',
+      email: 'alyssonaraujowork@gmail.com',
       role: 'ANALYST',
       isActive: true,
       invitePending: false,
-      lastLoginAt: hoursAgo(26),
+      lastLoginAt: hoursAgo(20),
+      createdAt: daysAgo(85),
+      password: 'alysson.logos2026',
+      tempPassword: null,
+      inviteExpiresAt: null,
+    },
+    {
+      id: 'mock-user-renata',
+      name: 'Renata Lima',
+      email: 'renata.lima@example.org',
+      role: 'ANALYST',
+      isActive: true,
+      invitePending: false,
+      lastLoginAt: daysAgo(4),
+      createdAt: daysAgo(72),
+      password: 'renata.logos2026',
+      tempPassword: null,
+      inviteExpiresAt: null,
+    },
+    {
+      id: 'mock-user-carlos',
+      name: 'Carlos Menezes',
+      email: 'carlos.menezes@example.com',
+      role: 'ADMIN',
+      isActive: true,
+      invitePending: false,
+      lastLoginAt: hoursAgo(2),
       createdAt: daysAgo(88),
       password: 'carlos.logos2026',
       tempPassword: null,
       inviteExpiresAt: null,
     },
     {
-      id: 'mock-user-marina',
-      name: 'Marina Souza',
-      email: 'marina@autou.com.br',
+      id: 'mock-user-joana',
+      name: 'Joana Prado',
+      email: 'joana.prado@example.net',
       role: 'REPORTER',
       isActive: true,
       invitePending: false,
       lastLoginAt: daysAgo(12),
       createdAt: daysAgo(60),
-      password: 'marina.logos2026',
+      password: 'joana.logos2026',
       tempPassword: null,
       inviteExpiresAt: null,
     },
+    /**
+     * A conta do **convite pendente**, como no seed: inativa, sem senha
+     * definitiva e com uma temporária dentro do prazo. A temporária nasce
+     * aleatória (ninguém a conhece, igual à do backend, que só sai por e-mail)
+     * — quem quiser percorrer o primeiro acesso usa o "Reenviar" da tela, que
+     * gera outra e a anuncia no console.
+     */
     {
-      id: 'mock-user-admin',
-      name: 'Administrador Logos',
-      email: 'admin@autou.com.br',
-      role: 'ADMIN',
-      isActive: true,
-      invitePending: false,
-      lastLoginAt: hoursAgo(2),
-      createdAt: daysAgo(90),
-      password: 'admin.logos2026',
-      tempPassword: null,
-      inviteExpiresAt: null,
+      id: 'mock-user-marcos',
+      name: 'Marcos Tavares',
+      email: 'marcos.tavares@example.org',
+      role: 'REPORTER',
+      isActive: false,
+      invitePending: true,
+      lastLoginAt: null,
+      createdAt: daysAgo(1),
+      password: null,
+      tempPassword: generateInvitePassword(),
+      inviteExpiresAt: hoursFromNow(INVITE_TTL_HOURS),
     },
   ];
 }
