@@ -76,10 +76,17 @@ export const DrawerDescription = forwardRef<
   );
 });
 
-export function DrawerCloseButton({ onClose }: { onClose: () => void }) {
+export function DrawerCloseButton({
+  onClose,
+  label = 'Fechar detalhe do incidente',
+}: {
+  onClose: () => void;
+  /** Texto do `aria-label` — cada painel diz o que está sendo fechado. */
+  label?: string;
+}) {
   return (
     <DialogPrimitive.Close
-      aria-label="Fechar detalhe do incidente"
+      aria-label={label}
       onClick={onClose}
       className="rounded-sm p-1.5 text-fg-muted transition-colors duration-hover hover:bg-surface-sunken hover:text-fg"
     >

@@ -95,24 +95,82 @@ export const statusChangeRequestSchema = z
     }
   });
 
-export const incidentCreateSchema = z.object({
-  title: z.string().trim().min(5).max(120),
-  category: z.enum(INCIDENT_CATEGORIES),
-  criticality: z.enum(INCIDENT_CRITICALITIES),
-  description: z.string().trim().max(2000).optional(),
-  locationLabel: z.string().trim().max(160).optional(),
-  truckPlate: z
+/** Placas Mercosul (AAA1A23) e antigas (AAA1234) — mesma regra de `incident.py`. */
+export const PLATE_PATTERN = /^(?:[A-Z]{3}\d{4}|[A-Z]{3}\d[A-Z]\d{2})$/;
+/** Separadores aceitos na digitação e removidos na normalização. */
+const PLATE_SEPARATORS = /[\s-]+/g;
+/** O backend recusa marcação HTML no título de um canal de origem externo. */
+const HTML_MARKERS = /[<>]/;
+
+/**
+ * Campo de texto opcional: `trim`, teto de caracteres e vazio → `undefined`,
+ * para o opcional em branco não virar string vazia no registro.
+ */
+function optionalText(maxLength: number, message: string) {
+  return z
     .string()
     .trim()
-    .toUpperCase()
-    .regex(
-      /^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$/,
-      'Placa inválida (use o padrão Mercosul, ex.: QRD1A23).',
+    .max(maxLength, message)
+    .transform((value) => (value === '' ? undefined : value))
+    .optional();
+}
+
+/** Os oito campos do formulário de criação, na ordem em que aparecem na sheet. */
+export const CREATE_INCIDENT_FIELDS = [
+  'title',
+  'category',
+  'criticality',
+  'description',
+  'locationLabel',
+  'truckPlate',
+  'driverName',
+  'reportedBy',
+] as const;
+
+export type CreateIncidentField = (typeof CREATE_INCIDENT_FIELDS)[number];
+
+/**
+ * Corpo de `POST /incidents`, espelhando `IncidentCreate`:
+ * título 3–120 sem marcação HTML, enums obrigatórios, opcionais com teto de
+ * caracteres e placa normalizada (maiúscula, sem espaço ou hífen).
+ *
+ * O `.trim()` roda antes do `.min()`, e todo opcional em branco sai como
+ * `undefined` — quem decide o que vai no corpo é `buildCreateBody`.
+ */
+export const incidentCreateSchema = z.object({
+  title: z
+    .string()
+    .trim()
+    .min(3, 'Informe o título com pelo menos 3 caracteres.')
+    .max(120, 'O título pode ter no máximo 120 caracteres.')
+    .refine((value) => !HTML_MARKERS.test(value), 'O título não pode conter marcação HTML.'),
+  category: z.enum(INCIDENT_CATEGORIES, {
+    errorMap: () => ({ message: 'Selecione a categoria.' }),
+  }),
+  criticality: z.enum(INCIDENT_CRITICALITIES, {
+    errorMap: () => ({ message: 'Selecione a criticidade.' }),
+  }),
+  description: optionalText(2000, 'A descrição pode ter no máximo 2000 caracteres.'),
+  locationLabel: optionalText(160, 'O local pode ter no máximo 160 caracteres.'),
+  truckPlate: z
+    .string()
+    .transform((value) => value.replace(PLATE_SEPARATORS, '').toUpperCase())
+    .refine(
+      (value) => value === '' || PLATE_PATTERN.test(value),
+      'Placa inválida (use o padrão Mercosul, ex.: QRD1A23, ou o antigo, ex.: QRD1234).',
     )
+    .transform((value) => (value === '' ? undefined : value))
     .optional(),
-  driverName: z.string().trim().max(120).optional(),
-  reportedBy: z.string().trim().min(2).max(80),
+  driverName: optionalText(120, 'O motorista pode ter no máximo 120 caracteres.'),
+  reportedBy: z
+    .string()
+    .trim()
+    .min(2, 'Informe o canal de origem — de 2 a 80 caracteres.')
+    .max(80, 'Informe o canal de origem — de 2 a 80 caracteres.'),
 });
+
+/** Payload pronto para o `POST /incidents` (saída do schema, já normalizada). */
+export type IncidentCreateInput = z.infer<typeof incidentCreateSchema>;
 
 export const healthSchema = z.object({ status: z.string() }).passthrough();
 

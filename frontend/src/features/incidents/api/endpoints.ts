@@ -1,12 +1,19 @@
-import { isVersionConflict, type QueryParams } from '@/lib/http';
+import { isApiError, isVersionConflict, type QueryParams } from '@/lib/http';
 
-import { incidentListResponseSchema, incidentSchema, parseContract } from '../schemas';
+import {
+  CREATE_INCIDENT_FIELDS,
+  incidentListResponseSchema,
+  incidentSchema,
+  parseContract,
+  type CreateIncidentField,
+} from '../schemas';
 import {
   INCIDENT_PAGE_SIZE,
   type Incident,
   type IncidentFilters,
   type IncidentListResponse,
   type IncidentStatus,
+  type NewIncidentInput,
   type StatusChangeRequest,
 } from '../types';
 import { httpClient } from './client';
@@ -100,6 +107,122 @@ function buildStatusChangeBody(request: StatusChangeRequest): Record<string, unk
   const notes = request.resolutionNotes?.trim();
   if (notes === undefined || notes === '') return { status: request.status };
   return { status: request.status, resolutionNotes: notes };
+}
+
+export interface CreateIncidentParams {
+  input: NewIncidentInput;
+  /** Chave estável da tentativa: reenviar o mesmo formulário não duplica o caso. */
+  idempotencyKey?: string;
+  signal?: AbortSignal;
+}
+
+export async function createIncident({
+  input,
+  idempotencyKey,
+  signal,
+}: CreateIncidentParams): Promise<Incident> {
+  const raw = await httpClient.post('/incidents', buildCreateBody(input), {
+    idempotencyKey,
+    signal,
+  });
+  return parseContract(incidentSchema, raw);
+}
+
+/** Só campo preenchido viaja: opcional vazio não vira string vazia no registro. */
+function buildCreateBody(input: NewIncidentInput): Record<string, unknown> {
+  const body: Record<string, unknown> = {
+    title: input.title.trim(),
+    category: input.category,
+    criticality: input.criticality,
+    reportedBy: input.reportedBy.trim(),
+  };
+
+  const optionalFields: [string, string | undefined][] = [
+    ['description', input.description],
+    ['locationLabel', input.locationLabel],
+    ['truckPlate', input.truckPlate],
+    ['driverName', input.driverName],
+  ];
+  for (const [key, value] of optionalFields) {
+    const trimmed = value?.trim();
+    if (trimmed !== undefined && trimmed !== '') body[key] = trimmed;
+  }
+
+  return body;
+}
+
+/** Erro de validação atribuído a um campo do formulário de criação. */
+export interface IncidentFieldError {
+  field: CreateIncidentField;
+  message: string;
+}
+
+/** Formato bruto de um item de erro, nas duas formas que a API já devolveu. */
+interface RawFieldIssue {
+  path: string[];
+  message: string;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function toStringPath(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === 'string');
+}
+
+/**
+ * Lê a lista de erros de um `details`.
+ *
+ * Convive com as duas formas em circulação: `issues` (índice `path`, o que o
+ * mock do MSW devolve a partir do Zod) e `validationErrors` (índice `loc`, o
+ * formato do FastAPI, que prefixa o campo com `body`).
+ */
+function readRawIssues(details: Record<string, unknown>): RawFieldIssue[] {
+  const sources: [string, string, string][] = [
+    ['issues', 'path', 'message'],
+    ['validationErrors', 'loc', 'msg'],
+  ];
+
+  const issues: RawFieldIssue[] = [];
+  for (const [listKey, pathKey, messageKey] of sources) {
+    const list = details[listKey];
+    if (!Array.isArray(list)) continue;
+    for (const item of list) {
+      if (!isRecord(item)) continue;
+      const message = item[messageKey];
+      issues.push({
+        path: toStringPath(item[pathKey]),
+        message: typeof message === 'string' && message.trim() !== '' ? message : 'Valor inválido.',
+      });
+    }
+  }
+  return issues;
+}
+
+/** Último segmento do caminho: `['body', 'title']` e `['title']` caem em `title`. */
+function toCreateIncidentField(path: readonly string[]): CreateIncidentField | null {
+  const last = path[path.length - 1];
+  if (last === undefined) return null;
+  return CREATE_INCIDENT_FIELDS.find((field) => field === last) ?? null;
+}
+
+/**
+ * Traduz um `422 VALIDATION_ERROR` em erros por campo (um por campo, o
+ * primeiro que vier). Erro sem campo identificável fica de fora: a tela o
+ * mostra como mensagem geral.
+ */
+export function readIncidentFieldErrors(error: unknown): IncidentFieldError[] {
+  if (!isApiError(error) || !isRecord(error.details)) return [];
+
+  const result: IncidentFieldError[] = [];
+  for (const issue of readRawIssues(error.details)) {
+    const field = toCreateIncidentField(issue.path);
+    if (field === null || result.some((entry) => entry.field === field)) continue;
+    result.push({ field, message: issue.message });
+  }
+  return result;
 }
 
 /**
