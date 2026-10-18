@@ -970,6 +970,40 @@ Trocar de um para o outro é **configuração, não reescrita**. É o que permit
 demonstrar o fluxo completo do convite — criar conta, ler a senha temporária no
 log, entrar, trocar a senha — em qualquer máquina, sem credencial de e-mail.
 
+> ⚠️ **Em produção, `SMTP_HOST` é obrigatório.** Sem ele a aplicação **recusa
+> subir**, a menos que `EMAIL_DISABLED=true` esteja definido.
+>
+> O motivo é o modo de falha mais traiçoeiro deste fluxo: sem SMTP **nada
+> quebra**. O `LoggingMailer` escreve o convite no log, a criação da conta
+> responde `201`, e o administrador conclui que a pessoa foi convidada — **e
+> ninguém recebe nada**. Como o envio é de propósito tolerante a falha (servidor
+> de e-mail fora do ar não pode impedir um cadastro), esse erro não apareceria em
+> lugar nenhum. Falhar no deploy transforma o silêncio em mensagem clara, na hora
+> certa. `EMAIL_DISABLED` existe para separar "esqueci de configurar" de "escolhi
+> assim".
+
+#### Variáveis de SMTP
+
+| Variável         | Padrão                             | Observação                                            |
+| ---------------- | ---------------------------------- | ----------------------------------------------------- |
+| `SMTP_HOST`      | vazio                              | Vazio = log. **Obrigatório em produção.**             |
+| `SMTP_PORT`      | `587`                              | Porta de submissão com STARTTLS                       |
+| `SMTP_USER`      | vazio                              | Vazio = servidor sem autenticação (MailHog, Mailpit)  |
+| `SMTP_PASSWORD`  | vazio                              | No Gmail, é a **senha de aplicativo**, não a da conta |
+| `SMTP_FROM`      | `Logos <nao-responda@logos.local>` | Precisa ser aceito pelo servidor                      |
+| `SMTP_USE_TLS`   | `true`                             | `false` só em servidor local                          |
+| `EMAIL_DISABLED` | `false`                            | Assume o log em produção, de propósito                |
+| `FRONTEND_URL`   | `http://localhost:5173`            | Alvo do botão "Definir minha senha"                   |
+
+**Com Gmail:** ligue a verificação em duas etapas e gere uma **senha de
+aplicativo** em `myaccount.google.com/apppasswords`. A senha normal da conta
+**não funciona** em SMTP quando há 2FA. A senha de aplicativo tem 16 caracteres
+(os espaços que o Google mostra são visuais) e pode ser revogada sem trocar a
+senha da conta — é por isso que ela é a escolha certa aqui.
+
+O `SMTP_FROM` precisa ser um endereço que o servidor aceite enviar: no Gmail, a
+própria conta ou um alias verificado nela.
+
 O e-mail de convite segue o desenho `Convite · e-mail`: assunto **"Sua conta no
 Logos foi criada"**, o papel em português, a senha temporária em destaque, o
 prazo, o botão **"Definir minha senha"** apontando para `FRONTEND_URL` e o aviso

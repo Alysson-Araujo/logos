@@ -180,8 +180,14 @@ class TestConfiguracaoDeConvite:
         assert INVITE_TTL_HOURS == 24
 
     def test_sem_smtp_o_padrao_e_log(self) -> None:
-        """A configuração de fábrica não tenta falar com a rede."""
-        padrao = Settings()
+        """Sem SMTP configurado, o envio não tenta falar com a rede.
+
+        O valor é passado explicitamente, e não lido do ambiente: com um `.env`
+        real na máquina de quem desenvolve, `Settings()` traria `smtp.gmail.com`
+        e o teste passaria no CI e falharia local — ou o contrário. Um teste que
+        depende do ambiente mede a máquina, não o código.
+        """
+        padrao = Settings(smtp_host="")
         assert padrao.smtp_host == ""
         assert padrao.frontend_url.startswith("http")
 
@@ -191,3 +197,156 @@ class TestConfiguracaoDeConvite:
 
         agora = datetime.now(UTC)
         assert agora + timedelta(hours=INVITE_TTL_HOURS) > agora
+
+
+class TestSmtpMailer:
+    """O caminho que fala com um servidor de e-mail de verdade.
+
+    Substitui `smtplib.SMTP` por um dublê, e não por um servidor falso em
+    memória: o que precisa ser verificado é o que o `SmtpMailer` **pede** ao
+    servidor — host, porta, TLS, login e o conteúdo da mensagem. Um servidor de
+    verdade exercitaria a biblioteca padrão do Python, não este código.
+    """
+
+    def _duble(self, monkeypatch: pytest.MonkeyPatch, chamadas: list[object]) -> None:
+        """Instala um SMTP que apenas registra as chamadas."""
+
+        class SmtpDuble:
+            def __init__(self, host: str, port: int, timeout: float) -> None:
+                chamadas.append(("conectar", host, port, timeout))
+
+            def __enter__(self) -> SmtpDuble:
+                return self
+
+            def __exit__(self, *args: object) -> bool:
+                chamadas.append(("fechar",))
+                return False
+
+            def starttls(self) -> None:
+                chamadas.append(("starttls",))
+
+            def login(self, usuario: str, senha: str) -> None:
+                chamadas.append(("login", usuario, senha))
+
+            def send_message(self, mensagem: object) -> None:
+                chamadas.append(("mensagem", mensagem))
+
+        monkeypatch.setattr("app.core.mailer.smtplib.SMTP", SmtpDuble)
+
+    def _settings(self, **overrides: object) -> Settings:
+        padrao: dict[str, object] = {
+            "smtp_host": "smtp.exemplo.com",
+            "smtp_port": 587,
+            "smtp_user": "logos@exemplo.com",
+            "smtp_password": "senha-de-app",
+            "smtp_use_tls": True,
+        }
+        padrao.update(overrides)
+        return Settings(**padrao)  # type: ignore[arg-type]
+
+    def test_conecta_no_host_e_porta_configurados(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """O destino sai da configuração, e não de um valor fixo."""
+        chamadas: list[object] = []
+        self._duble(monkeypatch, chamadas)
+        SmtpMailer(self._settings()).send(OutboundEmail(to="a@b.com", subject="Oi", body="corpo"))
+        conexao = next(c for c in chamadas if c[0] == "conectar")
+        assert conexao[1] == "smtp.exemplo.com"
+        assert conexao[2] == 587
+
+    def test_usa_tls_e_autentica(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """STARTTLS antes do login — nunca credencial em canal aberto."""
+        chamadas: list[object] = []
+        self._duble(monkeypatch, chamadas)
+        SmtpMailer(self._settings()).send(OutboundEmail(to="a@b.com", subject="Oi", body="corpo"))
+        nomes = [c[0] for c in chamadas]
+        assert "starttls" in nomes
+        assert nomes.index("starttls") < nomes.index("login")
+
+    def test_sem_tls_nao_chama_starttls(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Servidor local sem TLS é uma escolha explícita da configuração."""
+        chamadas: list[object] = []
+        self._duble(monkeypatch, chamadas)
+        SmtpMailer(self._settings(smtp_use_tls=False)).send(
+            OutboundEmail(to="a@b.com", subject="Oi", body="corpo")
+        )
+        assert "starttls" not in [c[0] for c in chamadas]
+
+    def test_sem_usuario_nao_tenta_login(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """MailHog e Mailpit não exigem autenticação."""
+        chamadas: list[object] = []
+        self._duble(monkeypatch, chamadas)
+        SmtpMailer(self._settings(smtp_user="")).send(
+            OutboundEmail(to="a@b.com", subject="Oi", body="corpo")
+        )
+        assert "login" not in [c[0] for c in chamadas]
+
+    def test_mensagem_leva_remetente_destinatario_e_assunto(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """O que o servidor recebe é uma mensagem montada, não texto solto."""
+        chamadas: list[object] = []
+        self._duble(monkeypatch, chamadas)
+        SmtpMailer(self._settings(smtp_from="Logos <nao-responda@exemplo.com>")).send(
+            OutboundEmail(to="joana@exemplo.com", subject="Sua conta", body="Olá")
+        )
+        mensagem = next(c[1] for c in chamadas if c[0] == "mensagem")
+        assert mensagem["To"] == "joana@exemplo.com"
+        assert mensagem["Subject"] == "Sua conta"
+        assert "nao-responda@exemplo.com" in mensagem["From"]
+        assert "Olá" in mensagem.get_content()
+
+    def test_falha_de_conexao_propaga(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """O mailer não engole o erro — quem decide o que fazer é o serviço."""
+
+        class SmtpQuebrado:
+            def __init__(self, *args: object, **kwargs: object) -> None:
+                raise OSError("sem rota até o servidor")
+
+        monkeypatch.setattr("app.core.mailer.smtplib.SMTP", SmtpQuebrado)
+        with pytest.raises(OSError):
+            SmtpMailer(self._settings()).send(
+                OutboundEmail(to="a@b.com", subject="Oi", body="corpo")
+            )
+
+
+class TestGuardaDeProducao:
+    """Produção não sobe mal configurada.
+
+    O modo de falha aqui é o pior possível: sem `SMTP_HOST` nada quebra, o
+    convite vai para o log e a API responde `201`. O administrador conclui que a
+    pessoa foi convidada, e ninguém recebe nada.
+    """
+
+    def _producao(self, **overrides: object) -> Settings:
+        padrao: dict[str, object] = {
+            "environment": "production",
+            "auth_secret_key": "chave-real-de-producao-com-tamanho-suficiente",
+            "smtp_host": "smtp.exemplo.com",
+        }
+        padrao.update(overrides)
+        return Settings(**padrao)  # type: ignore[arg-type]
+
+    def test_producao_com_smtp_sobe(self) -> None:
+        """Configurado, não há o que reclamar."""
+        assert self._producao().smtp_host == "smtp.exemplo.com"
+
+    def test_producao_sem_smtp_recusa_subir(self) -> None:
+        """O convite que não chega aparece no deploy, e não meses depois."""
+        with pytest.raises(ValueError, match="SMTP_HOST"):
+            self._producao(smtp_host="")
+
+    def test_producao_pode_assumir_o_log_explicitamente(self) -> None:
+        """`EMAIL_DISABLED` separa "esqueci" de "escolhi assim"."""
+        configuracao = self._producao(smtp_host="", email_disabled=True)
+        assert configuracao.email_disabled is True
+
+    def test_desenvolvimento_nao_exige_smtp(self) -> None:
+        """Localmente o padrão continua sendo o log, sem cerimônia."""
+        assert Settings(environment="local", smtp_host="").smtp_host == ""
+
+    def test_guarda_da_chave_continua_valendo(self) -> None:
+        """A validação anterior não foi substituída pela nova."""
+        from app.core.config import DEV_AUTH_SECRET_KEY
+
+        with pytest.raises(ValueError, match="AUTH_SECRET_KEY"):
+            self._producao(auth_secret_key=DEV_AUTH_SECRET_KEY)
