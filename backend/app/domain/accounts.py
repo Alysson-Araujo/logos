@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import secrets
 from typing import Final
 
 from app.core.errors import WeakPasswordError
@@ -42,3 +43,29 @@ def validate_password_strength(password: str) -> None:
             f"A senha deve ter no máximo {MAX_PASSWORD_LENGTH} caracteres.",
             details={"maxLength": MAX_PASSWORD_LENGTH, "received": len(password)},
         )
+
+
+# --- Convite e primeiro acesso ---------------------------------------------
+
+#: Quantas horas o convite vale. Vinte e quatro é o que o desenho mostra, e
+#: cobre o caso comum: a pessoa recebe o e-mail em um dia e abre no seguinte.
+INVITE_TTL_HOURS: Final[int] = 24
+
+#: Comprimento da senha temporária.
+TEMP_PASSWORD_LENGTH: Final[int] = 16
+
+#: Alfabeto da senha temporária.
+#:
+#: Sem os pares que se confundem ao ler em voz alta ou ao copiar de um e-mail:
+#: `0`/`O`, `1`/`l`/`I`. A senha vai ser digitada à mão por quem recebeu o
+#: convite, e um caractere ambíguo vira uma ligação para o suporte.
+TEMP_PASSWORD_ALPHABET: Final[str] = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # noqa: S105
+
+
+def generate_temp_password() -> str:
+    """Gera a senha temporária entregue no convite.
+
+    Usa `secrets`, e não `random`: `random` é previsível a partir de algumas
+    saídas observadas, e esta senha é uma credencial — mesmo temporária.
+    """
+    return "".join(secrets.choice(TEMP_PASSWORD_ALPHABET) for _ in range(TEMP_PASSWORD_LENGTH))

@@ -163,6 +163,43 @@ class WeakPasswordError(DomainError):
     default_message = "A senha não atende à política mínima."
 
 
+class UserNotFoundError(DomainError):
+    """Usuário inexistente na administração de contas."""
+
+    code = "USER_NOT_FOUND"
+    status_code = 404
+    default_message = "Usuário não encontrado."
+
+
+class EmailAlreadyExistsError(DomainError):
+    """Já existe conta com este e-mail."""
+
+    code = "EMAIL_ALREADY_EXISTS"
+    status_code = 409
+    default_message = "Já existe uma conta com este e-mail."
+
+
+class PasswordChangeRequiredError(DomainError):
+    """A sessão é de primeiro acesso e só permite trocar a senha.
+
+    Enquanto a pessoa estiver usando a senha temporária do convite, ela não pode
+    exercer o papel: quem escolheu essa senha foi outra pessoa, e ela viajou por
+    e-mail. Liberar o resto da API faria o convite valer como acesso pleno.
+    """
+
+    code = "PASSWORD_CHANGE_REQUIRED"
+    status_code = 403
+    default_message = "Defina sua senha para liberar o acesso."
+
+
+class CannotDeactivateSelfError(DomainError):
+    """Um administrador tentou desativar a própria conta."""
+
+    code = "CANNOT_DEACTIVATE_SELF"
+    status_code = 409
+    default_message = "Você não pode desativar a própria conta."
+
+
 class InvalidIdempotencyKeyError(DomainError):
     """Idempotency-Key vazia, longa demais ou com caracteres fora do permitido."""
 

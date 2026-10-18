@@ -52,6 +52,7 @@ def login(payload: LoginRequest, service: AuthServiceDep) -> LoginResponse:
         access_token=sessao.token.token,
         token_type=sessao.token_type,
         expires_in=sessao.token.expires_in,
+        must_change_password=sessao.must_change_password,
         user=usuario,
     )
 

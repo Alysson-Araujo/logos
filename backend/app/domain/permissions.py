@@ -27,6 +27,8 @@ class Permission(StrEnum):
     TRANSITION_INCIDENT = "TRANSITION_INCIDENT"
     #: Remover logicamente.
     DELETE_INCIDENT = "DELETE_INCIDENT"
+    #: Criar contas, convidar, reenviar convite e ativar/desativar.
+    MANAGE_ACCOUNTS = "MANAGE_ACCOUNTS"
 
 
 #: Permissões de cada papel.

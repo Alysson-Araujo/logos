@@ -90,36 +90,37 @@ Situação real do repositório neste momento. O projeto está em fase inicial:
 a fundação, a automação e a documentação estão prontas; o domínio e a
 interface estão sendo construídos.
 
-| Funcionalidade                                                                 | Status                |
-| ------------------------------------------------------------------------------ | --------------------- |
-| Estrutura do monorepo, workspaces e higiene de repositório                     | ✅ pronto             |
-| Lint, formatação, tipagem e hooks de Git (`Ruff`, `mypy`, `ESLint`, `Husky`)   | ✅ pronto             |
-| Integração contínua (lint, types, testes e build em cada PR)                   | ✅ pronto             |
-| Documentação: 10 documentos temáticos + 15 ADRs                                | ✅ pronto             |
-| Modelo de domínio, enums e máquina de estados                                  | 🚧 em desenvolvimento |
-| Cadastro de incidentes (5 categorias, 3 criticidades, 4 status)                | 🚧 em desenvolvimento |
-| Listagem paginada por cursor com filtros combináveis                           | ⏳ planejado          |
-| Transições de status validadas no servidor                                     | ⏳ planejado          |
-| **Lock otimista** (`version` + `If-Match`) com `409` e payload do estado atual | ⏳ planejado          |
-| **Idempotência** via `Idempotency-Key` nas mutações                            | ✅ pronto             |
-| **Priority score** determinístico, calculado e persistido no servidor          | ⏳ planejado          |
-| SLA com contagem regressiva e alerta visual progressivo                        | ⏳ planejado          |
-| Lista virtualizada (100+ incidentes) com modo compacto e confortável           | ⏳ planejado          |
-| Filtros persistidos na URL (link compartilhável)                               | ⏳ planejado          |
-| Busca textual com debounce e `keepPreviousData`                                | ⏳ planejado          |
-| Modal de conflito `409` com diff campo a campo                                 | ⏳ planejado          |
-| Resiliência: timeout, retry com jitter, circuit breaker e cache _stale_        | ⏳ planejado          |
-| Estados de UI explícitos (loading, erro, vazio, offline, otimista)             | ⏳ planejado          |
-| Tema claro/escuro persistido                                                   | ⏳ planejado          |
-| **Login e sessão autenticada** (token na aba; `401` devolve ao login)          | ✅ pronto             |
-| Timeline de auditoria por incidente                                            | ✅ pronto             |
-| SSE com badge "N novos" sem reordenar a lista                                  | ⏳ planejado          |
-| Command palette (`Ctrl+K`) e atalhos de teclado                                | ⏳ planejado          |
-| Seed com 120 incidentes realistas para demonstração                            | ✅ pronto             |
-| **Autenticação** com JWT, revogação real no logout e troca de senha            | ✅ pronto             |
-| **Autorização por papel** (`REPORTER`/`ANALYST`/`ADMIN`), com escopo na query  | ✅ pronto             |
-| Exportação CSV da visão filtrada                                               | ⏳ planejado          |
-| Testes E2E com Playwright                                                      | ⏳ planejado          |
+| Funcionalidade                                                                  | Status                |
+| ------------------------------------------------------------------------------- | --------------------- |
+| Estrutura do monorepo, workspaces e higiene de repositório                      | ✅ pronto             |
+| Lint, formatação, tipagem e hooks de Git (`Ruff`, `mypy`, `ESLint`, `Husky`)    | ✅ pronto             |
+| Integração contínua (lint, types, testes e build em cada PR)                    | ✅ pronto             |
+| Documentação: 10 documentos temáticos + 15 ADRs                                 | ✅ pronto             |
+| Modelo de domínio, enums e máquina de estados                                   | 🚧 em desenvolvimento |
+| Cadastro de incidentes (5 categorias, 3 criticidades, 4 status)                 | 🚧 em desenvolvimento |
+| Listagem paginada por cursor com filtros combináveis                            | ⏳ planejado          |
+| Transições de status validadas no servidor                                      | ⏳ planejado          |
+| **Lock otimista** (`version` + `If-Match`) com `409` e payload do estado atual  | ⏳ planejado          |
+| **Idempotência** via `Idempotency-Key` nas mutações                             | ✅ pronto             |
+| **Priority score** determinístico, calculado e persistido no servidor           | ⏳ planejado          |
+| SLA com contagem regressiva e alerta visual progressivo                         | ⏳ planejado          |
+| Lista virtualizada (100+ incidentes) com modo compacto e confortável            | ⏳ planejado          |
+| Filtros persistidos na URL (link compartilhável)                                | ⏳ planejado          |
+| Busca textual com debounce e `keepPreviousData`                                 | ⏳ planejado          |
+| Modal de conflito `409` com diff campo a campo                                  | ⏳ planejado          |
+| Resiliência: timeout, retry com jitter, circuit breaker e cache _stale_         | ⏳ planejado          |
+| Estados de UI explícitos (loading, erro, vazio, offline, otimista)              | ⏳ planejado          |
+| Tema claro/escuro persistido                                                    | ⏳ planejado          |
+| **Login e sessão autenticada** (token na aba; `401` devolve ao login)           | ✅ pronto             |
+| Timeline de auditoria por incidente                                             | ✅ pronto             |
+| SSE com badge "N novos" sem reordenar a lista                                   | ⏳ planejado          |
+| Command palette (`Ctrl+K`) e atalhos de teclado                                 | ⏳ planejado          |
+| Seed com 120 incidentes realistas para demonstração                             | ✅ pronto             |
+| **Autenticação** com JWT, revogação real no logout e troca de senha             | ✅ pronto             |
+| **Autorização por papel** (`REPORTER`/`ANALYST`/`ADMIN`), com escopo na query   | ✅ pronto             |
+| **Administração de contas por convite**, com senha temporária e primeiro acesso | ✅ pronto             |
+| Exportação CSV da visão filtrada                                                | ⏳ planejado          |
+| Testes E2E com Playwright                                                       | ⏳ planejado          |
 
 Legenda: ✅ pronto · 🚧 em desenvolvimento · ⏳ planejado.
 
@@ -351,6 +352,35 @@ Entrar como `marina` e como `ana` é a forma mais rápida de ver a autorização
 funcionando: a mesma listagem devolve recortes diferentes. O contrato completo do
 fluxo está em [`docs/03-api.md` §15](docs/03-api.md) e a decisão em
 [ADR 0015](docs/adr/0015-autenticacao-jwt.md).
+
+#### Criar uma conta (convite)
+
+Contas não se cadastram sozinhas: quem entra é convidado por um administrador.
+Entre como `admin@autou.com.br` e use `POST /api/v1/users` (ou a tela de
+administração, quando ela existir):
+
+```bash
+curl -X POST http://localhost:8000/api/v1/users \
+  -H "Authorization: Bearer <token do admin>" \
+  -H "Content-Type: application/json" \
+  -d '{"email": "joana.prado@autou.com.br", "role": "REPORTER"}'
+```
+
+A conta nasce **inativa**, com uma senha temporária válida por **24 horas**. A
+senha **não** volta na resposta — ela sai no e-mail. Sem `SMTP_HOST` configurado,
+o envio vai para o **log do servidor**, que é como se percorre o fluxo inteiro
+sem credencial de e-mail:
+
+```bash
+# no terminal da API, procure a linha do convite:
+#   email_para_log destinatario=joana.prado@autou.com.br assunto=Sua conta no Logos foi criada
+```
+
+No primeiro login, `POST /auth/login` responde `mustChangePassword: true`, e a
+sessão só serve para definir a senha: qualquer outra rota devolve
+`403 PASSWORD_CHANGE_REQUIRED`. Depois da troca, a conta fica ativa e a senha
+temporária morre. O contrato está em
+[`docs/03-api.md` §16](docs/03-api.md).
 
 ### 3. Frontend
 
