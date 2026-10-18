@@ -40,6 +40,41 @@ export const LOGIN_INVALID_CREDENTIALS = 'Credenciais inválidas. Verifique e-ma
 /** Sessão derrubada pelo servidor: a pessoa precisa saber por que voltou aqui. */
 export const LOGIN_SESSION_EXPIRED = 'Sua sessão expirou. Entre novamente.';
 
+/** Saída pelo menu do usuário — o frame desenha este aviso em tom de informação. */
+export const LOGIN_SIGNED_OUT = 'Sessão encerrada. Entre novamente para continuar.';
+
+/* ------------------------------------------------------------------ */
+/* Copy da troca de senha                                              */
+/* ------------------------------------------------------------------ */
+
+/** A política real da API: só comprimento. Ver `app/domain/accounts.py`. */
+export const PASSWORD_POLICY_HINT = 'Mínimo de 12 caracteres.';
+
+/** Confirmação da troca — o frame `Primeiro acesso` usa a mesma frase. */
+export const PASSWORD_CHANGED = 'Senha alterada. Use a nova no próximo acesso.';
+
+const PASSWORD_CURRENT_WRONG = 'A senha atual está incorreta.';
+const PASSWORD_REJECTED = 'A nova senha não atende à política.';
+const PASSWORD_UNKNOWN = 'Não foi possível trocar a senha. Tente de novo.';
+
+/**
+ * Traduz a falha da troca de senha. Vale a mesma regra do login: quem escreve a
+ * mensagem é o código, não o servidor.
+ */
+export function describeChangePasswordError(error: unknown): string {
+  if (!isApiError(error)) return PASSWORD_UNKNOWN;
+
+  if (error.code === 'INVALID_CREDENTIALS' || error.status === 401) return PASSWORD_CURRENT_WRONG;
+  if (error.status === 422) return PASSWORD_REJECTED;
+  if (error.status === 429) return LOGIN_RATE_LIMITED;
+  if (error.status >= 500) return PASSWORD_UNKNOWN;
+  if (error.kind === 'timeout' || error.kind === 'offline' || error.kind === 'network') {
+    return PASSWORD_UNKNOWN;
+  }
+
+  return PASSWORD_UNKNOWN;
+}
+
 const LOGIN_TIMEOUT = 'A API demorou para responder. Ela pode estar acordando — tente de novo.';
 const LOGIN_UNREACHABLE = 'Sem conexão com a API. Verifique sua rede e tente de novo.';
 const LOGIN_RATE_LIMITED = 'Muitas tentativas. Aguarde alguns instantes.';

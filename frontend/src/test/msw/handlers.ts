@@ -240,7 +240,7 @@ function readParam(value: string | readonly string[] | undefined): string | null
 /** Mesma validade do contrato real (8 h) — aqui só para o token ter prazo. */
 const MOCK_TOKEN_TTL_SECONDS = 8 * 60 * 60;
 
-function readLoginField(body: unknown, key: 'email' | 'password'): string | null {
+function readBodyField(body: unknown, key: string): string | null {
   if (typeof body !== 'object' || body === null) return null;
   const value = (body as Record<string, unknown>)[key];
   return typeof value === 'string' ? value : null;
@@ -255,8 +255,8 @@ export const handlers = [
     await simulateLatency();
 
     const body: unknown = await request.json().catch(() => null);
-    const email = readLoginField(body, 'email')?.trim().toLowerCase() ?? '';
-    const password = readLoginField(body, 'password') ?? '';
+    const email = readBodyField(body, 'email')?.trim().toLowerCase() ?? '';
+    const password = readBodyField(body, 'password') ?? '';
 
     if (email !== DEMO_CREDENTIALS.email || password !== DEMO_CREDENTIALS.password) {
       return apiError(401, 'INVALID_CREDENTIALS', 'Credenciais inválidas.', null, {
@@ -279,6 +279,30 @@ export const handlers = [
   }),
 
   http.post(apiPath('/auth/logout'), () => new HttpResponse(null, { status: 204 })),
+
+  /**
+   * Troca de senha: confere a senha atual e recusa nova fora da política —
+   * mesmo mínimo de 12 que `app/domain/accounts.py` aplica de verdade.
+   */
+  http.post(apiPath('/auth/change-password'), async ({ request }) => {
+    await simulateLatency();
+
+    const body: unknown = await request.json().catch(() => null);
+    const currentPassword = readBodyField(body, 'currentPassword') ?? '';
+    const newPassword = readBodyField(body, 'newPassword') ?? '';
+
+    if (currentPassword !== DEMO_CREDENTIALS.password) {
+      return apiError(401, 'INVALID_CREDENTIALS', 'A senha atual está incorreta.', null, {
+        'WWW-Authenticate': 'Bearer',
+      });
+    }
+
+    if (newPassword.length < 12) {
+      return apiError(422, 'VALIDATION_ERROR', 'A senha deve ter ao menos 12 caracteres.');
+    }
+
+    return new HttpResponse(null, { status: 204 });
+  }),
 
   http.get(apiPath('/health/live'), () => HttpResponse.json({ status: 'ok' })),
 

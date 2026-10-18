@@ -41,6 +41,29 @@ export const loginFormSchema = z.object({
 export type LoginFormValues = z.infer<typeof loginFormSchema>;
 export type LoginResponse = z.infer<typeof loginResponseSchema>;
 
+/**
+ * Política real da API (`app/domain/accounts.py`): mínimo de 12 e máximo de
+ * 128, **sem** exigir símbolo, maiúscula ou dígito. A interface repete o que o
+ * servidor aplica — nem mais, nem menos.
+ */
+export const PASSWORD_MIN_LENGTH = 12;
+
+/** Formulário de troca de senha (`POST /auth/change-password`). */
+export const changePasswordFormSchema = z
+  .object({
+    currentPassword: z.string().min(1, 'Informe a senha atual.'),
+    newPassword: z
+      .string()
+      .min(PASSWORD_MIN_LENGTH, `A nova senha precisa de ${PASSWORD_MIN_LENGTH} caracteres.`),
+    confirmPassword: z.string().min(1, 'Confirme a nova senha.'),
+  })
+  .refine((values) => values.newPassword === values.confirmPassword, {
+    message: 'As senhas não conferem.',
+    path: ['confirmPassword'],
+  });
+
+export type ChangePasswordFormValues = z.infer<typeof changePasswordFormSchema>;
+
 /** Normaliza `lastLoginAt` ausente para `null`, como o contrato manda. */
 export function toAuthUser(payload: z.infer<typeof authUserSchema>): AuthUser {
   return {

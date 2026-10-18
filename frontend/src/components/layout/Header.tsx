@@ -1,22 +1,14 @@
-import { BookOpen, LogOut, Radio, Truck } from 'lucide-react';
+import { BookOpen, Radio, Truck } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { formatSessionLabel, initialsFromName } from '@/features/auth/labels';
-import { endSession } from '@/features/auth/session';
-import { useAuthStore } from '@/features/auth/useAuthStore';
 import { startTour } from '@/features/tour/useTour';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 
 import { ThemeToggle } from './ThemeToggle';
+import { UserMenu } from './UserMenu';
 
 export function Header() {
   const isOnline = useOnlineStatus();
-  // O nome sai da sessão: era literal no header até a autenticação existir.
-  const user = useAuthStore((state) => state.session?.user ?? null);
-
-  const handleSignOut = (): void => {
-    endSession();
-  };
 
   return (
     <header className="border-b border-border bg-surface">
@@ -65,29 +57,7 @@ export function Header() {
             {isOnline ? 'ao vivo' : 'sem conexão'}
           </span>
           <ThemeToggle />
-          {user === null ? null : (
-            <>
-              <span className="hidden items-center gap-2 border-l border-border pl-3 text-2xs text-fg-muted md:inline-flex">
-                <span
-                  aria-hidden="true"
-                  className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-surface-sunken font-semibold text-fg"
-                >
-                  {initialsFromName(user.name)}
-                </span>
-                {formatSessionLabel(user)}
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleSignOut}
-                title="Encerrar a sessão"
-                className="text-fg-muted"
-              >
-                <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
-                Sair
-              </Button>
-            </>
-          )}
+          <UserMenu />
         </div>
       </div>
     </header>

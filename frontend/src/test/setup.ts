@@ -55,10 +55,68 @@ function installScrollIntoViewStub(): void {
   });
 }
 
+/**
+ * O jsdom não traz o que o Radix precisa para posicionar menus e diálogos
+ * (`ResizeObserver` e captura de ponteiro). Sem estes apelidos, montar o menu
+ * do usuário derruba a renderização inteira do teste — não só a interação com
+ * o menu.
+ */
+function installRadixStubs(): void {
+  const escopo = globalThis as unknown as Record<string, unknown>;
+  if (typeof escopo.ResizeObserver !== 'function') {
+    escopo.ResizeObserver = class {
+      observe = (): void => undefined;
+      unobserve = (): void => undefined;
+      disconnect = (): void => undefined;
+    };
+  }
+
+  // Mesma guarda do stub acima: no ambiente `node` não existe `Element`.
+  const ctorElemento = (globalThis as { Element?: unknown }).Element as
+    { prototype: Record<string, unknown> } | undefined;
+  if (ctorElemento === undefined) return;
+  const proto = ctorElemento.prototype;
+  // Atribuição direta, e não `??=`: o jsdom *declara* estes métodos sem os
+  // implementar, então a checagem de nulidade não pegaria nenhum deles.
+  proto.hasPointerCapture = () => false;
+  proto.setPointerCapture = () => undefined;
+  proto.releasePointerCapture = () => undefined;
+}
+
+let isFetchBridged = false;
+
+/**
+ * Ponte entre o `AbortSignal` do jsdom e o `fetch` do Node.
+ *
+ * O MSW remonta a requisição interceptada com `new Request(url, { signal })`, e
+ * o `Request` do undici recusa um signal de outro realm ("Expected signal to be
+ * an instance of AbortSignal"). Como no jsdom **todo** signal é desse realm, o
+ * MSW não interceptava nada: a chamada morria como erro de rede e o teste via
+ * a mensagem genérica em vez da resposta da API. A saída é não repassar o
+ * signal ao fetch — perde-se o cancelamento da requisição, que em jsdom já não
+ * chegava ao fetch de qualquer maneira.
+ *
+ * Precisa rodar **depois** de `server.listen()`: é o `listen` que troca o
+ * `fetch` global pelo do MSW.
+ */
+function bridgeAbortSignalToFetch(): void {
+  if (isFetchBridged) return;
+  const currentFetch = globalThis.fetch;
+
+  globalThis.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
+    if (init?.signal === undefined || init.signal === null) return currentFetch(input, init);
+    return currentFetch(input, { ...init, signal: undefined });
+  };
+  isFetchBridged = true;
+}
+
 beforeAll(() => {
   server.listen({ onUnhandledRequest: 'error' });
   installMatchMediaStub();
   installScrollIntoViewStub();
+  installRadixStubs();
+  // Depois do listen: é ele que troca o fetch global pelo do MSW.
+  bridgeAbortSignalToFetch();
 });
 
 afterEach(() => {

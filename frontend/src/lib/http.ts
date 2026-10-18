@@ -277,6 +277,13 @@ export interface RequestOptions {
    * erro dentro dela mesma.
    */
   skipAuth?: boolean;
+  /**
+   * Mantém o token, mas **não** trata 401 como sessão perdida. Existe para a
+   * troca de senha: ali um 401 quer dizer "a senha atual está errada", e
+   * derrubar a sessão de quem só errou a senha seria expulsar a pessoa por um
+   * erro de digitação.
+   */
+  ignoreUnauthorized?: boolean;
   signal?: AbortSignal;
   timeoutMs?: number;
   /** Sobrescreve a política de tentativas (usado nos testes). */
@@ -469,7 +476,11 @@ export class HttpClient {
         const error = createApiErrorFromResponse(response, errorBody);
         // 401 numa chamada autenticada é sessão perdida: quem reage é o
         // ouvinte, limpando store e cache. O login fica fora por `skipAuth`.
-        if (error.status === 401 && options.skipAuth !== true) {
+        if (
+          error.status === 401 &&
+          options.skipAuth !== true &&
+          options.ignoreUnauthorized !== true
+        ) {
           authBridge?.onUnauthorized(error);
         }
         throw error;
