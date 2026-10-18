@@ -1,0 +1,143 @@
+name: deploy-aws
+
+# Publica a Onda 2 na AWS a cada push na main: o front no S3 + CloudFront e a
+# API como imagem de container no ECR + Lambda.
+#
+# NAO HA CREDENCIAL NENHUMA NO REPOSITORIO. O workflow pede ao GitHub um token
+# OIDC de vida curta e o troca por credenciais temporarias do papel
+# `logos-github-deploy` (validade de 1 hora). O papel so aceita tokens deste
+# repositorio, na branch main — a condicao `sub` da politica de confianca.
+#
+# E o ADR 0012 levado ao fim: nao existe chave para vazar nem para rotacionar.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  id-token: write # permite pedir o token OIDC ao GitHub
+  contents: read
+  actions: read # permite consultar o status da CI do mesmo commit
+
+concurrency:
+  group: deploy-aws
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  AWS_ROLE: arn:aws:iam::885129934642:role/logos-github-deploy
+  ECR_IMAGE: 885129934642.dkr.ecr.us-east-1.amazonaws.com/logos-api:latest
+  LAMBDA_FUNCTION: logos-api
+  S3_BUCKET: logos-web-885129934642
+  CLOUDFRONT_DISTRIBUTION: E3424CVNAT88FU
+  API_URL: https://c33z3s4di7cywi7azqthdd62mu0ufnds.lambda-url.us-east-1.on.aws
+
+jobs:
+  # Publicar antes da CI passar seria publicar as cegas. O Render ja usa
+  # `autoDeployTrigger: checksPass`; aqui o portao e explicito.
+  portao:
+    name: esperar a CI do mesmo commit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Esperar a CI ficar verde
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for tentativa in $(seq 1 40); do
+            estado=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow=ci.yml \
+              --commit "$GITHUB_SHA" --limit 1 --json status,conclusion \
+              --jq '.[] | .status + ":" + (.conclusion // "em andamento")' 2>/dev/null || true)
+            echo "tentativa $tentativa: ${estado:-sem execucao ainda}"
+            case "$estado" in
+              completed:success) echo "CI verde neste commit."; exit 0 ;;
+              completed:*)       echo "::error::A CI falhou neste commit. Deploy abortado."; exit 1 ;;
+            esac
+            sleep 15
+          done
+          echo "::error::A CI nao concluiu em 10 minutos."
+          exit 1
+
+  front:
+    name: front no S3 + CloudFront
+    needs: [portao]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # A versao do pnpm vem do campo packageManager do package.json.
+      # Declarar tambem aqui causa ERR_PNPM_BAD_PM_VERSION por conflito.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Instalar dependencias
+        run: pnpm install --frozen-lockfile
+
+      # A URL da API e assada no bundle em tempo de build: trocar de API exige
+      # reconstruir o front, nao basta trocar uma variavel no servidor.
+      - name: Build de producao
+        env:
+          VITE_API_BASE_URL: ${{ env.API_URL }}/api/v1
+        run: pnpm --filter web build
+
+      - name: Publicar no S3
+        run: aws s3 sync frontend/dist "s3://$S3_BUCKET" --delete
+
+      - name: Invalidar o cache do CloudFront
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "$CLOUDFRONT_DISTRIBUTION" --paths "/*"
+
+  api:
+    name: API no ECR + Lambda
+    needs: [portao]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Autenticar no ECR
+        run: |
+          registry="${ECR_IMAGE%%/*}"
+          aws ecr get-login-password --region "$AWS_REGION" \
+            | docker login --username AWS --password-stdin "$registry"
+
+      - name: Construir e publicar a imagem
+        run: |
+          docker build --platform linux/amd64 \
+            -f backend/Dockerfile.lambda -t "$ECR_IMAGE" backend
+          docker push "$ECR_IMAGE"
+
+      - name: Apontar a funcao para a imagem nova
+        run: |
+          aws lambda update-function-code \
+            --function-name "$LAMBDA_FUNCTION" --image-uri "$ECR_IMAGE"
+          aws lambda wait function-updated --function-name "$LAMBDA_FUNCTION"
+
+      # A imagem anterior continua no ECR por 7 dias (a politica de ciclo de
+      # vida so remove o que ficou sem tag). Se este teste falhar, o retorno e
+      # um comando: apontar a funcao de volta para o digest anterior.
+      - name: Conferir que a API respondeu
+        run: |
+          for tentativa in $(seq 1 12); do
+            if curl -fsS --max-time 25 "$API_URL/api/v1/health/ready"; then
+              echo "API saudavel na tentativa $tentativa."
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::A API nao respondeu apos a atualizacao."
+          exit 1
