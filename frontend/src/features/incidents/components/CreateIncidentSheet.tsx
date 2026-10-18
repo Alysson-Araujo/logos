@@ -26,6 +26,7 @@ import { cn } from '@/lib/utils';
 
 import { readIncidentFieldErrors } from '../api/endpoints';
 import { useCreateIncident } from '../hooks/useCreateIncident';
+import { useLocationSuggestions } from '../hooks/useLocationSuggestions';
 import { CATEGORY_LABELS, CRITICALITY_LABELS } from '../labels';
 import { CREATE_INCIDENT_FIELDS, incidentCreateSchema, type CreateIncidentField } from '../schemas';
 import {
@@ -94,6 +95,18 @@ export function CreateIncidentSheet({ open, onClose }: CreateIncidentSheetProps)
     label: veiculo.plate,
     description: `${veiculo.model} · ${veiculo.carrier}`,
   }));
+
+  /**
+   * Sugestões de local, tiradas dos incidentes que o usuário **já pode ver**.
+   *
+   * O recorte por papel não é reimplementado aqui: a busca reusa `GET /incidents`,
+   * que aplica `visibility_scope` na query. Um `REPORTER` recebe sugestões apenas
+   * dos próprios incidentes — e isso vale para o histórico inteiro, não só para a
+   * página que ele tem aberta.
+   */
+  const locaisSugeridos = useLocationSuggestions(form.locationLabel, open);
+
+  const opcoesDeLocal = locaisSugeridos.map((local) => ({ value: local, label: local }));
 
   const patchForm = (patch: Partial<CreateIncidentForm>): void => {
     setForm((previous) => ({ ...previous, ...patch }));
@@ -341,14 +354,17 @@ export function CreateIncidentSheet({ open, onClose }: CreateIncidentSheetProps)
               error={fieldErrors.locationLabel}
             >
               {(a11y) => (
-                <Input
+                <Combobox
                   {...a11y}
                   value={form.locationLabel}
                   disabled={isPending}
                   placeholder="BR-116 km 412, sentido São Paulo"
-                  className={cn(fieldErrors.locationLabel !== undefined && 'border-danger')}
-                  onChange={(event) => {
-                    patchForm({ locationLabel: event.target.value });
+                  options={opcoesDeLocal}
+                  // Sem `emptyMessage`: enquanto a pessoa digita um local que não
+                  // está no histórico, nenhum painel aparece. Sugestão aqui é
+                  // atalho, não lista fechada — o campo continua livre.
+                  onValueChange={(valor) => {
+                    patchForm({ locationLabel: valor });
                   }}
                 />
               )}
@@ -370,6 +386,9 @@ export function CreateIncidentSheet({ open, onClose }: CreateIncidentSheetProps)
                       placeholder="AAA1A23"
                       options={opcoesDePlaca}
                       isLoading={frota.isFetching}
+                      emptyMessage="Nenhuma placa encontrada na frota."
+                      loadingMessage="Buscando placas…"
+                      uppercase
                       onValueChange={(valor) => {
                         patchForm({ truckPlate: valor });
                         // Editou a placa: a confirmação anterior não descreve
