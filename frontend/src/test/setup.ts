@@ -34,9 +34,31 @@ function installMatchMediaStub(): void {
   });
 }
 
+/**
+ * O jsdom não implementa `scrollIntoView`, usado pelo guia para trazer o alvo
+ * para dentro da dobra (o rodapé, em telas baixas). Sem o stub o efeito
+ * quebraria em `TypeError` em vez de simplesmente não rolar.
+ */
+function installScrollIntoViewStub(): void {
+  // No ambiente `node` (usado pelos testes de API) não existe `Element`, então
+  // o construtor é lido do global e checado antes do uso.
+  const ctorElemento = (globalThis as { Element?: unknown }).Element as
+    { prototype: Record<string, unknown> } | undefined;
+  if (ctorElemento === undefined) return;
+  const elementPrototype = ctorElemento.prototype;
+  if (typeof elementPrototype.scrollIntoView === 'function') return;
+
+  Object.defineProperty(elementPrototype, 'scrollIntoView', {
+    writable: true,
+    configurable: true,
+    value: () => undefined,
+  });
+}
+
 beforeAll(() => {
   server.listen({ onUnhandledRequest: 'error' });
   installMatchMediaStub();
+  installScrollIntoViewStub();
 });
 
 afterEach(() => {
@@ -53,6 +75,7 @@ afterEach(() => {
     browserWindow.sessionStorage.clear();
     browserWindow.history.replaceState(null, '', '/');
     installMatchMediaStub();
+    installScrollIntoViewStub();
   }
 });
 
