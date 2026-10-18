@@ -135,3 +135,36 @@ services:
 
       - key: LOG_LEVEL
         value: INFO
+
+      # ---------------------------------------------------------------
+      # Envio do convite de contas.
+      #
+      # SEM ESTAS VARIAVEIS A APLICACAO NAO SOBE. Nao e rigor gratuito: sem
+      # SMTP_HOST o LoggingMailer escreve o convite no log e a API responde
+      # 201 — o administrador conclui que a pessoa foi convidada, e ninguem
+      # recebe nada. Como o envio e propositalmente tolerante a falha, esse
+      # erro nao apareceria em lugar nenhum.
+      #
+      # SMTP_PASSWORD e a "senha de aplicativo" da conta, nao a senha normal:
+      # o Google exige a de aplicativo quando ha verificacao em duas etapas, e
+      # ela pode ser revogada sem trocar a senha da conta.
+      #
+      # Os valores vao no painel do Render (sync: false), NUNCA aqui.
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: '587'
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+      - key: SMTP_USE_TLS
+        value: 'true'
+
+      # Usada no link "Definir minha senha" do convite: aponta para a tela
+      # publicada do frontend.
+      - key: FRONTEND_URL
+        sync: false
+      # ---------------------------------------------------------------

@@ -89,6 +89,10 @@ class Settings(BaseSettings):
     smtp_from: str = "Logos <nao-responda@logos.local>"
     #: STARTTLS. Ligado por padrão: desligar só faz sentido em servidor local.
     smtp_use_tls: bool = True
+    #: Declara que os convites ficarão apenas no log, e que isso é intencional.
+    #: Existe para separar "não configurei" de "configurei e quero assim": em
+    #: produção, sem `SMTP_HOST` e sem esta flag, a aplicação recusa subir.
+    email_disabled: bool = False
 
     @model_validator(mode="after")
     def _require_real_secret_in_production(self) -> Settings:
@@ -104,6 +108,30 @@ class Settings(BaseSettings):
                 "o valor padrão é público e permite forjar tokens."
             )
         return self
+
+    @model_validator(mode="after")
+    def _require_email_in_production(self) -> Settings:
+        """Recusa subir em produção sem envio de e-mail configurado.
+
+        Este é o modo de falha mais traiçoeiro do convite: sem `SMTP_HOST` a
+        aplicação **não** quebra — o `LoggingMailer` escreve a mensagem no log e
+        a criação da conta responde `201`. O administrador conclui que a pessoa
+        foi convidada, e ninguém recebe nada. Não há erro em lugar nenhum para
+        alguém investigar; há um log de INFO que ninguém lê.
+
+        Falhar no deploy transforma esse silêncio em uma mensagem clara, na hora
+        certa. Para assumir o comportamento de log em produção, defina
+        `EMAIL_DISABLED=true` — a diferença entre "esqueci" e "escolhi".
+        """
+        if not self.is_production:
+            return self
+        if self.smtp_host or self.email_disabled:
+            return self
+        raise ValueError(
+            "SMTP_HOST é obrigatório em produção: sem ele os convites ficam "
+            "apenas no log e ninguém recebe o acesso. Configure o envio ou "
+            "defina EMAIL_DISABLED=true para assumir esse comportamento."
+        )
 
     @property
     def cors_origin_list(self) -> list[str]:
