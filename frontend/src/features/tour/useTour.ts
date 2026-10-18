@@ -152,7 +152,7 @@ interface TourActions {
 /**
  * Estado do guia fora do React.
  *
- * O botão "?" vive no cabeçalho e o cartão vive na triagem: um store evita
+ * O botão "Guia" vive no cabeçalho e o cartão vive na triagem: um store evita
  * prop drilling e mantém `Esc`/botões coerentes com um único `isOpen`.
  */
 export const useTourStore = create<TourState & TourActions>()((set, get) => ({

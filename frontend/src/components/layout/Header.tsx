@@ -1,4 +1,4 @@
-import { CircleHelp, LogOut, Radio, Truck } from 'lucide-react';
+import { BookOpen, LogOut, Radio, Truck } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { formatSessionLabel, initialsFromName } from '@/features/auth/labels';
@@ -30,29 +30,22 @@ export function Header() {
           </span>
           <div className="leading-tight">
             <p className="font-mono text-sm font-semibold tracking-tight text-fg">LOGOS</p>
-            {/*
-              O "?" acompanha o subtítulo, não a ponta do cabeçalho: fica na
-              mesma linha da marca, alinhado por `items-center`. `-my-0.5`
-              desconta a sobra dos 20 px do botão sobre os 16 px da linha de
-              texto, para o botão não esticar a altura do cabeçalho.
-            */}
-            <div className="flex items-center gap-1">
-              <p className="text-2xs text-fg-muted">Central de Resposta a Incidentes</p>
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label="Abrir o guia"
-                title="Abrir o guia"
-                onClick={startTour}
-                className="-my-0.5 h-5 w-5 shrink-0 text-fg-muted"
-              >
-                <CircleHelp className="h-3.5 w-3.5" aria-hidden="true" />
-              </Button>
-            </div>
+            <p className="text-2xs text-fg-muted">Central de Resposta a Incidentes</p>
           </div>
         </div>
 
         <div className="ml-auto flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-label="Abrir o guia"
+            title="Abrir o guia"
+            onClick={startTour}
+            className="text-fg-muted"
+          >
+            Guia
+            <BookOpen className="h-3.5 w-3.5" aria-hidden="true" />
+          </Button>
           <span
             data-tour="connection"
             className="hidden items-center gap-1.5 text-2xs font-medium text-fg-muted sm:inline-flex"
