@@ -35,7 +35,7 @@ export function WelcomeTour({ ready = true }: WelcomeTourProps) {
   const {
     isOpen,
     step,
-    stepIndex,
+    position,
     total,
     rect,
     cardRef,
@@ -122,7 +122,7 @@ export function WelcomeTour({ ready = true }: WelcomeTourProps) {
         <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-t border-border pt-3">
           <div className="flex items-center gap-1">
             <span className="font-mono text-2xs nums text-fg-subtle">
-              {`Passo ${String(stepIndex + 1)} de ${String(total)}`}
+              {`Passo ${String(position)} de ${String(total)}`}
             </span>
             <Button variant="link" size="sm" onClick={dismiss} className="px-1">
               Pular

@@ -5,15 +5,19 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { Header } from '@/components/layout/Header';
 import { useAuthStore } from '@/features/auth/useAuthStore';
 
+import { type TourTarget } from './steps';
 import { computeCardLayout, computeHole, TOUR_STORAGE_KEY, useTourStore } from './useTour';
 import { WelcomeTour } from './WelcomeTour';
 
-type Target = 'kpis' | 'filters' | 'list';
-
-const ALL_TARGETS: readonly Target[] = ['kpis', 'filters', 'list'];
+/**
+ * Alvos que a triagem marca. Tema e conexão ficam de fora da lista porque quem
+ * os marca é o `Header`, que entra em todos os cenários abaixo — ou seja, os
+ * dois **sempre** existem, mesmo quando a triagem não renderizou nada.
+ */
+const TRIAGE_TARGETS: readonly TourTarget[] = ['kpis', 'filters', 'list', 'create'];
 
 /** Triagem de mentira: só as áreas que o guia procura no DOM. */
-function TriageStub({ targets }: { targets: readonly Target[] }) {
+function TriageStub({ targets }: { targets: readonly TourTarget[] }) {
   return (
     <>
       {targets.map((target) => (
@@ -24,11 +28,11 @@ function TriageStub({ targets }: { targets: readonly Target[] }) {
 }
 
 interface RenderOptions {
-  targets?: readonly Target[];
+  targets?: readonly TourTarget[];
   ready?: boolean;
 }
 
-function renderTriage({ targets = ALL_TARGETS, ready = true }: RenderOptions = {}) {
+function renderTriage({ targets = TRIAGE_TARGETS, ready = true }: RenderOptions = {}) {
   return render(
     <>
       <Header />
@@ -60,14 +64,14 @@ describe('WelcomeTour', () => {
     rerender(
       <>
         <Header />
-        <TriageStub targets={ALL_TARGETS} />
+        <TriageStub targets={TRIAGE_TARGETS} />
         <WelcomeTour ready />
       </>,
     );
 
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByRole('heading', { name: 'Boas-vindas ao Logos' })).toBeVisible();
-    expect(within(dialog).getByText('Passo 1 de 3')).toBeInTheDocument();
+    expect(within(dialog).getByText('Passo 1 de 6')).toBeInTheDocument();
   });
 
   it('espera o alvo dos KPIs aparecer no DOM para abrir', async () => {
@@ -79,7 +83,7 @@ describe('WelcomeTour', () => {
     rerender(
       <>
         <Header />
-        <TriageStub targets={ALL_TARGETS} />
+        <TriageStub targets={TRIAGE_TARGETS} />
         <WelcomeTour ready />
       </>,
     );
@@ -89,7 +93,7 @@ describe('WelcomeTour', () => {
     });
   });
 
-  it('sem nenhum alvo não abre e não marca como visto', async () => {
+  it('sem o alvo dos KPIs não abre e não marca como visto', async () => {
     renderTriage({ targets: [] });
 
     await flushAutoOpen();
@@ -103,9 +107,10 @@ describe('WelcomeTour', () => {
     const first = renderTriage();
 
     const dialog = await screen.findByRole('dialog');
-    await user.click(within(dialog).getByRole('button', { name: 'Próximo' }));
-    await user.click(screen.getByRole('button', { name: 'Próximo' }));
-    expect(screen.getByText('Passo 3 de 3')).toBeInTheDocument();
+    for (let index = 0; index < 5; index += 1) {
+      await user.click(within(dialog).getByRole('button', { name: 'Próximo' }));
+    }
+    expect(screen.getByText('Passo 6 de 6')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Concluir' }));
 
@@ -123,29 +128,37 @@ describe('WelcomeTour', () => {
     await user.click(screen.getByRole('button', { name: 'Abrir o guia' }));
 
     const reopened = await screen.findByRole('dialog');
-    expect(within(reopened).getByText('Passo 1 de 3')).toBeInTheDocument();
+    expect(within(reopened).getByText('Passo 1 de 6')).toBeInTheDocument();
     expect(window.localStorage.getItem(TOUR_STORAGE_KEY)).toBe('done');
   });
 
-  it('"Próximo" e "Anterior" trocam o passo e o contador', async () => {
+  it('percorre os seis passos, com "Anterior" voltando um passo', async () => {
     const user = userEvent.setup();
     renderTriage();
     await screen.findByRole('dialog');
 
-    expect(screen.getByText('Passo 1 de 3')).toBeInTheDocument();
-    expect(screen.getByText('Boas-vindas ao Logos')).toBeInTheDocument();
+    expect(screen.getByText('Passo 1 de 6')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Boas-vindas ao Logos' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Anterior' })).toBeDisabled();
 
-    await user.click(screen.getByRole('button', { name: 'Próximo' }));
+    const steps = [
+      { position: 2, title: 'Busca e filtros' },
+      { position: 3, title: 'A fila priorizada' },
+      { position: 4, title: 'Registrar incidente' },
+      { position: 5, title: 'Tema' },
+      { position: 6, title: 'Conexão' },
+    ] as const;
 
-    expect(screen.getByText('Passo 2 de 3')).toBeInTheDocument();
-    expect(screen.getByText('Busca e filtros')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Próximo' })).toBeEnabled();
+    for (const { position, title } of steps) {
+      await user.click(screen.getByRole('button', { name: 'Próximo' }));
+      expect(screen.getByText(`Passo ${String(position)} de 6`)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: title })).toBeInTheDocument();
+    }
 
     await user.click(screen.getByRole('button', { name: 'Anterior' }));
 
-    expect(screen.getByText('Passo 1 de 3')).toBeInTheDocument();
-    expect(screen.getByText('Boas-vindas ao Logos')).toBeInTheDocument();
+    expect(screen.getByText('Passo 5 de 6')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Tema' })).toBeInTheDocument();
   });
 
   it('no último passo o botão vira "Concluir"', async () => {
@@ -153,28 +166,62 @@ describe('WelcomeTour', () => {
     renderTriage();
     await screen.findByRole('dialog');
 
-    await user.click(screen.getByRole('button', { name: 'Próximo' }));
-    await user.click(screen.getByRole('button', { name: 'Próximo' }));
+    for (let index = 0; index < 5; index += 1) {
+      await user.click(screen.getByRole('button', { name: 'Próximo' }));
+    }
 
-    expect(screen.getByText('Passo 3 de 3')).toBeInTheDocument();
+    expect(screen.getByText('Passo 6 de 6')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Concluir' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Próximo' })).not.toBeInTheDocument();
   });
 
-  it('um alvo ausente não quebra o guia: a fila vazia encerra no passo 2', async () => {
+  it('conta só os passos que existem: sem o "novo incidente" o guia tem 5 passos', async () => {
+    const user = userEvent.setup();
+    // Neste branch o botão "Novo incidente" (PR #125) ainda não existe, então o
+    // passo do cadastro é pulado — e o total cai de 6 para 5.
+    renderTriage({ targets: ['kpis', 'filters', 'list'] });
+
+    await screen.findByRole('dialog');
+    expect(screen.getByText('Passo 1 de 5')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Próximo' }));
+    expect(screen.getByText('Passo 2 de 5')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Próximo' }));
+    expect(screen.getByText('Passo 3 de 5')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'A fila priorizada' })).toBeInTheDocument();
+
+    // Da fila o guia vai direto para o tema: o cadastro não está no DOM.
+    await user.click(screen.getByRole('button', { name: 'Próximo' }));
+    expect(screen.getByText('Passo 4 de 5')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Tema' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Próximo' }));
+    expect(screen.getByText('Passo 5 de 5')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Conexão' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Concluir' })).toBeInTheDocument();
+  });
+
+  it('um alvo ausente não quebra o guia: sem a fila sobram 4 passos', async () => {
     const user = userEvent.setup();
     // Lista vazia: `IncidentList` não renderiza a seção com `data-tour`.
     renderTriage({ targets: ['kpis', 'filters'] });
 
     await screen.findByRole('dialog');
-    expect(screen.getByText('Passo 1 de 3')).toBeInTheDocument();
+    expect(screen.getByText('Passo 1 de 4')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Próximo' }));
-    expect(screen.getByText('Passo 2 de 3')).toBeInTheDocument();
-    expect(screen.getByText('Busca e filtros')).toBeInTheDocument();
+    expect(screen.getByText('Passo 2 de 4')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Busca e filtros' })).toBeInTheDocument();
 
-    // Sem fila, o passo 3 não existe: o botão vira "Concluir" no passo 2.
-    expect(screen.queryByRole('button', { name: 'Próximo' })).not.toBeInTheDocument();
+    // Sem fila e sem cadastro, os dois passos do meio saem da conta.
+    await user.click(screen.getByRole('button', { name: 'Próximo' }));
+    expect(screen.getByText('Passo 3 de 4')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Tema' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Próximo' }));
+    expect(screen.getByText('Passo 4 de 4')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Concluir' })).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Concluir' }));
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -183,14 +230,14 @@ describe('WelcomeTour', () => {
 
   it('pular o passo ausente também sai do passo do meio', async () => {
     const user = userEvent.setup();
-    // Filtros ausentes: o passo 2 é pulado e o 3 aparece na sequência.
+    // Filtros ausentes: o passo 2 é pulado e a fila aparece na sequência.
     renderTriage({ targets: ['kpis', 'list'] });
 
     await screen.findByRole('dialog');
     await user.click(screen.getByRole('button', { name: 'Próximo' }));
 
-    expect(screen.getByText('Passo 3 de 3')).toBeInTheDocument();
-    expect(screen.getByText('Fila priorizada')).toBeInTheDocument();
+    expect(screen.getByText('Passo 2 de 4')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'A fila priorizada' })).toBeInTheDocument();
   });
 
   it('Esc fecha o guia e grava a chave', async () => {
@@ -242,13 +289,18 @@ describe('WelcomeTour', () => {
     );
   });
 
-  it('"?" sem alvos no DOM não abre o guia', async () => {
+  it('"?" sem a triagem no DOM abre no primeiro passo que existe — o tema', async () => {
     const user = userEvent.setup();
     renderTriage({ targets: [] });
 
     await user.click(screen.getByRole('button', { name: 'Abrir o guia' }));
 
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    // Sem KPIs não há saudação: sobram os dois alvos do cabeçalho, e o guia
+    // abre no primeiro deles em vez de não fazer nada.
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('Passo 1 de 2')).toBeInTheDocument();
+    expect(within(dialog).getByRole('heading', { name: 'Tema' })).toBeInTheDocument();
+    // Abrir pelo "?" não marca o guia como visto.
     expect(window.localStorage.getItem(TOUR_STORAGE_KEY)).toBeNull();
   });
 });

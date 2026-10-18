@@ -78,6 +78,29 @@ export function hasPreviousStep(index: number): boolean {
   return findAvailableStep(index - 1, -1) !== null;
 }
 
+/**
+ * Índices dos passos cujo alvo existe no DOM, na ordem do roteiro.
+ *
+ * É a régua do contador: um passo pulado não entra na conta, então "de 6" vira
+ * "de 5" enquanto o botão do cadastro (PR #125) não existir.
+ */
+export function availableStepIndexes(): number[] {
+  const indexes: number[] = [];
+  TOUR_STEPS.forEach((step, index) => {
+    if (findTarget(step.target) !== null) indexes.push(index);
+  });
+  return indexes;
+}
+
+/** Posição 1-based de `index` entre os passos disponíveis. */
+function rankOf(index: number, available: readonly number[]): number {
+  return available.filter((candidate) => candidate <= index).length;
+}
+
+function sameIndexes(current: readonly number[], next: readonly number[]): boolean {
+  return current.length === next.length && current.every((value, index) => value === next[index]);
+}
+
 /** Marcado quando o usuário conclui ou pula — não deve abrir sozinho de novo. */
 export function hasSeenTour(): boolean {
   try {
@@ -233,7 +256,9 @@ function sameRect(current: TourRect | null, next: TourRect): boolean {
 export interface UseTourResult {
   isOpen: boolean;
   step: TourStep;
-  stepIndex: number;
+  /** Posição do passo exibido entre os que existem hoje (1 = primeiro). */
+  position: number;
+  /** Quantos passos existem hoje: alvo ausente não entra na conta. */
   total: number;
   /** `null` enquanto o alvo não foi medido (ou sumiu do DOM). */
   rect: TourRect | null;
@@ -262,10 +287,21 @@ export function useTour(ready: boolean): UseTourResult {
 
   const cardRef = useRef<HTMLDivElement>(null);
   const [rect, setRect] = useState<TourRect | null>(null);
+  /** Índices dos passos que existem agora — a base do contador. */
+  const [available, setAvailable] = useState<readonly number[]>([]);
   const step = stepAt(stepIndex);
 
   const measure = useCallback((): void => {
-    const target = isOpen ? findTarget(step.target) : null;
+    if (!isOpen) {
+      setRect(null);
+      return;
+    }
+    // Recontar a cada medição (troca de passo, rolagem e redimensionamento)
+    // mantém o contador coerente com o que está na tela.
+    const indexes = availableStepIndexes();
+    setAvailable((current) => (sameIndexes(current, indexes) ? current : indexes));
+
+    const target = findTarget(step.target);
     if (target === null) {
       setRect(null);
       return;
@@ -384,11 +420,16 @@ export function useTour(ready: boolean): UseTourResult {
     };
   }, [isOpen, dismiss]);
 
+  // O contador fala do roteiro que existe de fato. Antes da primeira medição
+  // (mesmo commit, antes da pintura) o total é o do roteiro completo.
+  const total = available.length > 0 ? available.length : TOUR_STEPS.length;
+  const position = available.length > 0 ? rankOf(stepIndex, available) : stepIndex + 1;
+
   return {
     isOpen,
     step,
-    stepIndex,
-    total: TOUR_STEPS.length,
+    position,
+    total,
     rect,
     cardRef,
     dismiss,

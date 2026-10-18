@@ -47,6 +47,7 @@ export function Header() {
 
         <div className="ml-auto flex items-center gap-3">
           <span
+            data-tour="connection"
             className="hidden items-center gap-1.5 text-2xs font-medium text-fg-muted sm:inline-flex"
             role="status"
             aria-live="polite"
