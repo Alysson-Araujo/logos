@@ -8,7 +8,9 @@ import { cn } from '@/lib/utils';
 
 import { CATEGORY_LABELS } from '../labels';
 import type { Incident } from '../types';
-import { CRITICALITY_PRESENTATION, CriticalityBadge } from './CriticalityBadge';
+import { PRIORITY_TIER_PRESENTATION, priorityTier } from '../priority';
+
+import { CriticalityBadge } from './CriticalityBadge';
 import { PriorityPill, describePriority } from './PriorityPill';
 import { SlaTimer } from './SlaTimer';
 import { StatusBadge } from './StatusBadge';
@@ -36,8 +38,6 @@ function IncidentRowComponent({
   onOpen,
   onFocus,
 }: IncidentRowProps) {
-  const presentation = CRITICALITY_PRESENTATION[incident.criticality];
-
   return (
     <Tooltip label={describePriority(incident)} side="bottom">
       <button
@@ -61,7 +61,11 @@ function IncidentRowComponent({
           'relative flex w-full flex-col gap-1 border-b border-b-border bg-surface px-3 text-left',
           'transition-colors duration-hover ease-panel hover:bg-surface-sunken',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent',
-          presentation.borderClass,
+          // A borda esquerda carrega a PRIORIDADE, não a criticidade. Ela é o
+          // canal que o olho lê na periferia, e a pergunta que o analista faz ao
+          // varrer a fila é "onde eu paro?" — que é a ordem, e a ordem vem do
+          // score. A criticidade continua no selo, com cor, forma e rótulo.
+          PRIORITY_TIER_PRESENTATION[priorityTier(incident.priorityScore)].borderClass,
           density === 'compact' ? 'py-1.5' : 'py-2.5',
           isPending ? 'opacity-70' : null,
           isFocused ? 'bg-surface-sunken' : null,

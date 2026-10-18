@@ -39,6 +39,24 @@
   --color-crit-baixa-soft: #dbeafe;
   --color-crit-baixa-text: #1d4ed8;
 
+  /* Prioridade — faixas do score CALCULADO.
+     Não confundir com criticidade: aquela é um campo que o repórter escolhe,
+     esta é o resultado do cálculo que ORDENA a fila. A paleta é distinta de
+     propósito — se as duas usassem o mesmo vermelho, a borda da linha e o selo
+     diriam a mesma coisa com significados diferentes. */
+  --color-prio-critica: #b91c1c;
+  --color-prio-critica-soft: #fee2e2;
+  --color-prio-critica-text: #991b1b;
+  --color-prio-alta: #ea580c;
+  --color-prio-alta-soft: #ffedd5;
+  --color-prio-alta-text: #c2410c;
+  --color-prio-media: #0891b2;
+  --color-prio-media-soft: #cffafe;
+  --color-prio-media-text: #0e7490;
+  --color-prio-baixa: #64748b;
+  --color-prio-baixa-soft: #f1f5f9;
+  --color-prio-baixa-text: #475569;
+
   /* Status */
   --color-status-aberto: #d97706;
   --color-status-aberto-soft: #fef3c7;
@@ -116,6 +134,19 @@
   --color-crit-baixa: #60a5fa;
   --color-crit-baixa-soft: #12233d;
   --color-crit-baixa-text: #93c5fd;
+
+  --color-prio-critica: #fca5a5;
+  --color-prio-critica-soft: #450a0a;
+  --color-prio-critica-text: #fecaca;
+  --color-prio-alta: #fdba74;
+  --color-prio-alta-soft: #431407;
+  --color-prio-alta-text: #fed7aa;
+  --color-prio-media: #67e8f9;
+  --color-prio-media-soft: #083344;
+  --color-prio-media-text: #a5f3fc;
+  --color-prio-baixa: #94a3b8;
+  --color-prio-baixa-soft: #1e293b;
+  --color-prio-baixa-text: #cbd5e1;
 
   --color-status-aberto: #fbbf24;
   --color-status-aberto-soft: #3a2a0c;

@@ -68,18 +68,22 @@ describe('IncidentRow', () => {
     expect(onFocus).toHaveBeenCalledWith('0f2c7a10-0000-4000-8000-000000000123');
   });
 
-  it('aplica a borda esquerda conforme a criticidade (forma redundante à cor)', () => {
-    const cases: { criticality: Incident['criticality']; className: string }[] = [
-      { criticality: 'ALTA', className: 'border-l-4' },
-      { criticality: 'MEDIA', className: 'border-l-[3px]' },
-      { criticality: 'BAIXA', className: 'border-l-2' },
+  it('aplica a borda esquerda conforme a faixa de PRIORIDADE', () => {
+    // A borda carrega a prioridade, e não a criticidade. Ela é o canal que o olho
+    // lê na periferia ao varrer a fila, e a pergunta que o analista faz é "onde
+    // eu paro?" — que é a ordem, e a ordem vem do score calculado.
+    const cases: { score: number; className: string }[] = [
+      { score: 1200, className: 'border-l-4' },
+      { score: 950, className: 'border-l-[3px]' },
+      { score: 750, className: 'border-l-2' },
+      { score: 400, className: 'border-l' },
     ];
 
     for (const testCase of cases) {
       const { unmount } = render(
         <TooltipProvider>
           <IncidentRow
-            incident={createIncidentFixture({ criticality: testCase.criticality })}
+            incident={createIncidentFixture({ priorityScore: testCase.score })}
             density="comfortable"
             isFocused={false}
             isSelected={false}
@@ -94,6 +98,50 @@ describe('IncidentRow', () => {
       expect(screen.getByTestId('incident-row')).toHaveClass(testCase.className);
       unmount();
     }
+  });
+
+  it('a borda segue o score, e não a criticidade declarada', () => {
+    // A regressão que este teste guarda: antes a borda vinha da criticidade, e as
+    // duas coisas divergem de verdade — um problema mecânico envelhecido passa na
+    // frente de um acidente com vítimas recém-aberto.
+    const { unmount: unmountAntigo } = render(
+      <TooltipProvider>
+        <IncidentRow
+          incident={createIncidentFixture({ criticality: 'ALTA', priorityScore: 400 })}
+          density="comfortable"
+          isFocused={false}
+          isSelected={false}
+          isPending={false}
+          isRecentlyUpdated={false}
+          onOpen={vi.fn()}
+          onFocus={vi.fn()}
+        />
+      </TooltipProvider>,
+    );
+
+    // Criticidade ALTA, mas score baixo: borda fina.
+    expect(screen.getByTestId('incident-row')).toHaveClass('border-l');
+    expect(screen.getByTestId('incident-row')).not.toHaveClass('border-l-4');
+    unmountAntigo();
+
+    const { unmount: unmountNovo } = render(
+      <TooltipProvider>
+        <IncidentRow
+          incident={createIncidentFixture({ criticality: 'BAIXA', priorityScore: 1200 })}
+          density="comfortable"
+          isFocused={false}
+          isSelected={false}
+          isPending={false}
+          isRecentlyUpdated={false}
+          onOpen={vi.fn()}
+          onFocus={vi.fn()}
+        />
+      </TooltipProvider>,
+    );
+
+    // Criticidade BAIXA, mas score altíssimo: borda grossa.
+    expect(screen.getByTestId('incident-row')).toHaveClass('border-l-4');
+    unmountNovo();
   });
 
   it('sinaliza mutação em andamento com estado otimista visível', () => {
