@@ -35,7 +35,6 @@ function installMatchMediaStub(): void {
 }
 
 /**
-/**
  * O jsdom não implementa `scrollIntoView`, usado pelo guia para trazer o alvo
  * para dentro da dobra (o rodapé, em telas baixas). Sem o stub o efeito
  * quebraria em `TypeError` em vez de simplesmente não rolar.
@@ -44,8 +43,7 @@ function installScrollIntoViewStub(): void {
   // No ambiente `node` (usado pelos testes de API) não existe `Element`, então
   // o construtor é lido do global e checado antes do uso.
   const ctorElemento = (globalThis as { Element?: unknown }).Element as
-    | { prototype: Record<string, unknown> }
-    | undefined;
+    { prototype: Record<string, unknown> } | undefined;
   if (ctorElemento === undefined) return;
   const elementPrototype = ctorElemento.prototype;
   if (typeof elementPrototype.scrollIntoView === 'function') return;
@@ -75,13 +73,41 @@ function installRadixStubs(): void {
 
   // Mesma guarda do stub acima: no ambiente `node` não existe `Element`.
   const ctorElemento = (globalThis as { Element?: unknown }).Element as
-    | { prototype: Record<string, unknown> }
-    | undefined;
+    { prototype: Record<string, unknown> } | undefined;
   if (ctorElemento === undefined) return;
   const proto = ctorElemento.prototype;
-  proto.hasPointerCapture ??= () => false;
-  proto.setPointerCapture ??= () => undefined;
-  proto.releasePointerCapture ??= () => undefined;
+  // Atribuição direta, e não `??=`: o jsdom *declara* estes métodos sem os
+  // implementar, então a checagem de nulidade não pegaria nenhum deles.
+  proto.hasPointerCapture = () => false;
+  proto.setPointerCapture = () => undefined;
+  proto.releasePointerCapture = () => undefined;
+}
+
+let isFetchBridged = false;
+
+/**
+ * Ponte entre o `AbortSignal` do jsdom e o `fetch` do Node.
+ *
+ * O MSW remonta a requisição interceptada com `new Request(url, { signal })`, e
+ * o `Request` do undici recusa um signal de outro realm ("Expected signal to be
+ * an instance of AbortSignal"). Como no jsdom **todo** signal é desse realm, o
+ * MSW não interceptava nada: a chamada morria como erro de rede e o teste via
+ * a mensagem genérica em vez da resposta da API. A saída é não repassar o
+ * signal ao fetch — perde-se o cancelamento da requisição, que em jsdom já não
+ * chegava ao fetch de qualquer maneira.
+ *
+ * Precisa rodar **depois** de `server.listen()`: é o `listen` que troca o
+ * `fetch` global pelo do MSW.
+ */
+function bridgeAbortSignalToFetch(): void {
+  if (isFetchBridged) return;
+  const currentFetch = globalThis.fetch;
+
+  globalThis.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
+    if (init?.signal === undefined || init.signal === null) return currentFetch(input, init);
+    return currentFetch(input, { ...init, signal: undefined });
+  };
+  isFetchBridged = true;
 }
 
 beforeAll(() => {
@@ -89,6 +115,8 @@ beforeAll(() => {
   installMatchMediaStub();
   installScrollIntoViewStub();
   installRadixStubs();
+  // Depois do listen: é ele que troca o fetch global pelo do MSW.
+  bridgeAbortSignalToFetch();
 });
 
 afterEach(() => {
