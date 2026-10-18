@@ -35,9 +35,15 @@ export function Header() {
         </div>
 
         <div className="ml-auto flex items-center gap-3">
+          {/*
+            "Guia" no grupo da direita, à esquerda do indicador "ao vivo": é o
+            alvo do último passo do guia, daí o `data-tour="guide"`. O ícone
+            fica à direita do texto (Figma, 1440 px).
+          */}
           <Button
             variant="ghost"
             size="sm"
+            data-tour="guide"
             aria-label="Abrir o guia"
             title="Abrir o guia"
             onClick={startTour}
