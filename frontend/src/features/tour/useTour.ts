@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { create } from 'zustand';
 
-import { TOUR_STEPS, tourSelector, type TourStep, type TourTarget } from './steps';
+import {
+  CREATE_STEP_TARGET,
+  TOUR_STEPS,
+  tourSelector,
+  type TourStep,
+  type TourTarget,
+} from './steps';
 
 /** Chave pública do guia: concluir ou pular grava `done`; a presença da chave o desativa. */
 export const TOUR_STORAGE_KEY = 'logos.tour.v1';
@@ -268,6 +274,18 @@ function sameRect(current: TourRect | null, next: TourRect): boolean {
   );
 }
 
+/**
+ * O que o passo 4 faz além de destacar: abrir e fechar a janela de cadastro.
+ *
+ * São os **mesmos** handlers do botão "Novo incidente" e do `onClose` da sheet
+ * (`handleCreate` / `handleCloseCreate` do `App`), passados de fora — o guia não
+ * conhece a `CreateIncidentSheet` nem duplica a lógica de abrir o formulário.
+ */
+export interface TourSideEffects {
+  onOpenCreate?: () => void;
+  onCloseCreate?: () => void;
+}
+
 export interface UseTourResult {
   isOpen: boolean;
   step: TourStep;
@@ -277,6 +295,11 @@ export interface UseTourResult {
   total: number;
   /** `null` enquanto o alvo não foi medido (ou sumiu do DOM). */
   rect: TourRect | null;
+  /**
+   * `true` no passo que abre a janela de cadastro: o véu escuro sai de cena
+   * para o formulário não ficar ilegível atrás dele.
+   */
+  isCreateSheetStep: boolean;
   cardRef: RefObject<HTMLDivElement>;
   dismiss: () => void;
   next: () => void;
@@ -291,7 +314,7 @@ export interface UseTourResult {
  * `ready` é a promessa de que a triagem já renderizou: o tour não dispara em
  * cima do carregamento, e espera o alvo dos KPIs aparecer.
  */
-export function useTour(ready: boolean): UseTourResult {
+export function useTour(ready: boolean, sideEffects: TourSideEffects = {}): UseTourResult {
   const isOpen = useTourStore((state) => state.isOpen);
   const stepIndex = useTourStore((state) => state.stepIndex);
   const open = useTourStore((state) => state.open);
@@ -305,6 +328,20 @@ export function useTour(ready: boolean): UseTourResult {
   /** Índices dos passos que existem agora — a base do contador. */
   const [available, setAvailable] = useState<readonly number[]>([]);
   const step = stepAt(stepIndex);
+
+  /**
+   * Os handlers do cadastro guardados em ref.
+   *
+   * O `App` recria `handleCreate` a cada render; se eles entrassem nas
+   * dependências do efeito abaixo, cada render fecharia e reabriria a janela —
+   * um laço. A ref mantém a identidade estável: o efeito só reage a **mudar de
+   * passo** ou a fechar o guia. Declarada antes do efeito que a lê, ela já está
+   * atualizada no mesmo commit.
+   */
+  const createHandlers = useRef(sideEffects);
+  useEffect(() => {
+    createHandlers.current = sideEffects;
+  });
 
   const measure = useCallback((): void => {
     if (!isOpen) {
@@ -365,6 +402,21 @@ export function useTour(ready: boolean): UseTourResult {
     }
     goTo(fallback);
   }, [isOpen, step.target, stepIndex, dismiss, goTo]);
+
+  /**
+   * Passo do cadastro (`create`): o guia **abre** a janela pelo mesmo handler do
+   * botão "Novo incidente" e a **fecha** ao sair do passo.
+   *
+   * Avançar, voltar, pular e fechar o guia caem todos no cleanup: qualquer um
+   * deles troca `isOpen` ou `step.target`, que são as únicas dependências.
+   */
+  useEffect(() => {
+    if (!isOpen || step.target !== CREATE_STEP_TARGET) return undefined;
+    createHandlers.current.onOpenCreate?.();
+    return () => {
+      createHandlers.current.onCloseCreate?.();
+    };
+  }, [isOpen, step.target]);
 
   // Primeira visita: abre só depois que a triagem renderizou e os KPIs existem.
   useEffect(() => {
@@ -452,6 +504,7 @@ export function useTour(ready: boolean): UseTourResult {
     position,
     total,
     rect,
+    isCreateSheetStep: isOpen && step.target === CREATE_STEP_TARGET,
     cardRef,
     dismiss,
     next,

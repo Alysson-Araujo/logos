@@ -10,6 +10,13 @@ export interface WelcomeTourProps {
    * dispara sozinho — nada de tour em cima de skeleton de carregamento.
    */
   ready?: boolean;
+  /**
+   * Abre a janela de cadastro. É o **mesmo** `handleCreate` do botão "Novo
+   * incidente": o guia não sabe montar o formulário, só pede para abri-lo.
+   */
+  onOpenCreate?: () => void;
+  /** Fecha a janela de cadastro — o mesmo `onClose` da `CreateIncidentSheet`. */
+  onCloseCreate?: () => void;
 }
 
 /**
@@ -24,6 +31,16 @@ export interface WelcomeTourProps {
 const OVERLAY_CLASS = 'fixed z-[60] bg-overlay opacity-60';
 
 /**
+ * Z-index das camadas do guia.
+ *
+ * A `CreateIncidentSheet` é um `Drawer` do Radix: conteúdo em `z-50` e véu
+ * próprio em `z-40`. O cartão do guia fica **acima** dela (`z-61`) e o véu do
+ * guia acima do véu da janela (`z-60`) — mas ver `isCreateSheetStep`: no passo
+ * do cadastro o véu do guia sai de cena para não escurecer o formulário.
+ */
+const CARD_Z_CLASS = 'z-[61]';
+
+/**
  * Guia de boas-vindas (issue #131).
  *
  * O corte é feito com quatro divs escuras — topo, baixo, esquerda e direita — em
@@ -31,20 +48,21 @@ const OVERLAY_CLASS = 'fixed z-[60] bg-overlay opacity-60';
  * destacada fica **realmente limpa** (cliques continuam chegando nela) e o
  * contorno é um anel por cima, sem capturar ponteiro.
  */
-export function WelcomeTour({ ready = true }: WelcomeTourProps) {
+export function WelcomeTour({ ready = true, onOpenCreate, onCloseCreate }: WelcomeTourProps) {
   const {
     isOpen,
     step,
     position,
     total,
     rect,
+    isCreateSheetStep,
     cardRef,
     dismiss,
     next,
     previous,
     canGoNext,
     canGoPrevious,
-  } = useTour(ready);
+  } = useTour(ready, { onOpenCreate, onCloseCreate });
   const titleId = useId();
   const bodyId = useId();
 
@@ -54,10 +72,14 @@ export function WelcomeTour({ ready = true }: WelcomeTourProps) {
   // Sem medição ainda (primeiro frame): o cartão nasce abaixo da dobra do alvo
   // e o fundo escuro só entra junto com o retângulo.
   const layout = computeCardLayout(rect, window.innerWidth, window.innerHeight);
+  // No passo do cadastro a `CreateIncidentSheet` está aberta: o véu do guia
+  // escureceria o formulário inteiro (a janela não cabe no buraco do alvo, que
+  // é só o botão). O anel continua marcando o botão; o véu sai.
+  const showVeil = hole !== null && !isCreateSheetStep;
 
   return (
     <>
-      {hole === null ? null : (
+      {!showVeil ? null : (
         <>
           {/* As quatro faixas escuras ao redor do alvo. */}
           <div
@@ -80,18 +102,21 @@ export function WelcomeTour({ ready = true }: WelcomeTourProps) {
             className={`${OVERLAY_CLASS} right-0`}
             style={{ top: hole.top, height: hole.height, left: hole.right }}
           />
-          {/* Contorno do alvo: `pointer-events-none` para o clique atravessar. */}
-          <div
-            aria-hidden="true"
-            className="pointer-events-none fixed z-[60] rounded-md ring-2 ring-accent"
-            style={{
-              top: hole.top,
-              left: hole.left,
-              width: hole.width,
-              height: hole.height,
-            }}
-          />
         </>
+      )}
+
+      {/* Contorno do alvo: `pointer-events-none` para o clique atravessar. */}
+      {hole === null ? null : (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none fixed z-[60] rounded-md ring-2 ring-accent"
+          style={{
+            top: hole.top,
+            left: hole.left,
+            width: hole.width,
+            height: hole.height,
+          }}
+        />
       )}
 
       <div
@@ -101,7 +126,7 @@ export function WelcomeTour({ ready = true }: WelcomeTourProps) {
         aria-labelledby={titleId}
         aria-describedby={bodyId}
         tabIndex={-1}
-        className="fixed z-[61] flex flex-col gap-3 overflow-y-auto rounded-md bg-surface-raised p-4 shadow-e3 outline-none"
+        className={`fixed ${CARD_Z_CLASS} flex flex-col gap-3 overflow-y-auto rounded-md bg-surface-raised p-4 shadow-e3 outline-none`}
         style={{
           top: layout.top,
           left: layout.left,

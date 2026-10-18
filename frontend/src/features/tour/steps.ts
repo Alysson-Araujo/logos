@@ -3,12 +3,17 @@
  *
  * O tour não conhece componentes: ele procura os alvos no DOM pelo atributo
  * `data-tour`. Quem marca as áreas reais da triagem é `KpiCards`, `FiltersBar`
- * e `IncidentList`; o cabeçalho marca o tema (`ThemeToggle`) e o indicador de
- * conexão. Aqui ficam só os textos e os seletores.
+ * e `IncidentList`; o cabeçalho marca o tema (`ThemeToggle`), o indicador de
+ * conexão e o próprio botão "Guia"; e o rodapé (`AppFooter`) marca os atalhos.
+ * Aqui ficam só os textos e os seletores.
+ *
+ * Os textos são **literais** do Figma: nada de crase nem markdown, porque o
+ * cartão renderiza `body` como texto puro — crase apareceria na tela.
  */
 
 /** Identificadores das áreas destacadas — viram `data-tour="<id>"` no DOM. */
-export type TourTarget = 'kpis' | 'filters' | 'list' | 'create' | 'theme' | 'connection';
+export type TourTarget =
+  'kpis' | 'filters' | 'list' | 'create' | 'theme' | 'connection' | 'shortcuts' | 'guide';
 
 export interface TourStep {
   target: TourTarget;
@@ -32,13 +37,11 @@ export const TOUR_STEPS = [
   {
     target: 'list',
     title: 'A fila priorizada',
-    body: 'A ordem não é manual: cada incidente tem um score calculado pela criticidade e pelo tempo em aberto. O relógio à direita é o SLA — quando fica vermelho, o prazo estourou. Atalhos: `j` e `k` navegam, `Enter` abre, `/` busca.',
+    body: 'A ordem não é manual: cada incidente tem um score calculado pela criticidade e pelo tempo em aberto. O relógio à direita é o SLA — quando fica vermelho, o prazo estourou. Atalhos: j e k navegam, Enter abre, / busca.',
   },
   {
-    // O botão "Novo incidente" chega com a PR #125 e ainda não existe neste
-    // branch: sem o alvo no DOM o passo é pulado — e o contador passa a falar
-    // do roteiro que existe de fato. Quando o botão entrar marcado com
-    // `data-tour="create"`, o passo aparece sem mexer no guia.
+    // Passo com efeito colateral: ativo, ele abre a `CreateIncidentSheet` pelo
+    // mesmo handler do botão "Novo incidente" (ver `useTour`).
     target: 'create',
     title: 'Registrar incidente',
     body: 'O botão de novo incidente abre o formulário: título, categoria, criticidade e reportado por. O SLA nasce da criticidade escolhida — ALTA 2 h, MÉDIA 8 h, BAIXA 24 h.',
@@ -51,9 +54,22 @@ export const TOUR_STEPS = [
   {
     target: 'connection',
     title: 'Conexão',
-    body: 'Este indicador mostra se a API está respondendo. Sem conexão, a fila continua com o último estado carregado e avisa você antes de qualquer ação que precise do servidor.',
+    body: 'Este indicador mostra se a API está respondendo. Sem conexão, a fila continua com o último estado carregado e avisa antes de qualquer ação que precise do servidor.',
+  },
+  {
+    target: 'shortcuts',
+    title: 'Atalhos do teclado',
+    body: 'Sem tirar a mão do teclado: j e k navegam pela fila, Enter abre o incidente, / busca, t alterna o tema e Esc fecha o que estiver aberto.',
+  },
+  {
+    target: 'guide',
+    title: 'Sempre que precisar',
+    body: 'Ficou com dúvida? Clique em Guia, aqui no cabeçalho, para rever este passeio a qualquer momento.',
   },
 ] as const satisfies readonly TourStep[];
+
+/** O passo cujo alvo é o cadastro — o único que abre uma janela. */
+export const CREATE_STEP_TARGET: TourTarget = 'create';
 
 /** Seletor do alvo de um passo — a única forma de descobrir a área. */
 export function tourSelector(target: TourTarget): string {

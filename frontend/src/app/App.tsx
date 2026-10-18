@@ -111,9 +111,13 @@ export function App() {
     void listQuery.refetch();
   };
 
-  const handleCreate = (): void => {
+  /**
+   * Abre a janela de cadastro. É o handler do botão "Novo incidente" **e** do
+   * passo 4 do guia: um só caminho, nenhuma lógica duplicada.
+   */
+  const handleCreate = useCallback((): void => {
     setIsCreating(true);
-  };
+  }, []);
 
   const handleCloseCreate = useCallback((): void => {
     setIsCreating(false);
@@ -168,7 +172,11 @@ export function App() {
       <IncidentDrawer incidentId={selectedId} mutation={statusMutation} onClose={closeDrawer} />
       <CreateIncidentSheet open={isCreating} onClose={handleCloseCreate} />
       <ConflictDialog />
-      <WelcomeTour ready={isTriageReady} />
+      <WelcomeTour
+        ready={isTriageReady}
+        onOpenCreate={handleCreate}
+        onCloseCreate={handleCloseCreate}
+      />
     </AppShell>
   );
 }
