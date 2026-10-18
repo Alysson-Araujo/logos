@@ -8,6 +8,7 @@ from app.models.incident import Incident
 from app.models.incident_event import IncidentEvent
 from app.models.revoked_token import RevokedToken
 from app.models.user import User
+from app.models.vehicle import Vehicle
 
 __all__ = [
     "Base",
@@ -17,5 +18,6 @@ __all__ = [
     "RevokedToken",
     "TimestampMixin",
     "User",
+    "Vehicle",
     "utcnow",
 ]

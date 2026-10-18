@@ -60,6 +60,7 @@ from app.repositories.idempotency_repository import IdempotencyRepository
 from app.repositories.incident_repository import IncidentRepository
 from app.repositories.revoked_token_repository import RevokedTokenRepository
 from app.repositories.user_repository import UserRepository
+from app.repositories.vehicle_repository import VehicleRepository
 
 TEST_DATABASE_PATH = _DB_FILE
 INCIDENTS_URL = "/api/v1/incidents"
@@ -196,6 +197,10 @@ def clean_database() -> Iterator[None]:
     """
     with create_session() as session:
         IncidentRepository(session).clear()
+        # A frota entra na limpeza porque a busca depende do conteúdo dela: um
+        # teste que insere `ABC1D23` faria o teste seguinte encontrar uma placa
+        # que ele não criou, e a falha apareceria longe da causa.
+        VehicleRepository(session).clear()
         IdempotencyRepository(session).clear()
         # Tokens revogados também: um teste de logout que use o token da sessão
         # o revogaria para todos os testes seguintes. `users` NÃO entra aqui —

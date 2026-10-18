@@ -11,6 +11,7 @@ from enum import StrEnum
 from typing import Final
 from uuid import uuid4
 
+from sqlalchemy import insert
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
@@ -23,14 +24,66 @@ from app.domain.priority import compute_priority_score, compute_sla_due_at
 from app.models.base import utcnow
 from app.models.incident import INITIAL_VERSION, Incident
 from app.models.user import User
+from app.models.vehicle import Vehicle
 from app.repositories.incident_repository import IncidentRepository, build_code
 from app.repositories.user_repository import UserRepository
+from app.repositories.vehicle_repository import VehicleRepository
 
 logger = logging.getLogger(__name__)
 
 SEED_COUNT: Final[int] = 120
 SEED_RANDOM_STATE = 20260211
 HISTORY_WINDOW_HOURS = 72
+
+#: Tamanho da frota que a central acompanha.
+SEED_VEHICLE_COUNT: Final[int] = 5000
+
+#: Estado próprio do sorteio da frota.
+#:
+#: Separado de `SEED_RANDOM_STATE` de propósito. Um `random.Random` é uma
+#: **sequência**: se os veículos consumissem do mesmo gerador, os 120 incidentes
+#: mudariam de placa, motorista e horário a cada execução do seed. Sorteios
+#: independentes mantêm os incidentes exatamente como estão.
+SEED_VEHICLE_RANDOM_STATE = 20260212
+
+#: Letras usadas nas placas — as posições 1, 2, 3 e 5 do padrão Mercosul.
+PLATE_LETTERS: Final[str] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+#: Modelos comerciais do transporte de carga no Brasil.
+VEHICLE_MODELS: Final[tuple[str, ...]] = (
+    "Volvo FH 460",
+    "Volvo VM 270",
+    "Scania R 450",
+    "Scania P 310",
+    "Mercedes-Benz Actros 2651",
+    "Mercedes-Benz Atego 2426",
+    "Volkswagen Constellation 25.480",
+    "Volkswagen Meteor 28.460",
+    "Iveco S-Way 540",
+    "Iveco Tector 24-280",
+    "DAF XF 480",
+    "MAN TGX 29.480",
+    "Ford Cargo 2429",
+)
+
+#: Transportadoras fictícias. Nomes inventados de propósito: nenhuma empresa
+#: real deve aparecer como dona de um caminhão num projeto de demonstração.
+CARRIERS: Final[tuple[str, ...]] = (
+    "Transbrasil Logística",
+    "Rodoexpress Cargas",
+    "Transportes Bandeirante",
+    "Log Sul Transportes",
+    "Carga Pesada Logística",
+    "Norte Sul Transportes",
+    "Expresso Guarani",
+    "Rota Certa Logística",
+    "Transportadora Horizonte",
+    "Atlas Cargas",
+    "Pampa Logística",
+    "Serra Azul Transportes",
+    "Planalto Cargas",
+    "Litoral Logística",
+)
 
 #: Distribuição alvo: ~15% ALTA, ~35% MEDIA, ~50% BAIXA.
 CRITICALITY_QUOTA: Final[tuple[tuple[IncidentCriticality, int], ...]] = (
@@ -345,6 +398,72 @@ def seed_users(session: Session) -> int:
     return DEMO_USER_COUNT
 
 
+def _build_plate(rng: random.Random) -> str:
+    """Gera uma placa no padrão Mercosul (`AAA1A23`).
+
+    O padrão Mercosul, e não o antigo (`AAA1234`), porque é o que está em
+    circulação desde 2018 — uma frota cadastrada hoje usa este formato. O
+    validador do incidente aceita os dois, então uma placa antiga que apareça
+    continua sendo aceita.
+    """
+    return (
+        f"{rng.choice(PLATE_LETTERS)}{rng.choice(PLATE_LETTERS)}{rng.choice(PLATE_LETTERS)}"
+        f"{rng.randint(0, 9)}"
+        f"{rng.choice(PLATE_LETTERS)}"
+        f"{rng.randint(0, 9)}{rng.randint(0, 9)}"
+    )
+
+
+def _build_vehicles(rng: random.Random, *, count: int, now: datetime) -> list[dict[str, object]]:
+    """Monta as linhas da frota, com placas únicas.
+
+    O padrão Mercosul tem ~457 milhões de combinações, então colisões são raras:
+    5.000 sorteios produzem, em média, menos de uma. O conjunto de controle
+    existe para esse caso raro — e para deixar a unicidade explícita, já que a
+    coluna é `unique` e uma colisão derrubaria o `commit` inteiro.
+
+    Devolve dicionários, e não objetos ORM, porque `seed_vehicles` os entrega ao
+    caminho de inserção em lote do SQLAlchemy.
+    """
+    vistas: set[str] = set()
+    linhas: list[dict[str, object]] = []
+    while len(linhas) < count:
+        placa = _build_plate(rng)
+        if placa in vistas:
+            continue
+        vistas.add(placa)
+        linhas.append(
+            {
+                "id": uuid4(),
+                "plate": placa,
+                "model": rng.choice(VEHICLE_MODELS),
+                "carrier": rng.choice(CARRIERS),
+                "created_at": now,
+                "updated_at": now,
+            }
+        )
+    return linhas
+
+
+def seed_vehicles(session: Session, *, count: int = SEED_VEHICLE_COUNT) -> int:
+    """Cria a frota de demonstração apenas em base vazia (idempotente).
+
+    Usa `insert()` com uma lista, e **não** `add_all`, por causa do volume: são
+    5.000 linhas contra um banco remoto. O caminho em lote do SQLAlchemy agrupa
+    as linhas em poucos comandos; 5.000 INSERTs individuais pagariam a latência
+    da rede 5.000 vezes — minutos em vez de segundos.
+    """
+    repository = VehicleRepository(session)
+    if repository.count() > 0:
+        return 0
+
+    rng = random.Random(SEED_VEHICLE_RANDOM_STATE)
+    linhas = _build_vehicles(rng, count=count, now=utcnow())
+    session.execute(insert(Vehicle), linhas)
+    session.commit()
+    return len(linhas)
+
+
 def main() -> None:
     """Executa o seed manualmente (`python -m app.infra.seed`).
 
@@ -355,7 +474,13 @@ def main() -> None:
     with create_session() as session:
         usuarios = seed_users(session)
         created = seed_incidents(session)
-    logger.info("seed finalizado: %s usuarios e %s incidentes criados", usuarios, created)
+        frota = seed_vehicles(session)
+    logger.info(
+        "seed finalizado: %s usuarios, %s incidentes e %s veiculos criados",
+        usuarios,
+        created,
+        frota,
+    )
 
 
 if __name__ == "__main__":

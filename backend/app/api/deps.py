@@ -27,6 +27,7 @@ from app.models.user import User
 from app.repositories.incident_repository import IncidentRepository
 from app.repositories.revoked_token_repository import RevokedTokenRepository
 from app.repositories.user_repository import UserRepository
+from app.repositories.vehicle_repository import VehicleRepository
 from app.services.auth_service import AuthService
 from app.services.incident_service import IncidentService
 from app.services.user_service import UserService
@@ -127,6 +128,14 @@ def resolve_expected_version(if_match: str | None, body_version: int | None) -> 
 def get_user_repository(session: SessionDep) -> UserRepository:
     """Cria o repositório de usuários para a requisição."""
     return UserRepository(session)
+
+
+def get_vehicle_repository(session: SessionDep) -> VehicleRepository:
+    """Cria o repositório da frota para a requisição."""
+    return VehicleRepository(session)
+
+
+VehicleRepositoryDep = Annotated[VehicleRepository, Depends(get_vehicle_repository)]
 
 
 def get_revoked_token_repository(session: SessionDep) -> RevokedTokenRepository:
