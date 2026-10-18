@@ -52,8 +52,23 @@ function stepAt(index: number): TourStep {
   return TOUR_STEPS[index] ?? TOUR_STEPS[0];
 }
 
+/**
+ * Elemento que **aparece** na tela: nenhum ancestral com `display: none`.
+ *
+ * Um alvo escondido mede 0×0 na origem da página. Sem esta checagem o corte
+ * era desenhado no canto superior esquerdo — o "ao vivo" tem `hidden sm:…` e
+ * some abaixo de 640 px.
+ */
+function isRendered(element: Element): boolean {
+  for (let node: Element | null = element; node !== null; node = node.parentElement) {
+    if (window.getComputedStyle(node).display === 'none') return false;
+  }
+  return true;
+}
+
 function findTarget(target: TourTarget): Element | null {
-  return document.querySelector(tourSelector(target));
+  const element = document.querySelector(tourSelector(target));
+  return element !== null && isRendered(element) ? element : null;
 }
 
 /**
@@ -319,16 +334,22 @@ export function useTour(ready: boolean): UseTourResult {
     setRect((current) => (sameRect(current, nextRect) ? current : nextRect));
   }, [isOpen, step.target]);
 
-  // Mede antes da pintura e a cada mudança de passo; `scroll` em captura pega
-  // também a rolagem interna da lista, que não borbulha até a janela.
+  // Mede antes da pintura e, com o guia aberto, a cada quadro. `resize` e
+  // `scroll` não bastam: o cabeçalho muda de largura sem disparar nenhum dos
+  // dois (nome do usuário chegando, fonte terminando de carregar) e empurra o
+  // tema e a conexão de lugar — o corte ficava parado onde estava antes.
+  // Quando nada muda, `measure` não re-renderiza: as atualizações são iguais.
   useLayoutEffect(() => {
     measure();
     if (!isOpen) return undefined;
-    window.addEventListener('resize', measure);
-    window.addEventListener('scroll', measure, true);
+    let frame = 0;
+    const tick = (): void => {
+      measure();
+      frame = window.requestAnimationFrame(tick);
+    };
+    frame = window.requestAnimationFrame(tick);
     return () => {
-      window.removeEventListener('resize', measure);
-      window.removeEventListener('scroll', measure, true);
+      window.cancelAnimationFrame(frame);
     };
   }, [isOpen, measure]);
 

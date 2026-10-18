@@ -1,6 +1,6 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Header } from '@/components/layout/Header';
 import { useAuthStore } from '@/features/auth/useAuthStore';
@@ -312,6 +312,73 @@ describe('WelcomeTour', () => {
     expect(within(dialog).getByRole('heading', { name: 'Tema' })).toBeInTheDocument();
     // Abrir pelo "?" não marca o guia como visto.
     expect(window.localStorage.getItem(TOUR_STORAGE_KEY)).toBeNull();
+  });
+
+  it('um alvo escondido (display: none) sai do roteiro, em vez de virar um corte na origem', async () => {
+    const user = userEvent.setup();
+    renderTriage();
+    await screen.findByRole('dialog');
+
+    // Até o tema: passo 5 de 6, com a conexão ainda visível.
+    for (let index = 0; index < 4; index += 1) {
+      await user.click(screen.getByRole('button', { name: 'Próximo' }));
+    }
+    expect(screen.getByText('Passo 5 de 6')).toBeInTheDocument();
+
+    // Abaixo de 640 px o indicador "ao vivo" some pelo CSS (`hidden sm:…`).
+    const connection = document.querySelector<HTMLElement>('[data-tour="connection"]');
+    if (connection === null) throw new Error('indicador de conexão ausente');
+    connection.style.display = 'none';
+
+    await waitFor(() => {
+      expect(screen.getByText('Passo 5 de 5')).toBeInTheDocument();
+    });
+    expect(screen.getByRole('button', { name: 'Concluir' })).toBeInTheDocument();
+  });
+});
+
+describe('acompanhamento do alvo', () => {
+  function rectAt(left: number): DOMRect {
+    return {
+      x: left,
+      y: 12,
+      left,
+      top: 12,
+      width: 36,
+      height: 36,
+      right: left + 36,
+      bottom: 48,
+      toJSON: () => ({}),
+    };
+  }
+
+  it('o corte acompanha o alvo quando o layout muda sem trocar de passo', async () => {
+    const user = userEvent.setup();
+    renderTriage();
+    await screen.findByRole('dialog');
+    for (let index = 0; index < 4; index += 1) {
+      await user.click(screen.getByRole('button', { name: 'Próximo' }));
+    }
+    expect(screen.getByRole('heading', { name: 'Tema' })).toBeInTheDocument();
+
+    const theme = document.querySelector<HTMLElement>('[data-tour="theme"]');
+    if (theme === null) throw new Error('botão de tema ausente');
+    let left = 100;
+    vi.spyOn(theme, 'getBoundingClientRect').mockImplementation(() => rectAt(left));
+
+    const ringLeft = (): string | undefined =>
+      document.querySelector<HTMLElement>('.ring-2')?.style.left;
+
+    await waitFor(() => {
+      expect(ringLeft()).toBe('100px');
+    });
+
+    // O cabeçalho muda de largura à esquerda do tema (nome do usuário, fonte
+    // que termina de carregar) sem nenhum `resize` ou `scroll`.
+    left = 300;
+    await waitFor(() => {
+      expect(ringLeft()).toBe('300px');
+    });
   });
 });
 
