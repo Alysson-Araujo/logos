@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 
+import { AppFooter } from './AppFooter';
 import { Header } from './Header';
 
 export interface AppShellProps {
@@ -19,20 +20,7 @@ export function AppShell({ children }: AppShellProps) {
       <main className="mx-auto flex w-full max-w-[1600px] flex-1 flex-col gap-4 px-4 py-4">
         {children}
       </main>
-      <footer className="border-t border-border bg-surface px-4 py-3">
-        <div className="mx-auto flex w-full max-w-[1600px] flex-wrap items-center gap-x-4 gap-y-1 text-2xs text-fg-subtle">
-          <span>Logos · case fullstack AutoU · dados de demonstração</span>
-          <span className="font-mono">j/k navega · Enter abre · / busca · t tema · Esc fecha</span>
-          <a
-            className="ml-auto underline-offset-4 hover:text-fg hover:underline"
-            href="https://github.com/Alysson-Araujo/logos"
-            target="_blank"
-            rel="noreferrer noopener"
-          >
-            Repositório
-          </a>
-        </div>
-      </footer>
+      <AppFooter />
     </div>
   );
 }

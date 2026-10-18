@@ -17,6 +17,8 @@ import { useIncidentFilters } from '../features/incidents/hooks/useIncidentFilte
 import { useChangeIncidentStatus } from '../features/incidents/hooks/useIncidentMutations';
 import { useIncidentUiStore } from '../features/incidents/hooks/useIncidentUiStore';
 import { useIncidentCounters, useIncidentList } from '../features/incidents/hooks/useIncidents';
+import { WelcomeTour } from '../features/tour/WelcomeTour';
+import { useTourStore } from '../features/tour/useTour';
 
 const EMPTY_ID_SET: ReadonlySet<string> = new Set<string>();
 
@@ -48,6 +50,7 @@ export function App() {
   const openIncident = useIncidentUiStore((state) => state.openIncident);
   const closeDrawer = useIncidentUiStore((state) => state.closeDrawer);
   const requestSearchFocus = useUiStore((state) => state.requestSearchFocus);
+  const isTourOpen = useTourStore((state) => state.isOpen);
 
   const items = useMemo(
     () => listQuery.data?.pages.flatMap((page) => page.items) ?? [],
@@ -59,8 +62,10 @@ export function App() {
     setOrderedIds(items.map((item) => item.id));
   }, [items, setOrderedIds]);
 
-  // Com a sheet aberta os atalhos da triagem ficam desligados: quem está
-  // digitando o formulário não deve navegar na lista por baixo do painel.
+  // Duas razões para desligar os atalhos: com a sheet de cadastro aberta quem
+  // está digitando o formulário não deve navegar na lista por baixo do painel;
+  // com o guia aberto `j`/`k`/`/` e `Esc` pertencem ao cartão, não à triagem que
+  // está atrás do fundo escuro.
   useKeyboardShortcuts(
     {
       onNext: focusNext,
@@ -70,7 +75,7 @@ export function App() {
       onEscape: closeDrawer,
       onToggleTheme: toggleTheme,
     },
-    !isCreating,
+    !isTourOpen && !isCreating,
   );
 
   const pendingIds = useMemo<ReadonlySet<string>>(() => {
@@ -106,15 +111,21 @@ export function App() {
     void listQuery.refetch();
   };
 
-  const handleCreate = (): void => {
+  /**
+   * Abre a janela de cadastro. É o handler do botão "Novo incidente" **e** do
+   * passo 4 do guia: um só caminho, nenhuma lógica duplicada.
+   */
+  const handleCreate = useCallback((): void => {
     setIsCreating(true);
-  };
+  }, []);
 
   const handleCloseCreate = useCallback((): void => {
     setIsCreating(false);
   }, []);
 
   const total = listQuery.data?.pages[0]?.meta.total ?? null;
+  // O guia só pode abrir sozinho depois que KPIs e lista saíram do carregamento.
+  const isTriageReady = !counters.isLoading && !listQuery.isPending;
 
   return (
     <AppShell>
@@ -161,6 +172,11 @@ export function App() {
       <IncidentDrawer incidentId={selectedId} mutation={statusMutation} onClose={closeDrawer} />
       <CreateIncidentSheet open={isCreating} onClose={handleCloseCreate} />
       <ConflictDialog />
+      <WelcomeTour
+        ready={isTriageReady}
+        onOpenCreate={handleCreate}
+        onCloseCreate={handleCloseCreate}
+      />
     </AppShell>
   );
 }

@@ -58,4 +58,20 @@ describe('Header', () => {
 
     expect(screen.queryByRole('button', { name: 'Sair' })).not.toBeInTheDocument();
   });
+
+  it('o botão Guia tem texto visível, ícone de livro e fica à esquerda do "ao vivo"', () => {
+    render(<Header />);
+
+    const guide = screen.getByRole('button', { name: 'Abrir o guia' });
+    expect(guide).toHaveAttribute('title', 'Abrir o guia');
+    // Texto visível "Guia" (o ícone não tem texto), e o nome acessível contém esse texto.
+    expect(guide.textContent).toBe('Guia');
+    expect(guide.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
+
+    const connection = screen.getByText('ao vivo').closest('[data-tour="connection"]');
+    if (connection === null) throw new Error('indicador ao vivo ausente');
+    // Mesmo grupo da direita, logo antes do indicador de conexão.
+    expect(guide.parentElement).toBe(connection.parentElement);
+    expect(guide.compareDocumentPosition(connection)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+  });
 });
