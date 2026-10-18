@@ -277,16 +277,26 @@ describe('WelcomeTour', () => {
     expect(lastButton).toHaveFocus();
   });
 
-  it('o botão "?" do cabeçalho é acessível e fica no canto superior esquerdo', () => {
+  it('o botão "?" fica junto da marca, na linha do subtítulo', () => {
     render(<Header />);
 
     const helpButton = screen.getByRole('button', { name: 'Abrir o guia' });
     expect(helpButton).toHaveAccessibleName('Abrir o guia');
     expect(helpButton).toHaveAttribute('title', 'Abrir o guia');
-    // É o primeiro controle do cabeçalho no DOM: o canto esquerdo.
-    expect(helpButton.compareDocumentPosition(screen.getByText('LOGOS'))).toBe(
-      Node.DOCUMENT_POSITION_FOLLOWING,
-    );
+
+    const brand = screen.getByText('LOGOS');
+    const subtitle = screen.getByText('Central de Resposta a Incidentes');
+
+    // Deixou de ser o primeiro controle do cabeçalho: agora vem depois da marca.
+    expect(brand.compareDocumentPosition(helpButton)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(subtitle.compareDocumentPosition(helpButton)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+
+    // Mesma linha do subtítulo: os dois dividem a linha alinhada ao centro.
+    expect(helpButton.parentElement).toBe(subtitle.parentElement);
+    expect(helpButton.parentElement).toHaveClass('items-center');
+
+    // Discreto: 20 px de lado.
+    expect(helpButton).toHaveClass('h-5', 'w-5');
   });
 
   it('"?" sem a triagem no DOM abre no primeiro passo que existe — o tema', async () => {

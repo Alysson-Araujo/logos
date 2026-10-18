@@ -21,17 +21,6 @@ export function Header() {
   return (
     <header className="border-b border-border bg-surface">
       <div className="mx-auto flex w-full max-w-[1600px] items-center gap-4 px-4 py-3">
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label="Abrir o guia"
-          title="Abrir o guia"
-          onClick={startTour}
-          className="-ml-2 shrink-0 text-fg-muted"
-        >
-          <CircleHelp className="h-4 w-4" aria-hidden="true" />
-        </Button>
-
         <div className="flex items-center gap-2">
           <span
             aria-hidden="true"
@@ -41,7 +30,25 @@ export function Header() {
           </span>
           <div className="leading-tight">
             <p className="font-mono text-sm font-semibold tracking-tight text-fg">LOGOS</p>
-            <p className="text-2xs text-fg-muted">Central de Resposta a Incidentes</p>
+            {/*
+              O "?" acompanha o subtítulo, não a ponta do cabeçalho: fica na
+              mesma linha da marca, alinhado por `items-center`. `-my-0.5`
+              desconta a sobra dos 20 px do botão sobre os 16 px da linha de
+              texto, para o botão não esticar a altura do cabeçalho.
+            */}
+            <div className="flex items-center gap-1">
+              <p className="text-2xs text-fg-muted">Central de Resposta a Incidentes</p>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Abrir o guia"
+                title="Abrir o guia"
+                onClick={startTour}
+                className="-my-0.5 h-5 w-5 shrink-0 text-fg-muted"
+              >
+                <CircleHelp className="h-3.5 w-3.5" aria-hidden="true" />
+              </Button>
+            </div>
           </div>
         </div>
 
