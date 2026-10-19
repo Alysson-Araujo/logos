@@ -21,7 +21,7 @@ from fastapi.testclient import TestClient
 
 from app.api.deps import provide_mailer
 from app.core.database import create_session
-from app.core.mailer import OutboundEmail
+from app.core.mailer import MailDeliveryError, OutboundEmail
 from app.domain.enums import UserRole
 from app.main import app
 from app.models.base import utcnow
@@ -51,11 +51,11 @@ class MailerEspiao:
 
 
 class MailerQuebrado:
-    """Falha sempre — para provar que o convite não derruba a requisição."""
+    """Falha sempre — para provar que a falha de envio **aparece**."""
 
     def send(self, message: OutboundEmail) -> None:
-        """Levanta um erro de transporte simulado."""
-        raise ConnectionError("servidor de e-mail fora do ar")
+        """Levanta o erro que o `SmtpMailer` levanta quando não entrega."""
+        raise MailDeliveryError("servidor de e-mail fora do ar")
 
 
 @pytest.fixture()
@@ -73,10 +73,19 @@ def email_unico(prefixo: str) -> str:
 
 
 def extrair_senha_temporaria(mensagem: OutboundEmail) -> str:
-    """Lê a senha temporária do corpo do e-mail de convite."""
-    for linha in mensagem.body.splitlines():
-        if "Senha temporária:" in linha:
-            return linha.split(":", 1)[1].strip()
+    """Lê a senha temporária do corpo do e-mail de convite.
+
+    O corpo segue o frame "Convite · e-mail": o rótulo `SUA SENHA TEMPORÁRIA`
+    vem numa linha e o código na linha seguinte. Ler assim — e não procurando
+    por `Senha temporária:` — mantém o teste alinhado ao desenho, que é a
+    referência do contrato.
+    """
+    linhas = mensagem.body.splitlines()
+    for indice, linha in enumerate(linhas):
+        if linha.strip().upper() == "SUA SENHA TEMPORÁRIA":
+            for seguinte in linhas[indice + 1 :]:
+                if seguinte.strip():
+                    return seguinte.strip()
     raise AssertionError(f"senha temporária não encontrada no corpo:\n{mensagem.body}")
 
 
@@ -280,8 +289,25 @@ class TestConvite:
         mensagem = mailer_espiao.enviados[0]
         assert mensagem.to == email
         assert mensagem.subject == "Sua conta no Logos foi criada"
-        assert "Reporter da" not in mensagem.body  # rótulo, não código do enum
-        assert "Operador" in mensagem.body
+        # O frame mostra o código do papel, não a descrição em português.
+        assert "com o papel REPORTER" in mensagem.body
+
+    def test_email_leva_as_duas_versoes(
+        self, admin_client: TestClient, mailer_espiao: MailerEspiao
+    ) -> None:
+        """Texto puro e HTML, dizendo a mesma coisa.
+
+        Um e-mail só de HTML tem entrega pior e depende de o cliente renderizar
+        marcação; só de texto perde o botão do desenho. As duas versões saem
+        juntas, e a senha aparece em ambas.
+        """
+        criar_conta(admin_client, email_unico("versoes"))
+        mensagem = mailer_espiao.enviados[0]
+
+        assert mensagem.html is not None, "o convite precisa da versão HTML do frame"
+        senha = extrair_senha_temporaria(mensagem)
+        assert senha in mensagem.body
+        assert senha in mensagem.html
 
     def test_corpo_traz_senha_prazo_e_link(
         self, admin_client: TestClient, mailer_espiao: MailerEspiao
@@ -291,20 +317,63 @@ class TestConvite:
         mensagem = mailer_espiao.enviados[0]
 
         assert extrair_senha_temporaria(mensagem)
-        assert "24" in mensagem.body or "horas" in mensagem.body
+        assert "24 horas" in mensagem.body
         assert "Definir minha senha" in mensagem.body
+        assert "https://" in mensagem.body or "http://" in mensagem.body
         assert "ignore" in mensagem.body
 
-    def test_falha_de_email_nao_derruba_a_criacao(self, admin_client: TestClient) -> None:
-        """Servidor de e-mail fora do ar não pode impedir o cadastro."""
+    def test_falha_de_email_aparece_na_resposta(self, admin_client: TestClient) -> None:
+        """Servidor de e-mail fora do ar **não** pode passar por sucesso.
+
+        Era exatamente aqui que o convite se perdia: a falha virava uma linha de
+        log, a rota respondia `201` e a tela dizia "Convite enviado". A conta
+        continua criada — desfazê-la faria o administrador tentar de novo e
+        bater em `EMAIL_ALREADY_EXISTS` —, mas a resposta precisa dizer que o
+        e-mail não saiu.
+        """
         app.dependency_overrides[provide_mailer] = MailerQuebrado
         try:
             resposta = admin_client.post(
                 USERS_URL, json={"email": email_unico("falha"), "role": "REPORTER"}
             )
-            assert resposta.status_code == 201, resposta.text
+            assert resposta.status_code == 409, resposta.text
+            assert resposta.json()["error"]["code"] == "INVITE_DELIVERY_FAILED"
+            assert "Reenviar" in resposta.json()["error"]["message"]
         finally:
             app.dependency_overrides.pop(provide_mailer, None)
+
+    def test_falha_de_email_nao_desfaz_a_conta(self, admin_client: TestClient) -> None:
+        """A conta fica criada: "Reenviar convite" é o caminho de recuperação."""
+        email = email_unico("permanece")
+        app.dependency_overrides[provide_mailer] = MailerQuebrado
+        try:
+            assert (
+                admin_client.post(
+                    USERS_URL, json={"email": email, "role": "REPORTER"}
+                ).status_code
+                == 409
+            )
+        finally:
+            app.dependency_overrides.pop(provide_mailer, None)
+
+        contas = admin_client.get(USERS_URL).json()
+        assert any(conta["email"] == email for conta in contas), (
+            "a conta precisa existir para o reenvio funcionar"
+        )
+
+    def test_reenvio_que_falha_nao_responde_204(
+        self, admin_client: TestClient, mailer_espiao: MailerEspiao
+    ) -> None:
+        """Reenviar também só responde 204 quando o e-mail realmente sai."""
+        criada = criar_conta(admin_client, email_unico("reenviofalha"))
+        app.dependency_overrides[provide_mailer] = MailerQuebrado
+        try:
+            resposta = admin_client.post(f"{USERS_URL}/{criada['id']}/invite")
+        finally:
+            app.dependency_overrides.pop(provide_mailer, None)
+
+        assert resposta.status_code == 409, resposta.text
+        assert resposta.json()["error"]["code"] == "INVITE_DELIVERY_FAILED"
 
     def test_reenvio_gera_senha_nova_e_invalida_a_anterior(
         self, admin_client: TestClient, anonymous_client: TestClient, mailer_espiao: MailerEspiao

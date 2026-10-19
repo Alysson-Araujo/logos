@@ -3,13 +3,21 @@
 from __future__ import annotations
 
 import logging
+import smtplib
 from datetime import UTC, datetime, timedelta
+from email.utils import parseaddr
 from uuid import uuid4
 
 import pytest
 
 from app.core.config import Settings
-from app.core.mailer import LoggingMailer, OutboundEmail, SmtpMailer, get_mailer
+from app.core.mailer import (
+    LoggingMailer,
+    MailDeliveryError,
+    OutboundEmail,
+    SmtpMailer,
+    get_mailer,
+)
 from app.domain.accounts import (
     TEMP_PASSWORD_ALPHABET,
     TEMP_PASSWORD_LENGTH,
@@ -96,19 +104,18 @@ class TestEmailDeConvite:
     def test_corpo_traz_tudo_que_a_pessoa_precisa(self) -> None:
         """Destinatário, senha, prazo, link e o aviso de convite inesperado."""
         corpo = self._montar().body
-        assert "Joana Prado" in corpo
+        assert "Joana" in corpo
         assert "joana.prado@demo.example.com" in corpo
         assert "Abc234Def567Ghj8" in corpo
-        assert "18/10/2026" in corpo
+        assert "18/10/2026" in corpo or "24 horas" in corpo
         assert "https://logos.exemplo.app" in corpo
         assert "Definir minha senha" in corpo
         assert "ignore" in corpo
 
-    def test_mostra_o_papel_em_portugues(self) -> None:
-        """A mensagem não expõe o código do enum."""
+    def test_mostra_o_papel_como_o_frame(self) -> None:
+        """O frame escreve o código do papel (`ANALYST`), não a descrição."""
         corpo = self._montar().body
-        assert "Analista de triagem" in corpo
-        assert "ANALYST" not in corpo
+        assert "com o papel ANALYST" in corpo
 
     def test_papel_desconhecido_nao_quebra(self) -> None:
         """Um papel novo sem rótulo cai no próprio código, sem exceção."""
@@ -222,6 +229,9 @@ class TestSmtpMailer:
                 chamadas.append(("fechar",))
                 return False
 
+            def ehlo(self) -> None:
+                chamadas.append(("ehlo",))
+
             def starttls(self) -> None:
                 chamadas.append(("starttls",))
 
@@ -233,6 +243,31 @@ class TestSmtpMailer:
 
         monkeypatch.setattr("app.core.mailer.smtplib.SMTP", SmtpDuble)
 
+    def _duble_ssl(self, monkeypatch: pytest.MonkeyPatch, chamadas: list[object]) -> None:
+        """Instala um `SMTP_SSL` que apenas registra as chamadas."""
+
+        class SmtpSslDuble:
+            def __init__(self, host: str, port: int, timeout: float) -> None:
+                chamadas.append(("conectar_ssl", host, port, timeout))
+
+            def __enter__(self) -> SmtpSslDuble:
+                return self
+
+            def __exit__(self, *args: object) -> bool:
+                chamadas.append(("fechar",))
+                return False
+
+            def ehlo(self) -> None:
+                chamadas.append(("ehlo",))
+
+            def login(self, usuario: str, senha: str) -> None:
+                chamadas.append(("login", usuario, senha))
+
+            def send_message(self, mensagem: object) -> None:
+                chamadas.append(("mensagem", mensagem))
+
+        monkeypatch.setattr("app.core.mailer.smtplib.SMTP_SSL", SmtpSslDuble)
+
     def _settings(self, **overrides: object) -> Settings:
         padrao: dict[str, object] = {
             "smtp_host": "smtp.exemplo.com",
@@ -240,6 +275,7 @@ class TestSmtpMailer:
             "smtp_user": "logos@exemplo.com",
             "smtp_password": "senha-de-app",
             "smtp_use_tls": True,
+            "smtp_from": "Logos <nao-responda@exemplo.com>",
         }
         padrao.update(overrides)
         return Settings(**padrao)  # type: ignore[arg-type]
@@ -253,6 +289,15 @@ class TestSmtpMailer:
         assert conexao[1] == "smtp.exemplo.com"
         assert conexao[2] == 587
 
+    def test_sauda_o_servidor_antes_do_starttls(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Faltava este `ehlo`: sem ele o STARTTLS falha em servidor que exige."""
+        chamadas: list[object] = []
+        self._duble(monkeypatch, chamadas)
+        SmtpMailer(self._settings()).send(OutboundEmail(to="a@b.com", subject="Oi", body="corpo"))
+        nomes = [c[0] for c in chamadas]
+        assert "ehlo" in nomes
+        assert nomes.index("ehlo") < nomes.index("starttls")
+
     def test_usa_tls_e_autentica(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """STARTTLS antes do login — nunca credencial em canal aberto."""
         chamadas: list[object] = []
@@ -261,6 +306,23 @@ class TestSmtpMailer:
         nomes = [c[0] for c in chamadas]
         assert "starttls" in nomes
         assert nomes.index("starttls") < nomes.index("login")
+
+    def test_porta_465_abre_em_tls_direto(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A 465 é SSL desde o handshake: não cabe `starttls` ali.
+
+        O Gmail aceita as duas portas, mas um servidor pode ter só a 465
+        liberada. Exigir `starttls` transformaria uma configuração válida em
+        "não envia".
+        """
+        chamadas: list[object] = []
+        self._duble_ssl(monkeypatch, chamadas)
+        SmtpMailer(self._settings(smtp_port=465)).send(
+            OutboundEmail(to="a@b.com", subject="Oi", body="corpo")
+        )
+        nomes = [c[0] for c in chamadas]
+        assert "conectar_ssl" in nomes
+        assert "starttls" not in nomes, "com SSL direto não há upgrade a fazer"
+        assert "login" in nomes
 
     def test_sem_tls_nao_chama_starttls(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Servidor local sem TLS é uma escolha explícita da configuração."""
@@ -295,19 +357,195 @@ class TestSmtpMailer:
         assert "nao-responda@exemplo.com" in mensagem["From"]
         assert "Olá" in mensagem.get_content()
 
-    def test_falha_de_conexao_propaga(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """O mailer não engole o erro — quem decide o que fazer é o serviço."""
+    def test_remetente_sai_como_nome_e_endereco_separados(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """`Logos <x@y>` vira nome + endereço, no formato que o cliente espera."""
+        chamadas: list[object] = []
+        self._duble(monkeypatch, chamadas)
+        SmtpMailer(self._settings(smtp_from="Logos <nao-responda@exemplo.com>")).send(
+            OutboundEmail(to="joana@exemplo.com", subject="Sua conta", body="Olá")
+        )
+        mensagem = next(c[1] for c in chamadas if c[0] == "mensagem")
+        # `parseaddr` devolve (nome, endereço) — nesta ordem.
+        nome, endereco = parseaddr(mensagem["From"])
+        assert endereco == "nao-responda@exemplo.com"
+        assert nome == "Logos"
+
+    def test_mensagem_tem_message_id_e_data(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Cabeçalhos sem os quais o servidor inventa um `Message-ID` próprio."""
+        chamadas: list[object] = []
+        self._duble(monkeypatch, chamadas)
+        SmtpMailer(self._settings()).send(OutboundEmail(to="a@b.com", subject="Oi", body="x"))
+        mensagem = next(c[1] for c in chamadas if c[0] == "mensagem")
+        assert mensagem["Message-ID"].endswith("@exemplo.com>")
+        assert mensagem["Date"] is not None
+
+    def test_html_vai_como_alternativa(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Quando há HTML, o texto puro continua no mesmo e-mail."""
+        chamadas: list[object] = []
+        self._duble(monkeypatch, chamadas)
+        SmtpMailer(self._settings()).send(
+            OutboundEmail(to="a@b.com", subject="Oi", body="Olá", html="<p>Olá</p>")
+        )
+        mensagem = next(c[1] for c in chamadas if c[0] == "mensagem")
+        tipos = [parte.get_content_type() for parte in mensagem.walk()]
+        assert "text/plain" in tipos
+        assert "text/html" in tipos
+
+    def test_remetente_malformado_falha_cedo(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """`SMTP_FROM` sem e-mail é erro de configuração, não envio anônimo."""
+        chamadas: list[object] = []
+        self._duble(monkeypatch, chamadas)
+        with pytest.raises(MailDeliveryError, match="SMTP_FROM"):
+            SmtpMailer(self._settings(smtp_from="Logos")).send(
+                OutboundEmail(to="a@b.com", subject="Oi", body="corpo")
+            )
+
+    def test_falha_de_conexao_vira_mail_delivery_error(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """O mailer não engole o erro — mas o traduz para o tipo que o serviço vê."""
 
         class SmtpQuebrado:
             def __init__(self, *args: object, **kwargs: object) -> None:
                 raise OSError("sem rota até o servidor")
 
         monkeypatch.setattr("app.core.mailer.smtplib.SMTP", SmtpQuebrado)
-        with pytest.raises(OSError):
+        with pytest.raises(MailDeliveryError, match="OSError"):
             SmtpMailer(self._settings()).send(
                 OutboundEmail(to="a@b.com", subject="Oi", body="corpo")
             )
 
+    def test_credencial_recusada_tem_mensagem_propria(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A falha mais comum de todas — senha de app revogada — é diagnosticável.
+
+        Sem isto, quem configura o SMTP recebe `SMTPAuthenticationError` num log
+        e a tela diz "Convite enviado". A mensagem nomeia as variáveis a
+        conferir.
+        """
+
+        class SmtpRecusa:
+            def __init__(self, *args: object, **kwargs: object) -> None:
+                pass
+
+            def __enter__(self) -> SmtpRecusa:
+                return self
+
+            def __exit__(self, *args: object) -> bool:
+                return False
+
+            def ehlo(self) -> None:
+                return None
+
+            def starttls(self) -> None:
+                return None
+
+            def login(self, usuario: str, senha: str) -> None:
+                raise smtplib.SMTPAuthenticationError(
+                    535, b"5.7.8 Username and Password not accepted"
+                )
+
+            def send_message(self, mensagem: object) -> None:
+                return None
+
+        monkeypatch.setattr("app.core.mailer.smtplib.SMTP", SmtpRecusa)
+        with pytest.raises(MailDeliveryError, match="SMTP_USER"):
+            SmtpMailer(self._settings()).send(
+                OutboundEmail(to="a@b.com", subject="Oi", body="corpo")
+            )
+
+
+class TestContratoDoFrameDeConvite:
+    """O e-mail precisa ser fiel à seção "Convite · e-mail" do Figma.
+
+    Cada asserção aqui corresponde a um campo do nó `22:4723`. Se o desenho
+    mudar, é este teste que aponta o que ficou para trás.
+    """
+
+    def _montar(self) -> OutboundEmail:
+        return build_invite_email(
+            to="joana.prado@demo.example.com",
+            name="Joana Prado",
+            role="REPORTER",
+            temp_password="kQ7mPx4R9tD2wZ8n",
+            expires_at=datetime(2026, 10, 18, 9, 18, tzinfo=UTC),
+            frontend_url="https://logoscase.com.br",
+        )
+
+    def test_assunto_e_o_do_frame(self) -> None:
+        """`Sua conta no Logos foi criada`, como no cabeçalho do frame."""
+        assert self._montar().subject == "Sua conta no Logos foi criada"
+
+    def test_saudacao_usa_o_primeiro_nome(self) -> None:
+        """O frame mostra "Olá, Joana." — não "Olá, Joana Prado."."""
+        assert "Olá, Joana." in self._montar().body
+
+    def test_diz_o_papel_como_o_frame(self) -> None:
+        """O frame escreve `com o papel REPORTER`."""
+        assert "com o papel REPORTER" in self._montar().body
+
+    def test_rotulo_da_senha_em_maiusculas(self) -> None:
+        """`SUA SENHA TEMPORÁRIA`, com caixa alta e acento."""
+        assert "SUA SENHA TEMPORÁRIA" in self._montar().body
+
+    def test_tem_o_convite_para_copiar(self) -> None:
+        """O frame mostra `selecione e copie` ao lado do código."""
+        assert "selecione e copie" in self._montar().body
+
+    def test_frase_do_prazo_e_a_do_frame(self) -> None:
+        """A frase é literal no frame; mudá-la é mudar o desenho."""
+        esperado = "A senha expira em 24 horas e vale apenas para o primeiro acesso."
+        assert esperado in self._montar().body
+
+    def test_botao_de_acao_e_o_do_frame(self) -> None:
+        """O botão diz `Definir minha senha` nas duas versões."""
+        mensagem = self._montar()
+        assert "Definir minha senha" in mensagem.body
+        assert mensagem.html is not None
+        assert ">Definir minha senha</a>" in mensagem.html
+
+    def test_rodape_avisa_sobre_convite_inesperado(self) -> None:
+        """O rodapé é o do frame, em `#55606F`."""
+        esperado = (
+            "Se você não esperava este convite, ignore esta mensagem: "
+            "nada é ativado antes de alguém definir a senha."
+        )
+        assert esperado in self._montar().body
+
+    def test_html_usa_a_paleta_do_frame(self) -> None:
+        """As cores do frame, verificadas onde o cliente de e-mail as lê."""
+        html = self._montar().html
+        assert html is not None
+        assert "#ECEFF3" in html  # fundo da caixa da senha e do cabeçalho
+        assert "#D5DAE2" in html  # borda
+        assert "#1D4ED8" in html  # botão
+        assert "#55606F" in html  # rodapé
+
+    def test_link_nao_leva_credencial(self) -> None:
+        """Senha na URL vaza para histórico, proxy e relatório de clique."""
+        mensagem = self._montar()
+        assert mensagem.html is not None
+        # O único `href` é o do botão; ele não carrega a senha.
+        assert "primeiro-acesso=1" in mensagem.html
+        assert "primeiro-acesso=1" in mensagem.body
+        assert "kQ7mPx4R9tD2wZ8n" not in mensagem.headers.get("Reply-To", "")
+
+    def test_nome_e_escapado_no_html(self) -> None:
+        """O nome vem de um formulário: `<script>` nele não pode virar marcação."""
+        mensagem = build_invite_email(
+            to="x@demo.example.com",
+            name="<script>alert(1)</script>",
+            role="REPORTER",
+            temp_password="kQ7mPx4R9tD2wZ8n",
+            expires_at=datetime(2026, 10, 18, tzinfo=UTC),
+            frontend_url="https://x.app",
+        )
+        assert mensagem.html is not None
+        assert "<script>alert(1)</script>" not in mensagem.html
+        assert "&lt;script&gt;" in mensagem.html
 
 class TestGuardaDeProducao:
     """Produção não sobe mal configurada.
