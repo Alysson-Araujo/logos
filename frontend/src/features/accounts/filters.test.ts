@@ -23,7 +23,7 @@ describe('filterAccounts', () => {
     expect(filterAccounts(accounts, 'bruno.tavares@', ALL_ROLES).map((item) => item.id)).toEqual([
       'conta-bruno',
     ]);
-    expect(filterAccounts(accounts, 'AUTOU.COM.BR', ALL_ROLES)).toHaveLength(4);
+    expect(filterAccounts(accounts, 'DEMO.EXAMPLE.COM', ALL_ROLES)).toHaveLength(4);
     expect(filterAccounts(accounts, 'ninguém', ALL_ROLES)).toEqual([]);
   });
 

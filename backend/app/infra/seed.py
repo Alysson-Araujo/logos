@@ -117,15 +117,16 @@ CATEGORY_QUOTA: Final[tuple[IncidentCategory, ...]] = (
 #: Os domínios são os reservados pela RFC 2606 (`example.com`, `example.org` e
 #: `example.net`) de propósito: o convite sai por SMTP de verdade (#129), e uma
 #: conta de demonstração num domínio de gente real colocaria uma credencial na
-#: caixa de entrada de um estranho no primeiro "Reenviar" clicado. As contas em
-#: `autou.com.br` não são exceção a isso: é o domínio do **próprio produto**, o
-#: das contas que o README e o edital documentam desde a primeira entrega. A única
-#: exceção de verdade é a conta pessoal de quem apresenta.
+#: caixa de entrada de um estranho no primeiro "Reenviar" clicado. As contas do
+#: edital ficam em `demo.example.com`, subdomínio do reservado `example.com`:
+#: nunca resolve e nunca recebe e-mail, e ao mesmo tempo as distingue das demais
+#: contas do seed. A única exceção de verdade é a conta pessoal de quem
+#: apresenta.
 DEMO_USERS: Final[tuple[tuple[str, str, UserRole, str], ...]] = (
-    ("ana@autou.com.br", "Ana Paula Ribeiro", UserRole.ANALYST, "ana.logos2026"),
-    ("carlos@autou.com.br", "Carlos Eduardo Lima", UserRole.ANALYST, "carlos.logos2026"),
-    ("marina@autou.com.br", "Marina Souza", UserRole.REPORTER, "marina.logos2026"),
-    ("admin@autou.com.br", "Administrador Logos", UserRole.ADMIN, "admin.logos2026"),
+    ("ana@demo.example.com", "Ana Paula Ribeiro", UserRole.ANALYST, "ana.logos2026"),
+    ("carlos@demo.example.com", "Carlos Eduardo Lima", UserRole.ANALYST, "carlos.logos2026"),
+    ("marina@demo.example.com", "Marina Souza", UserRole.REPORTER, "marina.logos2026"),
+    ("admin@demo.example.com", "Administrador Logos", UserRole.ADMIN, "admin.logos2026"),
     ("alyssonaraujowork@gmail.com", "Alysson Araújo", UserRole.ANALYST, "alysson.logos2026"),
     ("carlos.menezes@example.com", "Carlos Menezes", UserRole.ADMIN, "carlos.logos2026"),
     ("renata.lima@example.org", "Renata Lima", UserRole.ANALYST, "renata.logos2026"),
@@ -378,7 +379,7 @@ def seed_users(session: Session) -> int:
 
     # Sem administrador não há quem assine o convite: `DEMO_USERS` precisa de um
     # `ADMIN`, e falhar aqui é melhor do que gravar autoria errada. Havendo mais
-    # de um, assina o primeiro da lista (`admin@autou.com.br`).
+    # de um, assina o primeiro da lista (`admin@demo.example.com`).
     admin = next(user for user in criados if user.role is UserRole.ADMIN)
 
     email, nome, papel = INVITED_DEMO_USER

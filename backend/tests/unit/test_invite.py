@@ -54,10 +54,10 @@ class TestNomeDerivado:
     @pytest.mark.parametrize(
         ("email", "esperado"),
         [
-            ("joana.prado@autou.com.br", "Joana Prado"),
-            ("marina_souza@autou.com.br", "Marina Souza"),
-            ("ana-paula@autou.com.br", "Ana Paula"),
-            ("carlos@autou.com.br", "Carlos"),
+            ("joana.prado@demo.example.com", "Joana Prado"),
+            ("marina_souza@demo.example.com", "Marina Souza"),
+            ("ana-paula@demo.example.com", "Ana Paula"),
+            ("carlos@demo.example.com", "Carlos"),
             ("JOAO.SILVA@AUTOU.COM.BR", "Joao Silva"),
         ],
     )
@@ -72,7 +72,7 @@ class TestNomeDerivado:
         do `@`. O teste fixa o comportamento para a função não surpreender se
         for chamada de outro lugar.
         """
-        assert derive_name_from_email("@autou.com.br") == ""
+        assert derive_name_from_email("@demo.example.com") == ""
 
 
 class TestEmailDeConvite:
@@ -80,7 +80,7 @@ class TestEmailDeConvite:
 
     def _montar(self) -> OutboundEmail:
         return build_invite_email(
-            to="joana.prado@autou.com.br",
+            to="joana.prado@demo.example.com",
             name="Joana Prado",
             role="ANALYST",
             temp_password="Abc234Def567Ghj8",  # noqa: S106 - valor de teste, nao segredo
@@ -97,7 +97,7 @@ class TestEmailDeConvite:
         """Destinatário, senha, prazo, link e o aviso de convite inesperado."""
         corpo = self._montar().body
         assert "Joana Prado" in corpo
-        assert "joana.prado@autou.com.br" in corpo
+        assert "joana.prado@demo.example.com" in corpo
         assert "Abc234Def567Ghj8" in corpo
         assert "18/10/2026" in corpo
         assert "https://logos.exemplo.app" in corpo
@@ -113,7 +113,7 @@ class TestEmailDeConvite:
     def test_papel_desconhecido_nao_quebra(self) -> None:
         """Um papel novo sem rótulo cai no próprio código, sem exceção."""
         mensagem = build_invite_email(
-            to="x@autou.com.br",
+            to="x@demo.example.com",
             name="X",
             role="AUDITOR",
             temp_password="Abc234Def567Ghj8",  # noqa: S106 - valor de teste, nao segredo

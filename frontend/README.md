@@ -204,7 +204,7 @@ pnpm test:run
 ## 10. Mock (MSW)
 
 Se o backend estiver fora do ar, o login simulado aceita as **mesmas contas de
-demonstração do seed** — as do domínio do produto (`autou.com.br`) e as dos
+demonstração do seed** — as do subdomínio reservado (`demo.example.com`) e as dos
 domínios reservados —, com o papel de cada uma, além da conta de convite pendente
 (que entra pela senha temporária e exige a troca). A tabela completa está no
 README da raiz.

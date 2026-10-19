@@ -49,7 +49,7 @@ export function createAccountFixtures(): AccountSummary[] {
     {
       id: 'conta-ana',
       name: 'Ana Paula Ribeiro',
-      email: 'ana@autou.com.br',
+      email: 'ana@demo.example.com',
       role: 'ADMIN',
       isActive: true,
       invitePending: false,
@@ -59,7 +59,7 @@ export function createAccountFixtures(): AccountSummary[] {
     {
       id: 'conta-joana',
       name: 'Joana Prado',
-      email: 'joana.prado@autou.com.br',
+      email: 'joana.prado@demo.example.com',
       role: 'REPORTER',
       isActive: false,
       invitePending: true,
@@ -69,7 +69,7 @@ export function createAccountFixtures(): AccountSummary[] {
     {
       id: 'conta-bruno',
       name: 'Bruno Tavares',
-      email: 'bruno.tavares@autou.com.br',
+      email: 'bruno.tavares@demo.example.com',
       role: 'ANALYST',
       isActive: true,
       invitePending: false,
@@ -79,7 +79,7 @@ export function createAccountFixtures(): AccountSummary[] {
     {
       id: 'conta-carla',
       name: 'Carla Mendes',
-      email: 'carla.mendes@autou.com.br',
+      email: 'carla.mendes@demo.example.com',
       role: 'ANALYST',
       isActive: false,
       invitePending: false,

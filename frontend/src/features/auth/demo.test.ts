@@ -17,13 +17,13 @@ import {
 describe('credenciais de demonstração', () => {
   it('usa as contas do seed e cobre os três papéis', () => {
     expect(DEMO_ACCOUNTS.map((account) => account.email)).toEqual([
-      'ana@autou.com.br',
-      'carlos@autou.com.br',
+      'ana@demo.example.com',
+      'carlos@demo.example.com',
       'alyssonaraujowork@gmail.com',
       'renata.lima@example.org',
-      'admin@autou.com.br',
+      'admin@demo.example.com',
       'carlos.menezes@example.com',
-      'marina@autou.com.br',
+      'marina@demo.example.com',
       'joana.prado@example.net',
       'marcos.tavares@example.org',
     ]);
@@ -37,7 +37,7 @@ describe('credenciais de demonstração', () => {
     // que o edital documenta desde a primeira entrega — e a exceção deliberada
     // da conta pessoal de quem apresenta. O convite sai por SMTP de verdade.
     const reservados = ['example.com', 'example.org', 'example.net'];
-    const dominioDoProduto = 'autou.com.br';
+    const dominioDoProduto = 'demo.example.com';
     const pessoal = 'alyssonaraujowork@gmail.com';
 
     const foraDosReservados = DEMO_ACCOUNTS.map((account) => account.email).filter(

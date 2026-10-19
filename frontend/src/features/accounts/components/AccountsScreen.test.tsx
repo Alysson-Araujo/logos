@@ -76,7 +76,7 @@ describe('AccountsScreen — tabela', () => {
     }
 
     const joana = screen.getByRole('row', { name: /joana prado/i });
-    expect(within(joana).getByText('joana.prado@autou.com.br')).toBeInTheDocument();
+    expect(within(joana).getByText('joana.prado@demo.example.com')).toBeInTheDocument();
     expect(within(joana).getByText('REPORTER')).toBeInTheDocument();
     // Convite pendente vence "desativado": é o estado que pede ação.
     expect(within(joana).getByText('Convite pendente')).toBeInTheDocument();
@@ -356,7 +356,7 @@ describe('AccountsScreen — nova conta', () => {
     renderScreen();
 
     const sheet = await openCreateSheet();
-    await user.type(within(sheet).getByLabelText(/e-mail/i), 'rascunho@autou.com.br');
+    await user.type(within(sheet).getByLabelText(/e-mail/i), 'rascunho@demo.example.com');
     await user.click(within(sheet).getByRole('button', { name: 'Cancelar' }));
 
     await waitFor(() => {

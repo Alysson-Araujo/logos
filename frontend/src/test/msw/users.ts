@@ -62,7 +62,7 @@ function createSeedAccounts(): MockAccount[] {
     {
       id: 'mock-user-ana',
       name: 'Ana Paula Ribeiro',
-      email: 'ana@autou.com.br',
+      email: 'ana@demo.example.com',
       role: 'ANALYST',
       isActive: true,
       invitePending: false,
@@ -75,7 +75,7 @@ function createSeedAccounts(): MockAccount[] {
     {
       id: 'mock-user-carlos',
       name: 'Carlos Eduardo Lima',
-      email: 'carlos@autou.com.br',
+      email: 'carlos@demo.example.com',
       role: 'ANALYST',
       isActive: true,
       invitePending: false,
@@ -114,7 +114,7 @@ function createSeedAccounts(): MockAccount[] {
     {
       id: 'mock-user-admin',
       name: 'Administrador Logos',
-      email: 'admin@autou.com.br',
+      email: 'admin@demo.example.com',
       role: 'ADMIN',
       isActive: true,
       invitePending: false,
@@ -140,7 +140,7 @@ function createSeedAccounts(): MockAccount[] {
     {
       id: 'mock-user-marina',
       name: 'Marina Souza',
-      email: 'marina@autou.com.br',
+      email: 'marina@demo.example.com',
       role: 'REPORTER',
       isActive: true,
       invitePending: false,

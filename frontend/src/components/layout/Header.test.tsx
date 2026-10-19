@@ -29,7 +29,7 @@ describe('Header', () => {
       session: createTestSession({
         user: {
           id: 'user-bruno',
-          email: 'bruno@autou.com.br',
+          email: 'bruno@demo.example.com',
           name: 'Bruno Tavares',
           role: 'REPORTER',
           lastLoginAt: null,

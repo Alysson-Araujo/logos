@@ -69,7 +69,7 @@ def mailer_espiao() -> Iterator[MailerEspiao]:
 
 def email_unico(prefixo: str) -> str:
     """Gera um e-mail que nenhum outro teste usou."""
-    return f"{prefixo}.{uuid4().hex[:8]}@autou.com.br"
+    return f"{prefixo}.{uuid4().hex[:8]}@demo.example.com"
 
 
 def extrair_senha_temporaria(mensagem: OutboundEmail) -> str:
@@ -130,7 +130,7 @@ class TestPermissoes:
 
     ROTAS: tuple[tuple[str, str, dict[str, object] | None], ...] = (
         ("GET", USERS_URL, None),
-        ("POST", USERS_URL, {"email": "x@autou.com.br", "role": "REPORTER"}),
+        ("POST", USERS_URL, {"email": "x@demo.example.com", "role": "REPORTER"}),
         ("POST", f"{USERS_URL}/00000000-0000-0000-0000-000000000000/invite", None),
         ("PATCH", f"{USERS_URL}/00000000-0000-0000-0000-000000000000", {"isActive": False}),
     )
