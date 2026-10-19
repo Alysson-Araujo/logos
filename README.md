@@ -106,6 +106,13 @@ O ciclo de vida acontece aqui. As transições oferecidas dependem do status atu
 prioridade?"** itemiza o score, termo a termo, para que a ordem da fila seja
 auditável em vez de opaca. O rodapé mostra o `ETag` que o lock otimista usa.
 
+No fim do drawer fica o **histórico de auditoria**: cada evento com ícone, a
+transição de origem e destino, o autor que veio do token e a versão que o cliente
+declarou esperar. A ordem vem do servidor, de uma coluna `sequence` atribuída
+dentro da transação — e não do `created_at`, porque o relógio do Windows empata
+no milissegundo e o desempate sobrava para um UUID aleatório. O print acima é
+anterior a essa seção; ela aparece abaixo da justificativa.
+
 ### Registro de incidente
 
 ![Painel lateral de registro de incidente: título preenchido e a lista de sugestões de placa aberta, mostrando modelo e transportadora de cada veículo da frota](docs/assets/novo-incidente.png)
@@ -189,49 +196,48 @@ coberto por teste e exercitado na CI** — não é declaração de intenção.
 O que o case não pedia, mas que a operação exige — e que mudou o patamar do
 projeto.
 
-| Funcionalidade                                                                                                                  | Status      |
-| ------------------------------------------------------------------------------------------------------------------------------- | ----------- |
-| **Autenticação** JWT, com revogação real no logout                                                                              | ✅ pronto   |
-| **Autorização por papel** (`REPORTER`/`ANALYST`/`ADMIN`), com escopo na query                                                   | ✅ pronto   |
-| **Administração de contas por convite**, com senha temporária e primeiro acesso obrigatório                                     | ✅ pronto   |
-| **Troca de senha** e menu do usuário no cabeçalho                                                                               | ✅ pronto   |
-| **Timeline de auditoria** na API (`GET /incidents/{id}/events`), com autor vindo do token e ordem determinística por `sequence` | ✅ pronto   |
-| **Timeline de auditoria na interface** — o endpoint existe e é testado, mas o drawer ainda não o consome                        | ⏳ pendente |
-| **Busca de frota** por prefixo de placa no cadastro                                                                             | ✅ pronto   |
-| **Autocomplete de local** com combobox acessível                                                                                | ✅ pronto   |
-| **Guia de boas-vindas** na primeira visita                                                                                      | ✅ pronto   |
-| **Faixas de prioridade** na borda da linha (crítica · alta · média · baixa)                                                     | ✅ pronto   |
-| Atalhos de teclado na fila (`j`/`k`/`Enter`/`Esc`)                                                                              | ✅ pronto   |
-| Soft delete com trilha de auditoria preservada                                                                                  | ✅ pronto   |
-| Detecção de offline com aviso na tela                                                                                           | ✅ pronto   |
-| Tela de administração de contas, alcançável só com `ADMIN`                                                                      | ✅ pronto   |
+| Funcionalidade | Status |
+| --- | --- |
+| **Autenticação** JWT, com revogação real no logout | ✅ pronto |
+| **Autorização por papel** (`REPORTER`/`ANALYST`/`ADMIN`), com escopo na query | ✅ pronto |
+| **Administração de contas por convite**, com senha temporária e primeiro acesso obrigatório | ✅ pronto |
+| **Troca de senha** e menu do usuário no cabeçalho | ✅ pronto |
+| **Timeline de auditoria** no drawer (`GET /incidents/{id}/events`), com autor vindo do token e ordem determinística por `sequence` | ✅ pronto |
+| **Busca de frota** por prefixo de placa no cadastro | ✅ pronto |
+| **Autocomplete de local** com combobox acessível | ✅ pronto |
+| **Guia de boas-vindas** na primeira visita | ✅ pronto |
+| **Faixas de prioridade** na borda da linha (crítica · alta · média · baixa) | ✅ pronto |
+| Atalhos de teclado na fila (`j`/`k`/`Enter`/`Esc`) | ✅ pronto |
+| Soft delete com trilha de auditoria preservada | ✅ pronto |
+| Detecção de offline com aviso na tela | ✅ pronto |
+| Tela de administração de contas, alcançável só com `ADMIN` | ✅ pronto |
 
 ### Qualidade, automação e publicação
 
-| Funcionalidade                                                                               | Status    |
-| -------------------------------------------------------------------------------------------- | --------- |
-| Lint, formatação, tipagem e hooks de Git (`Ruff`, `mypy`, `ESLint`, `Husky`)                 | ✅ pronto |
-| CI em cada PR: lint, tipos, testes **nos dois bancos** e build                               | ✅ pronto |
-| Teste de **concorrência** com `ThreadPoolExecutor` (o que sustenta o Pilar 1)                | ✅ pronto |
-| Cobertura mínima de 80% no backend, verificada na CI (real: ~95%)                            | ✅ pronto |
-| Cobertura mínima no frontend (piso, não meta) e **orçamento de bundle** por gzip             | ✅ pronto |
-| Testes diretos dos 21 hooks do frontend, além dos componentes                                | ✅ pronto |
-| **Testes E2E com Cypress** em navegador real, contra a API de verdade                        | ✅ pronto |
-| Documentação: 12 documentos temáticos + 18 ADRs                                              | ✅ pronto |
+| Funcionalidade | Status |
+| --- | --- |
+| Lint, formatação, tipagem e hooks de Git (`Ruff`, `mypy`, `ESLint`, `Husky`) | ✅ pronto |
+| CI em cada PR: lint, tipos, testes **nos dois bancos** e build | ✅ pronto |
+| Teste de **concorrência** com `ThreadPoolExecutor` (o que sustenta o Pilar 1) | ✅ pronto |
+| Cobertura mínima de 80% no backend, verificada na CI (real: ~94%) | ✅ pronto |
+| **Testes E2E com Cypress** em navegador real, contra a API de verdade | ✅ pronto |
+| Cobertura mínima no frontend (piso) e orçamento de bundle por gzip, no build local | ✅ pronto |
+| Testes diretos dos 21 hooks do frontend, além dos componentes | ✅ pronto |
+| Documentação: 12 documentos temáticos + 18 ADRs | ✅ pronto |
 | Publicação na AWS (Lambda + S3 + CloudFront) com CD via OIDC, **sem segredo no repositório** | ✅ pronto |
 | Aviso automático em issue quando o deploy falha                                              | ✅ pronto |
 
 ### Roadmap
 
-| Funcionalidade                                             | Status       |
-| ---------------------------------------------------------- | ------------ |
-| SSE com badge "N novos" sem reordenar a lista              | ⏳ planejado |
-| Timeline de auditoria **na interface** (a API está pronta) | ⏳ pendente  |
-| Relatórios em PDF/CSV por período                          | ⏳ planejado |
+| Funcionalidade | Status |
+| --- | --- |
+| SSE com badge "N novos" sem reordenar a lista | ⏳ planejado |
+| Relatórios em PDF/CSV por período | ⏳ planejado |
 
 > **Removidos do roadmap por já estarem prontos**: `PATCH /incidents/{id}`
 > (implementado, com `If-Match` e `409`), command palette (`Ctrl+K` já responde
-> pelos atalhos da fila), cobertura no frontend e os testes E2E com Cypress.
+> pelos atalhos da fila), cobertura no frontend, os testes E2E com Cypress e a
+> **timeline na interface** (o drawer passou a consumir o endpoint).
 
 Legenda: ✅ pronto · 🚧 em desenvolvimento · ⏳ planejado.
 
@@ -609,31 +615,30 @@ Swagger está em `http://localhost:8000/docs`.
 
 #### Contas de demonstração
 
-O `seed` declara nove contas. **No app publicado, quatro funcionam** — as demais
-dependem de o seed ter rodado contra aquele banco, e ele não foi reaplicado depois
-de a lista crescer. Uso uma coluna para isso, em vez de deixar a diferença
-implícita: entrar com uma conta que dá `401` é a pior primeira impressão possível.
+O `seed` cria nove contas — as oito ativas abaixo e uma que nasce com convite
+pendente. **Todas as oito autenticam no app publicado**, verificado por HTTP
+real contra a Function URL.
 
-| Conta                         | Senha                | Papel      | Enxerga                      | No app publicado |
-| ----------------------------- | -------------------- | ---------- | ---------------------------- | ---------------- |
-| `ana@demo.example.com`        | `ana.logos2026`      | `ANALYST`  | A fila inteira               | ✅               |
-| `carlos@demo.example.com`     | `carlos.logos2026`   | `ANALYST`  | A fila inteira               | ✅               |
-| `admin@demo.example.com`      | `admin.logos2026`    | `ADMIN`    | Tudo, e remove contas        | ✅               |
-| `marina@demo.example.com`     | `marina.logos2026`   | `REPORTER` | Apenas o que ela mesma abriu | ✅               |
-| `alyssonaraujowork@gmail.com` | `alysson.logos2026`  | `ANALYST`  | A fila inteira               | ❌               |
-| `renata.lima@example.org`     | `renata.logos2026`   | `ANALYST`  | A fila inteira               | ❌               |
-| `carlos.menezes@example.com`  | `carlos.logos2026`   | `ADMIN`    | Tudo, e remove contas        | ❌               |
-| `joana.prado@example.net`     | `joana.logos2026`    | `REPORTER` | Apenas o que ela mesma abriu | ❌               |
-| `marcos.tavares@example.org`  | — convite pendente — | `REPORTER` | O que ele mesmo abrir        | ❌               |
+| Conta                         | Senha                | Papel      | Enxerga                      |
+| ----------------------------- | -------------------- | ---------- | ---------------------------- |
+| `ana@demo.example.com`        | `ana.logos2026`      | `ANALYST`  | A fila inteira               |
+| `carlos@demo.example.com`     | `carlos.logos2026`   | `ANALYST`  | A fila inteira               |
+| `alyssonaraujowork@gmail.com` | `alysson.logos2026`  | `ANALYST`  | A fila inteira               |
+| `renata.lima@example.org`     | `renata.logos2026`   | `ANALYST`  | A fila inteira               |
+| `admin@demo.example.com`      | `admin.logos2026`    | `ADMIN`    | Tudo, e remove contas        |
+| `carlos.menezes@example.com`  | `carlos.logos2026`   | `ADMIN`    | Tudo, e remove contas        |
+| `marina@demo.example.com`     | `marina.logos2026`   | `REPORTER` | Apenas o que ela mesma abriu |
+| `joana.prado@example.net`     | `joana.logos2026`    | `REPORTER` | Apenas o que ela mesma abriu |
+| `marcos.tavares@example.org`  | — convite pendente — | `REPORTER` | O que ele mesmo abrir        |
 
-> **Por que a diferença.** O seed tem guarda `if repository.count() > 0: return`:
-> ele popula banco **vazio** e desiste de banco **parcial**. Como a lista de contas
-> cresceu depois da última execução contra o Neon, as cinco novas nunca foram
-> criadas. Isso está registrado como pendência conhecida em
-> [`ERROS-E-SOLUCOES-LOGOS.md`](../ERROS-E-SOLUCOES-LOGOS.md), item 27 — a correção
-> é fazer o seed convergir (inserir o que falta, por e-mail) em vez de desistir.
->
-> **No ambiente local**, onde o seed roda num banco limpo, as nove existem.
+> **O seed converge, não é "tudo ou nada".** A guarda antiga era
+> `if repository.count() > 0: return`: ela populava banco vazio e desistia de
+> banco parcial. Quando a lista de contas cresceu depois da última execução, as
+> novas nunca foram criadas — e a tela de login passou a anunciar credenciais que
+> respondiam `401`. Hoje o seed avalia conta por conta pelo e-mail: a que falta
+> entra, a que existe fica **exatamente como está** (ele nunca sobrescreve senha
+> de conta viva) e uma segunda execução cria zero. O teste
+> `test_seed_converge_banco_parcial` guarda esse comportamento.
 
 Os domínios são os reservados pela RFC 2606 (`example.com`, `example.org`,
 `example.net`, e o subdomínio `demo.example.com`): não pertencem a ninguém, então
@@ -646,9 +651,9 @@ com uma senha temporária que o seed **não envia** a ninguém. É o estado que 
 _Contas de acesso_ mostra com o botão **Reenviar**, que gera outra temporária e a
 entrega pelo canal configurado.
 
-A conta que abre a administração de contas **no app publicado** é
-`admin@demo.example.com`, pelo menu do usuário. (`carlos.menezes@example.com`
-também é `ADMIN`, mas só existe onde o seed completo rodou.)
+Ambas as contas `ADMIN` (`admin@demo.example.com` e
+`carlos.menezes@example.com`) abrem a administração de contas pelo menu do
+usuário.
 
 Entrar como `joana.prado` e como `ana` é a forma mais rápida de ver a autorização
 funcionando: a mesma listagem devolve recortes diferentes. O contrato completo do
@@ -789,7 +794,7 @@ principal, e o que `scripts/setup-local.ps1 -SkipDatabase` configura sozinho.
 
 | Variável            | Padrão                         | Descrição                                                                             |
 | ------------------- | ------------------------------ | ------------------------------------------------------------------------------------- |
-| `VITE_API_BASE_URL` | `http://localhost:8000/api/v1` | Base da API consumida pelo cliente HTTP. Em produção aponta para o serviço no Render. |
+| `VITE_API_BASE_URL` | `http://localhost:8000/api/v1` | Base da API consumida pelo cliente HTTP. Em produção aponta para a Function URL da Lambda. |
 
 Nenhum segredo é versionado. Apenas `.env.example`, com valores fictícios,
 entra no repositório.
@@ -826,11 +831,19 @@ ambiente — ele existe para proteger a operação, não para reprovar teste. Os
 detalhes estão em [`docs/07-testes.md` §6](docs/07-testes.md) e no
 [ADR 0018](docs/adr/0018-e2e-com-cypress.md).
 
-Cobertura mínima exigida no backend: **80%**, verificada na CI com
-`--cov-fail-under=80`. No frontend ainda não há coleta de cobertura (o script
-não existe em `frontend/package.json`); ela está planejada na issue **#60**
-(`ci: adiciona cobertura, badge e checagem de bundle`, milestone
-`M4 — Qualidade`).
+Cobertura é tratada como **piso, não meta** nos dois lados:
+
+- **Backend**: mínimo de **80%**, verificado na CI com `--cov-fail-under=80`;
+  a suíte real fica em ~94%.
+- **Frontend**: `@vitest/coverage-v8` configurado em `vitest.config.ts`, com
+  pisos de 80% (statements, lines, functions) e 75% (branches). O `exclude`
+  tira o que não é produto — `main.tsx`, os próprios testes, o setup e as
+  fábricas do MSW —, porque medir o aparato de teste inflaria o número.
+
+Além da cobertura, o build tem um **orçamento de tamanho**
+(`scripts/verifica-bundle.mjs`): mede o gzip de cada chunk e falha se passar do
+teto, para uma dependência pesada não entrar sem ninguém ver. O teto é calibrado
+sobre o build real, e subir esse número é uma decisão que aparece no diff.
 
 A suíte roda em SQLite por padrão e **em PostgreSQL quando `TEST_DATABASE_URL`
 está definida** — é exatamente o que o job `backend-postgres` da CI faz, e é
@@ -1039,14 +1052,13 @@ incluí-las adicionaria superfície sem aprofundar o que está sendo avaliado.
 
 Dito com todas as letras — o que eu corrigiria antes de chamar de produção:
 
-| Limite                                                         | Impacto                                                                                                                 | O que resolveria                                                     |
-| -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| **Rate limit, disjuntor e cache vivem na memória do processo** | Com 1 container o teto é exato; com N containers vira `60 × N`                                                          | Store compartilhado (Redis) — custaria mais que a hospedagem inteira |
-| **O rate limit lê o primeiro item do `X-Forwarded-For`**       | Atrás de um proxy, quem quiser contornar troca o valor do cabeçalho                                                     | Ler da **direita** (a entrada que o proxy confiável adicionou)       |
-| **Não existe `PATCH /incidents/{id}`**                         | Não dá para corrigir os dados de um incidente — só o status                                                             | Implementar com o mesmo lock otimista                                |
-| **Sem métricas nem tracing**                                   | Não há como responder "quantas requisições falharam na última hora"                                                     | `/metrics` + OpenTelemetry                                           |
-| **`/health/ready` não mostra pool, disjuntor nem cache**       | É justamente o que se olha numa queda                                                                                   | Enriquecer o payload do readiness                                    |
-| **O piso de cobertura do frontend não roda na CI**             | O limite existe na configuração do Vitest, mas nenhum passo do workflow o executa — na prática, só o backend tem portão | Um `--coverage` no job do frontend                                   |
+| Limite                                                                      | Impacto                                                                                                                   | O que resolveria                                                     |
+| --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| **Rate limit, disjuntor e cache vivem na memória do processo**               | Com 1 container o teto é exato; com N containers vira `60 × N`                                                            | Store compartilhado (Redis) — custaria mais que a hospedagem inteira |
+| **O rate limit lê o primeiro item do `X-Forwarded-For`**                     | Atrás de um proxy, quem quiser contornar troca o valor do cabeçalho                                                       | Ler da **direita** (a entrada que o proxy confiável adicionou)       |
+| **Sem métricas nem tracing**                                                 | Não há como responder "quantas requisições falharam na última hora"                                                       | `/metrics` + OpenTelemetry                                           |
+| **`/health/ready` não mostra pool, disjuntor nem cache**                     | É justamente o que se olha numa queda                                                                                     | Enriquecer o payload do readiness                                    |
+| **O piso de cobertura do frontend e o orçamento de bundle não rodam na CI**   | Existem na configuração e falham localmente, mas nenhum passo do workflow os executa — na prática, só o backend tem portão | Um `--coverage` e o `verifica-bundle` no job do frontend             |
 
 ### O que eu faria diferente se recomeçasse
 
@@ -1057,8 +1069,10 @@ Dito com todas as letras — o que eu corrigiria antes de chamar de produção:
   suíte rodou nele.
 - **Escreveria o teste do `SmtpMailer` no mesmo dia** em que escrevi o
   `SmtpMailer`, em vez de deixá-lo sem cobertura até precisar dele funcionando.
-- **Seedaria a timeline junto com os incidentes.** A trilha de auditoria é uma das
-  funcionalidades mais fortes e aparece vazia na demonstração.
+- **Semeava transições na timeline, não só a criação.** Cada incidente do seed
+  tem o evento `CREATED` e nada mais, então a trilha de auditoria — uma das
+  funcionalidades mais fortes — aparece com uma linha só na demonstração.
+  Semear um histórico de transições faria o recurso se explicar sozinho.
 
 ## Autor
 

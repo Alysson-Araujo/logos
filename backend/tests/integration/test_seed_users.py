@@ -15,7 +15,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from app.core.database import create_session
-from app.core.tokens import verify_password
+from app.core.tokens import hash_password, verify_password
 from app.domain.accounts import INVITE_TTL_HOURS, MIN_PASSWORD_LENGTH
 from app.infra.seed import DEMO_USER_COUNT, DEMO_USERS, INVITED_DEMO_USER, seed_users
 from app.models.base import Base, utcnow
@@ -148,3 +148,46 @@ def test_contas_de_demonstracao_nao_usam_dominio_de_gente_real() -> None:
         if email == EMAIL_PESSOAL:
             continue
         assert email.endswith(permitidos), email
+
+
+def test_seed_converge_banco_parcial() -> None:
+    """Numa base que já tem **algumas** contas, o seed cria as que faltam.
+
+    **Este é o teste que faltava.** A guarda anterior era
+    `if repository.count() > 0: return 0` — tudo ou nada. Ela populava banco
+    vazio e desistia de banco parcial. Quando a lista de contas cresceu depois de
+    o seed já ter rodado contra o banco publicado, as contas novas nunca foram
+    criadas: a tela de login passou a anunciar credenciais que respondiam `401`, e
+    ninguém percebeu porque o seed "rodava com sucesso".
+
+    Idempotência de verdade é chegar ao estado desejado, não pular o trabalho
+    quando já existe algo.
+    """
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    Base.metadata.create_all(engine)
+
+    with Session(engine) as session:
+        repository = UserRepository(session)
+
+        # Estado parcial: só as duas primeiras contas da lista.
+        parciais = DEMO_USERS[:2]
+        for email, nome, papel, senha in parciais:
+            repository.create(
+                email=email,
+                password_hash=hash_password(senha),
+                name=nome,
+                role=papel,
+            )
+
+        assert seed_users(session) == DEMO_USER_COUNT - len(parciais)
+
+        emails_no_banco = {user.email for user in repository.list_all()}
+        # Todas as contas da lista existem agora — inclusive as que faltavam.
+        assert {email for email, *_ in DEMO_USERS} <= emails_no_banco
+        assert INVITED_DEMO_USER[0] in emails_no_banco
+
+        # As que já existiam não foram duplicadas nem reescritas.
+        assert len(emails_no_banco) == DEMO_USER_COUNT
+
+        # E rodar de novo não cria nada: o estado desejado já foi alcançado.
+        assert seed_users(session) == 0

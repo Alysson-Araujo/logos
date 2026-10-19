@@ -202,3 +202,25 @@ export function parseContract<TOutput>(
 export function firstIssueMessage(error: z.ZodError): string {
   return error.issues[0]?.message ?? 'Dados inválidos.';
 }
+
+/**
+ * Um evento da timeline.
+ *
+ * `eventType` é `z.string()` de propósito, e não enum: os códigos são estáveis no
+ * contrato, mas um evento novo no servidor não pode derrubar a tela inteira na
+ * validação. O que a interface faz com o tipo é escolher rótulo e ícone — e tem
+ * um caso padrão para o desconhecido.
+ */
+export const incidentEventSchema = z.object({
+  id: z.string(),
+  eventType: z.string(),
+  fromStatus: z.enum(INCIDENT_STATUSES).nullish().default(null),
+  toStatus: z.enum(INCIDENT_STATUSES).nullish().default(null),
+  actor: nullableString,
+  payload: z.record(z.unknown()).nullish().default(null),
+  createdAt: z.string(),
+});
+
+export const incidentTimelineResponseSchema = z.object({
+  items: z.array(incidentEventSchema),
+});

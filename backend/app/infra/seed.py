@@ -352,7 +352,18 @@ def seed_incidents(session: Session, *, count: int = SEED_COUNT) -> int:
 
 
 def seed_users(session: Session) -> int:
-    """Cria as contas de demonstração apenas em base vazia (idempotente).
+    """Cria as contas de demonstração **que ainda não existem**.
+
+    **Convergente, e não tudo-ou-nada.** A guarda anterior era
+    `if repository.count() > 0: return 0`: ela populava banco vazio e desistia de
+    banco parcial. Quando a lista de contas cresceu depois de o seed já ter
+    rodado contra um banco, as contas novas **nunca foram criadas** — e o efeito
+    apareceu na tela de login, anunciando credenciais que respondiam `401`.
+
+    Idempotência de verdade é chegar ao estado desejado, não pular o trabalho
+    quando já existe algo. Agora cada conta é avaliada pelo e-mail: a que falta
+    entra, a que existe fica **exatamente como está** — o seed nunca sobrescreve
+    senha de conta viva.
 
     As senhas seguem o MESMO padrão para todas as contas ativas:
     `<primeiro>.logos2026`, todas acima do mínimo de 12 caracteres da política.
@@ -360,43 +371,59 @@ def seed_users(session: Session) -> int:
     senha seria um detalhe ruim de se ver no vídeo.
 
     A conta do convite pendente entra por último porque precisa de um
-    administrador já criado como autor do convite (`invited_by_id` é chave
-    estrangeira para `users`, e a lista de contas mostra quem convidou).
+    administrador como autor do convite (`invited_by_id` é chave estrangeira para
+    `users`, e a lista de contas mostra quem convidou). O administrador vem do
+    **banco**, e não da lista local: ele pode ter sido criado agora ou já existir,
+    e nos dois casos precisa assinar.
     """
     repository = UserRepository(session)
-    if repository.count() > 0:
-        return 0
+    existentes = {user.email for user in repository.list_all()}
 
-    criados: list[User] = [
+    criados = 0
+    for email, nome, papel, senha in DEMO_USERS:
+        if email in existentes:
+            continue
         repository.create(
             email=email,
             password_hash=hash_password(senha),
             name=nome,
             role=papel,
         )
-        for email, nome, papel, senha in DEMO_USERS
-    ]
+        criados += 1
 
-    # Sem administrador não há quem assine o convite: `DEMO_USERS` precisa de um
-    # `ADMIN`, e falhar aqui é melhor do que gravar autoria errada. Havendo mais
-    # de um, assina o primeiro da lista (`admin@demo.example.com`).
-    admin = next(user for user in criados if user.role is UserRole.ADMIN)
+    email_convidado, nome_convidado, papel_convidado = INVITED_DEMO_USER
+    if email_convidado not in existentes:
+        # O autor do convite é o **primeiro ADMIN de `DEMO_USERS`** que existe no
+        # banco — a mesma ordem que o README documenta. Pegar "o primeiro
+        # administrador que aparecer na consulta" faria o autor mudar conforme a
+        # ordem de inserção, e a tela de contas mostra quem convidou.
+        admin: User | None = None
+        for email_admin, _, papel_admin, _ in DEMO_USERS:
+            if papel_admin is not UserRole.ADMIN:
+                continue
+            admin = repository.get_by_email(email_admin)
+            if admin is not None:
+                break
 
-    email, nome, papel = INVITED_DEMO_USER
-    repository.create(
-        email=email,
-        # A conta ainda não tem senha definitiva. Gravar o hash de um valor
-        # aleatório descartado garante que NENHUMA senha digitada confira —
-        # mesmo critério de `UserService.create_user`.
-        password_hash=hash_password(secrets.token_urlsafe(32)),
-        name=nome,
-        role=papel,
-        is_active=False,
-        temp_password_hash=hash_password(generate_temp_password()),
-        invite_expires_at=utcnow() + timedelta(hours=INVITE_TTL_HOURS),
-        invited_by_id=admin.id,
-    )
-    return DEMO_USER_COUNT
+        # Sem administrador não há quem assine o convite, e falhar aqui é melhor
+        # do que gravar autoria errada.
+        if admin is not None:
+            repository.create(
+                email=email_convidado,
+                # A conta ainda não tem senha definitiva. Gravar o hash de um
+                # valor aleatório descartado garante que NENHUMA senha digitada
+                # confira — mesmo critério de `UserService.create_user`.
+                password_hash=hash_password(secrets.token_urlsafe(32)),
+                name=nome_convidado,
+                role=papel_convidado,
+                is_active=False,
+                temp_password_hash=hash_password(generate_temp_password()),
+                invite_expires_at=utcnow() + timedelta(hours=INVITE_TTL_HOURS),
+                invited_by_id=admin.id,
+            )
+            criados += 1
+
+    return criados
 
 
 def _build_plate(rng: random.Random) -> str:

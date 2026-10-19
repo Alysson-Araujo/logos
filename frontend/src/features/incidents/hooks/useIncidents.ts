@@ -18,6 +18,7 @@ export const incidentQueryKeys = {
   list: (filters: IncidentFilters) =>
     [...incidentQueryKeys.lists(), normalizeFilterKey(filters)] as const,
   detail: (id: string) => [...incidentQueryKeys.all, 'detail', id] as const,
+  events: (id: string) => [...incidentQueryKeys.all, 'events', id] as const,
   counters: () => [...incidentQueryKeys.all, 'counters'] as const,
   counter: (status: IncidentStatus) => [...incidentQueryKeys.counters(), status] as const,
 };

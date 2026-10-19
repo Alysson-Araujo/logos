@@ -4,6 +4,7 @@ import {
   CREATE_INCIDENT_FIELDS,
   incidentListResponseSchema,
   incidentSchema,
+  incidentTimelineResponseSchema,
   parseContract,
   type CreateIncidentField,
 } from '../schemas';
@@ -13,6 +14,7 @@ import {
   type IncidentFilters,
   type IncidentListResponse,
   type IncidentStatus,
+  type IncidentTimelineResponse,
   type NewIncidentInput,
   type StatusChangeRequest,
 } from '../types';
@@ -68,6 +70,21 @@ export async function fetchIncidentById(
 ): Promise<IncidentDetailResult> {
   const result = await httpClient.getWithMeta(`/incidents/${encodeURIComponent(id)}`, { signal });
   return { incident: parseContract(incidentSchema, result.data), etag: result.etag };
+}
+
+/**
+ * Timeline de auditoria do incidente, em ordem cronológica.
+ *
+ * A ordem vem do servidor (`sequence`), e não é reordenada aqui: a numeração é
+ * atribuída na transação que grava o evento, então ela é a única fonte de ordem
+ * confiável quando dois eventos caem no mesmo milissegundo.
+ */
+export async function fetchIncidentEvents(
+  id: string,
+  signal?: AbortSignal,
+): Promise<IncidentTimelineResponse> {
+  const raw = await httpClient.get(`/incidents/${encodeURIComponent(id)}/events`, { signal });
+  return parseContract(incidentTimelineResponseSchema, raw);
 }
 
 /** Usado pelos KPI cards: uma leitura enxuta por status, só para ler `meta.total`. */

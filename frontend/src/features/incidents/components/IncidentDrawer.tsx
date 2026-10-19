@@ -2,6 +2,7 @@ import { Clock, Flag, MapPin, Radio, Truck, User, UserCheck, Wrench } from 'luci
 import { useEffect, useState, type ReactNode } from 'react';
 
 import { ErrorState } from '@/components/feedback/ErrorState';
+import { IncidentTimeline } from './IncidentTimeline';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -329,6 +330,10 @@ export function IncidentDrawer({ incidentId, mutation, onClose }: IncidentDrawer
                   </p>
                 </section>
               )}
+
+              {/* O histórico fecha o drawer: quem chega até aqui já leu o caso e
+                  quer saber como ele chegou neste estado. */}
+              <IncidentTimeline incidentId={incidentId} />
             </div>
 
             <footer className="border-t border-border px-4 py-3 text-2xs text-fg-subtle">
