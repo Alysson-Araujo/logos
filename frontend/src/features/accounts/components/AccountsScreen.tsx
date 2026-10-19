@@ -143,8 +143,8 @@ export function AccountsScreen() {
           >
             <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
             <p>
-              A conta de {deliveryFailure.email} foi criada, mas o e-mail do convite não saiu.
-              Use <strong>Reenviar convite</strong> na linha da conta para tentar de novo.
+              A conta de {deliveryFailure.email} foi criada, mas o e-mail do convite não saiu. Use{' '}
+              <strong>Reenviar convite</strong> na linha da conta para tentar de novo.
             </p>
           </div>
         )}
