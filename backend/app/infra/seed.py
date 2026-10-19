@@ -11,7 +11,7 @@ from enum import StrEnum
 from typing import Final
 from uuid import uuid4
 
-from sqlalchemy import insert
+from sqlalchemy import insert, select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
@@ -23,9 +23,10 @@ from app.domain.enums import IncidentCategory, IncidentCriticality, IncidentStat
 from app.domain.priority import compute_priority_score, compute_sla_due_at
 from app.models.base import utcnow
 from app.models.incident import INITIAL_VERSION, Incident
+from app.models.incident_event import IncidentEvent
 from app.models.user import User
 from app.models.vehicle import Vehicle
-from app.repositories.incident_repository import IncidentRepository, build_code
+from app.repositories.incident_repository import EVENT_CREATED, IncidentRepository, build_code
 from app.repositories.user_repository import UserRepository
 from app.repositories.vehicle_repository import VehicleRepository
 
@@ -337,16 +338,65 @@ def _build_incidents(rng: random.Random, *, now: datetime) -> list[Incident]:
     return incidents
 
 
+def seed_incident_events(session: Session) -> int:
+    """Grava o evento ``CREATED`` de todo incidente que ainda não tem nenhum.
+
+    **Por que isso é necessário.** A timeline de auditoria existe desde a
+    primeira versão do schema e é uma das funcionalidades mais fortes do
+    projeto — mas o seed insere os incidentes em bloco, com `add_all`, sem passar
+    por `IncidentRepository.create`, que é quem grava o evento inicial. O
+    resultado era uma tabela `incident_events` vazia e um drawer com a seção de
+    histórico em branco na demonstração: o recurso existia e não tinha o que
+    mostrar.
+
+    Convergente, como o seed de contas: cobre quem falta e não duplica quem já
+    tem. O `sequence` começa em 1 porque é o primeiro evento da vida do
+    incidente, e o `actor` é quem o abriu — o mesmo que `create` gravaria.
+    """
+    sem_evento = session.scalars(
+        select(Incident)
+        .outerjoin(IncidentEvent, IncidentEvent.incident_id == Incident.id)
+        .where(IncidentEvent.id.is_(None))
+        .order_by(Incident.created_at)
+    ).all()
+
+    for incident in sem_evento:
+        session.add(
+            IncidentEvent(
+                incident_id=incident.id,
+                sequence=1,
+                event_type=EVENT_CREATED,
+                to_status=incident.status,
+                actor=incident.reported_by,
+                created_at=incident.created_at,
+            )
+        )
+
+    return len(sem_evento)
+
+
 def seed_incidents(session: Session, *, count: int = SEED_COUNT) -> int:
-    """Cria os incidentes de demonstração apenas em base vazia (idempotente)."""
+    """Cria os incidentes de demonstração e o evento inicial de cada um.
+
+    Idempotente pela contagem de incidentes: base já populada não recebe
+    incidente novo, mas **sempre** passa pela verificação dos eventos, que é o
+    que conserta uma base criada pela versão anterior do seed.
+    """
     repository = IncidentRepository(session)
     if repository.count() > 0:
+        seed_incident_events(session)
+        session.commit()
         return 0
 
     rng = random.Random(SEED_RANDOM_STATE)
     now = utcnow()
     incidents = _build_incidents(rng, now=now)[:count]
     session.add_all(incidents)
+    # `flush`, e não `commit`: o evento precisa do `id` do incidente já gravado,
+    # e os dois entram na mesma transação — um incidente sem o seu evento de
+    # criação é exatamente o buraco que a auditoria existe para não ter.
+    session.flush()
+    seed_incident_events(session)
     session.commit()
     return len(incidents)
 
