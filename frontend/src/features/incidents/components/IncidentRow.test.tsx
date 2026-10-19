@@ -46,7 +46,7 @@ function renderRow({
 }
 
 describe('IncidentRow', () => {
-  it('mostra código, categoria, status e SLA do incidente', () => {
+  it('mostra código, categoria, status e o prazo do incidente', () => {
     renderRow();
 
     expect(screen.getByText('INC-2026-000123')).toBeInTheDocument();

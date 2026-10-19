@@ -135,7 +135,7 @@ describe('CreateIncidentSheet', () => {
     await openSheet(user);
     await fillRequiredFields(user);
 
-    expect(screen.getByText(/SLA a partir da criação/)).toBeInTheDocument();
+    expect(screen.getByText(/Prazo de atendimento a partir da criação/)).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Criar incidente' }));
 

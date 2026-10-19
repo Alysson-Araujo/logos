@@ -37,14 +37,14 @@ export const TOUR_STEPS = [
   {
     target: 'list',
     title: 'A fila priorizada',
-    body: 'A ordem não é manual: cada incidente tem um score calculado pela criticidade e pelo tempo em aberto. O relógio à direita é o SLA — quando fica vermelho, o prazo estourou. Atalhos: j e k navegam, Enter abre, / busca.',
+    body: 'A ordem não é manual: cada incidente tem um score calculado pela criticidade e pelo tempo em aberto. O relógio à direita mostra o prazo de atendimento — quando fica vermelho, o prazo estourou. Atalhos: j e k navegam, Enter abre, / busca.',
   },
   {
     // Passo com efeito colateral: ativo, ele abre a `CreateIncidentSheet` pelo
     // mesmo handler do botão "Novo incidente" (ver `useTour`).
     target: 'create',
     title: 'Registrar incidente',
-    body: 'O botão de novo incidente abre o formulário: título, categoria, criticidade e reportado por. O SLA nasce da criticidade escolhida — ALTA 2 h, MÉDIA 8 h, BAIXA 24 h.',
+    body: 'O botão de novo incidente abre o formulário: título, categoria, criticidade e reportado por. O prazo de atendimento nasce da criticidade escolhida — ALTA 2 h, MÉDIA 8 h, BAIXA 24 h.',
   },
   {
     target: 'theme',

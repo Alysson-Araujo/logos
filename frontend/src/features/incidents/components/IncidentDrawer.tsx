@@ -228,7 +228,7 @@ export function IncidentDrawer({ incidentId, mutation, onClose }: IncidentDrawer
               <section className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                   <span className="text-2xs font-semibold uppercase tracking-wide text-fg-subtle">
-                    SLA
+                    Prazo
                   </span>
                   <SlaTimer slaDueAt={incident.slaDueAt} status={incident.status} />
                 </div>
@@ -359,7 +359,7 @@ function SlaBar({
   return (
     <div
       role="progressbar"
-      aria-label="Consumo do SLA"
+      aria-label="Consumo do prazo de atendimento"
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={consumed}

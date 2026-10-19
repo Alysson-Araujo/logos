@@ -203,7 +203,7 @@ describe('WelcomeTour', () => {
     await advance(user, 2);
     expect(
       screen.getByText(
-        'A ordem não é manual: cada incidente tem um score calculado pela criticidade e pelo tempo em aberto. O relógio à direita é o SLA — quando fica vermelho, o prazo estourou. Atalhos: j e k navegam, Enter abre, / busca.',
+        'A ordem não é manual: cada incidente tem um score calculado pela criticidade e pelo tempo em aberto. O relógio à direita mostra o prazo de atendimento — quando fica vermelho, o prazo estourou. Atalhos: j e k navegam, Enter abre, / busca.',
       ),
     ).toBeInTheDocument();
 

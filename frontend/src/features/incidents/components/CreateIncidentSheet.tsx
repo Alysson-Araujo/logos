@@ -55,7 +55,7 @@ export interface CreateIncidentSheetProps {
 /**
  * Sheet lateral de "novo incidente" (`Novo incidente · padrão / validação /
  * salvando`): duas colunas para categoria/criticidade e placa/motorista, o
- * resto em largura cheia, com o prazo real de SLA no rodapé.
+ * resto em largura cheia, com o prazo real de atendimento no rodapé.
  */
 export function CreateIncidentSheet({ open, onClose, modal = true }: CreateIncidentSheetProps) {
   const mutation = useCreateIncident();
@@ -219,7 +219,7 @@ export function CreateIncidentSheet({ open, onClose, modal = true }: CreateIncid
           </div>
           <DrawerTitle className="text-lg">Registrar incidente</DrawerTitle>
           <DrawerDescription>
-            Entra na fila já priorizado pelo score, com o SLA contando a partir de agora.
+            Entra na fila já priorizado, com o prazo de atendimento contando a partir de agora.
           </DrawerDescription>
         </header>
 
@@ -468,7 +468,7 @@ export function CreateIncidentSheet({ open, onClose, modal = true }: CreateIncid
 
           <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-8 py-4">
             <p className="text-2xs text-fg-subtle">
-              SLA a partir da criação — ALTA 2 h · MÉDIA 8 h · BAIXA 24 h
+              Prazo de atendimento a partir da criação — ALTA 2 h · MÉDIA 8 h · BAIXA 24 h
             </p>
             <div className="flex items-center gap-3">
               <Button variant="secondary" disabled={isPending} onClick={onClose}>
