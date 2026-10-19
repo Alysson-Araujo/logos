@@ -157,13 +157,15 @@ export function explainPriority(incident: PriorityInput): PriorityExplanation {
   const total = impact + urgency + aging + slaPressure;
 
   const hoursRounded = Math.max(1, Math.round(hours));
+  // Estes textos são exibidos no detalhe do incidente ("por que esta ordem?"),
+  // então falam a língua de quem usa a central — nada de "aging" ou "SLA".
   const reasons = [
-    `Impacto da categoria (${CATEGORY_LABELS[incident.category]}): ${String(impact)}`,
-    `Urgência (${CRITICALITY_LABELS[incident.criticality]}): ${String(urgency)}`,
-    `Aging (${String(hoursRounded)}h em aberto): ${String(aging)}`,
+    `Gravidade da categoria (${CATEGORY_LABELS[incident.category]}): ${String(impact)}`,
+    `Urgência informada (${CRITICALITY_LABELS[incident.criticality]}): ${String(urgency)}`,
+    `Tempo em aberto (${String(hoursRounded)}h): ${String(aging)}`,
   ];
   if (slaPressure > 0) {
-    reasons.push(`Pressão de SLA (vence em menos de 1h): ${String(slaPressure)}`);
+    reasons.push(`Prazo perto do fim (vence em menos de 1h): ${String(slaPressure)}`);
   }
 
   const summary =

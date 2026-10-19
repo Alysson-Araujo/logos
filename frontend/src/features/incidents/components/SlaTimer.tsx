@@ -18,7 +18,7 @@ const TONE_LABELS: Record<SlaTone, string> = {
   ok: 'dentro do prazo',
   warning: 'prazo se aproximando',
   danger: 'prazo crítico',
-  overdue: 'SLA estourado',
+  overdue: 'estourado',
   done: 'incidente encerrado',
 };
 
@@ -30,7 +30,7 @@ export interface SlaTimerProps {
   className?: string;
 }
 
-/** Timer de SLA com `tabular-nums` e cor progressiva (não depende só da cor: há texto). */
+/** Timer do prazo de atendimento, com `tabular-nums` e cor progressiva (não depende só da cor: há texto). */
 export function SlaTimer({ slaDueAt, status, className }: SlaTimerProps) {
   const [now, setNow] = useState<number>(() => Date.now());
   const closed = isClosedStatus(status);
@@ -49,7 +49,7 @@ export function SlaTimer({ slaDueAt, status, className }: SlaTimerProps) {
   if (dueDate === null) {
     return (
       <span className={cn('text-2xs text-fg-subtle', className)} data-testid="sla-timer">
-        SLA não definido
+        Prazo não definido
       </span>
     );
   }
@@ -69,8 +69,8 @@ export function SlaTimer({ slaDueAt, status, className }: SlaTimerProps) {
       )}
     >
       <Clock className="h-3.5 w-3.5" aria-hidden="true" />
-      <span className="sr-only">{`SLA ${TONE_LABELS[tone]}: `}</span>
-      {closed ? `SLA ${label}` : label}
+      <span className="sr-only">{`Prazo: ${TONE_LABELS[tone]}. `}</span>
+      {closed ? `Prazo ${label}` : label}
     </span>
   );
 }

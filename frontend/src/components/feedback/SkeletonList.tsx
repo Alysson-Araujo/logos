@@ -4,7 +4,7 @@ export interface SkeletonListProps {
   rows?: number;
 }
 
-/** Skeleton com a forma exata da lista (código, categoria, status, SLA). */
+/** Skeleton com a forma exata da lista (código, categoria, status e prazo). */
 export function SkeletonList({ rows = 8 }: SkeletonListProps) {
   return (
     <div data-testid="skeleton-list" aria-hidden="true" className="flex flex-col">
