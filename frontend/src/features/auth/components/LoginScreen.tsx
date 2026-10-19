@@ -1,5 +1,5 @@
 import { CircleAlert, LoaderCircle, LogIn } from 'lucide-react';
-import { Fragment, useRef, useState, type FormEvent } from 'react';
+import { Fragment, useEffect, useRef, useState, type FormEvent } from 'react';
 
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { useLogin } from '../hooks/useLogin';
 import { describeLoginError } from '../labels';
 import { loginFormSchema } from '../schemas';
 import { useAuthStore } from '../useAuthStore';
+import { LoginMap } from './LoginMap';
 
 type InvalidField = 'email' | 'password';
 
@@ -22,16 +23,22 @@ interface FieldError {
 const ERROR_ID = 'login-error';
 
 /**
- * Tela de login — porte dos frames `Login · padrão`, `Login · erro de
- * credencial` e `Login · carregando` (seção `Login`, `31:13146`).
+ * Depois deste tempo a requisição já saiu e o que falta é a API responder.
+ * Trocamos o texto para a pessoa saber que o trabalho agora é do outro lado —
+ * é a diferença entre "está pensando" e "já foi, estou te levando".
+ */
+const REDIRECT_HINT_MS = 700;
+
+/**
+ * Tela de login — porte do frame `Login · mapa` (seção `Login · mapa`).
  *
- * Medidas do frame: card de 416 px com padding de 32 e gap de 24, `radius/md`,
- * `sombra/e3`, divisor de 1 px em `color/border`, campos de 36 px com
- * `radius/sm` e caixa de demonstração em `color/surface-sunken`.
+ * Dois painéis: mapa vetorial de 880 px à esquerda, formulário de 416 px à
+ * direita. O mapa **desaparece** num degradê até a cor da página, então o
+ * formulário não tem moldura de card: ele assenta direto no fundo.
  *
- * Desvio consciente: o frame ancora o card a 210 px do topo de um canvas de
- * 900 px; aqui ele é centralizado (≈226 px), porque a altura da tela de quem
- * avalia não é conhecida e o card não pode ser cortado.
+ * Abaixo de `lg` o mapa sai de cena — em 390 px ele roubaria o espaço do
+ * formulário. O mesmo desenho serve aos dois temas: o mapa é a "imagem" e o
+ * degradê acompanha os tokens.
  */
 export function LoginScreen() {
   const emailRef = useRef<HTMLInputElement>(null);
@@ -42,6 +49,7 @@ export function LoginScreen() {
   const [email, setEmail] = useState<string>(DEMO_CREDENTIALS.email);
   const [password, setPassword] = useState<string>(DEMO_CREDENTIALS.password);
   const [fieldError, setFieldError] = useState<FieldError | null>(null);
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   const loginMutation = useLogin();
   const notice = useAuthStore((state) => state.notice);
@@ -51,6 +59,20 @@ export function LoginScreen() {
   const apiMessage = loginMutation.error === null ? null : describeLoginError(loginMutation.error);
   const message = fieldError?.message ?? apiMessage ?? notice;
   const invalidField = fieldError?.field ?? null;
+
+  // Sinaliza a troca de fase: a requisição saiu, falta o redirecionamento.
+  useEffect(() => {
+    if (!isPending) {
+      setIsRedirecting(false);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setIsRedirecting(true);
+    }, REDIRECT_HINT_MS);
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [isPending]);
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
@@ -74,18 +96,30 @@ export function LoginScreen() {
     loginMutation.mutate(parsed.data);
   };
 
+  const rotuloBotao = isRedirecting ? 'Abrindo a central…' : 'Entrando…';
+
   return (
-    <div className="relative flex min-h-dvh flex-col bg-bg">
-      <div className="absolute right-11 top-8">
+    <div className="relative flex min-h-dvh bg-bg">
+      {/* Painel do mapa: decoração. Some abaixo de lg. */}
+      <div className="relative hidden w-[880px] shrink-0 overflow-hidden lg:block">
+        <LoginMap />
+        {/* O mapa entrega o lugar para o formulário sem linha de corte. */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-y-0 right-0 w-[435px] bg-gradient-to-r from-transparent to-bg"
+        />
+      </div>
+
+      <div className="absolute right-11 top-8 z-10">
         <ThemeToggle />
       </div>
 
-      <main className="flex flex-1 items-center justify-center px-4 py-10">
+      <main className="flex flex-1 items-center justify-center px-6 py-10">
         <form
           noValidate
           aria-busy={isPending}
           onSubmit={handleSubmit}
-          className="flex w-[416px] max-w-full flex-col gap-6 rounded-md bg-surface p-8 shadow-e3"
+          className="flex w-[416px] max-w-full flex-col gap-6"
         >
           <div className="flex flex-col gap-1">
             <p className="font-mono text-sm font-semibold text-fg">LOGOS</p>
@@ -149,19 +183,40 @@ export function LoginScreen() {
             </div>
           )}
 
-          <Button type="submit" variant="primary" className="w-full">
+          <div className="flex flex-col gap-2">
+            {/* Barra indeterminada: comunica "o pedido saiu" sem fingir progresso. */}
             {isPending ? (
-              <>
-                <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
-                Entrando…
-              </>
-            ) : (
-              <>
-                <LogIn className="h-4 w-4" aria-hidden="true" />
-                Entrar
-              </>
-            )}
-          </Button>
+              <div
+                aria-hidden="true"
+                className="h-0.5 w-full overflow-hidden rounded-full bg-accent/15"
+              >
+                <div className="h-full w-1/3 rounded-full bg-accent motion-safe:animate-bar-slide" />
+              </div>
+            ) : null}
+
+            <Button type="submit" variant="primary" className="w-full">
+              {isPending ? (
+                <>
+                  <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
+                  {rotuloBotao}
+                </>
+              ) : (
+                <>
+                  <LogIn className="h-4 w-4" aria-hidden="true" />
+                  Entrar
+                </>
+              )}
+            </Button>
+          </div>
+
+          {/* O botão não é região viva: a fase é anunciada por aqui. */}
+          <span role="status" aria-live="polite" className="sr-only">
+            {isPending
+              ? isRedirecting
+                ? 'Requisição enviada. Abrindo a central.'
+                : 'Enviando credenciais.'
+              : ''}
+          </span>
 
           <div className="flex flex-col gap-2 rounded-md bg-surface-sunken p-3">
             <p className="text-2xs font-semibold uppercase tracking-[0.025em] text-fg-muted">

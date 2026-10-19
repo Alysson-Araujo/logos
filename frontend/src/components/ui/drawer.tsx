@@ -16,7 +16,7 @@ export const DrawerOverlay = forwardRef<
     <DialogPrimitive.Overlay
       ref={ref}
       className={cn(
-        'fixed inset-0 z-40 bg-overlay duration-panel ease-panel',
+        'fixed inset-0 z-40 bg-overlay duration-200 ease-out motion-reduce:transition-none',
         'data-[state=open]:animate-in data-[state=closed]:animate-out',
         'data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0',
         className,
@@ -38,7 +38,7 @@ export const DrawerContent = forwardRef<
         ref={ref}
         className={cn(
           'fixed inset-y-0 right-0 z-50 flex h-full w-full max-w-2xl flex-col border-l border-border bg-surface shadow-e3',
-          'transition-transform duration-panel ease-panel',
+          'transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none',
           'data-[state=closed]:translate-x-full data-[state=open]:translate-x-0',
           className,
         )}
