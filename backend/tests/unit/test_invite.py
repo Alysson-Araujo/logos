@@ -548,6 +548,7 @@ class TestContratoDoFrameDeConvite:
         assert "<script>alert(1)</script>" not in mensagem.html
         assert "&lt;script&gt;" in mensagem.html
 
+
 class TestGuardaDeProducao:
     """Produção não sobe mal configurada.
 

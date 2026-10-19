@@ -348,9 +348,7 @@ class TestConvite:
         app.dependency_overrides[provide_mailer] = MailerQuebrado
         try:
             assert (
-                admin_client.post(
-                    USERS_URL, json={"email": email, "role": "REPORTER"}
-                ).status_code
+                admin_client.post(USERS_URL, json={"email": email, "role": "REPORTER"}).status_code
                 == 409
             )
         finally:
