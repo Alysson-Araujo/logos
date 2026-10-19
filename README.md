@@ -907,6 +907,15 @@ gratuito não são consumidos.
    CloudFront.
 6. Rodar as migrações e o seed contra o banco publicado.
 
+> **A Lambda não migra na subida — quem migra é o deploy.** Rodar `alembic
+> upgrade head` em cada cold start seria pior do que não rodar: duas instâncias
+> subindo juntas tentariam a mesma migração. O workflow `deploy-aws.yml` tem um
+> passo que aplica as migrações **antes** de apontar a função para a imagem nova,
+> mas ele só executa se o secret `DATABASE_URL` existir no repositório. Sem esse
+> secret, o passo é pulado e a migração precisa ser aplicada à mão — foi assim
+> que a `0006` (coluna `sequence`) foi para a `main` sem chegar ao banco, e
+> `GET /incidents/{id}/events` respondeu `500` até alguém rodar o `upgrade`.
+
 O passo a passo completo, com custo item a item e os cinco problemas que aparecem
 nesse processo, está em [`docs/12-deploy-aws.md`](docs/12-deploy-aws.md).
 
@@ -946,7 +955,7 @@ logos/
 │   │   ├── models/                   # ORM (incident, incident_event, user,
 │   │   │                             # revoked_token, idempotency_key)
 │   │   └── infra/                    # retry, circuit_breaker, seed, mail_templates
-│   ├── alembic/versions/             # 0001 → 0004, migrações versionadas
+│   ├── alembic/versions/             # 0001 → 0006, migrações versionadas
 │   ├── tests/                        # unit/ · integration/ · concurrency/
 │   ├── Dockerfile                    # desenvolvimento local (compose.yaml)
 │   ├── Dockerfile.lambda             # Onda 2 (base oficial do Lambda)

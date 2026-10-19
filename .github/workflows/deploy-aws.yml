@@ -101,6 +101,19 @@ jobs:
     name: API no ECR + Lambda
     needs: [portao]
     runs-on: ubuntu-latest
+    # A Lambda **nao** roda migracao na subida, e rodar em cada cold start seria
+    # pior: duas instancias subindo juntas tentariam a mesma migracao. Quem
+    # migra e o deploy.
+    #
+    # O sintoma de nao migrar apareceu na entrega: a `0006` (coluna `sequence`)
+    # foi para a `main`, a imagem nova subiu e `GET /incidents/{id}/events`
+    # passou a responder **500** — o ORM pedia uma coluna que o banco nao tinha.
+    #
+    # O passo abaixo so roda quando o secret `DATABASE_URL` existe. Sem ele o
+    # deploy continua exatamente como era (nada quebra), e o README registra que
+    # a migracao precisa ser aplicada a mao.
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
     steps:
       - uses: actions/checkout@v4
 
@@ -120,6 +133,14 @@ jobs:
           docker build --platform linux/amd64 \
             -f backend/Dockerfile.lambda -t "$ECR_IMAGE" backend
           docker push "$ECR_IMAGE"
+
+      - name: Aplicar as migracoes
+        if: env.DATABASE_URL != ''
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+          python -m alembic upgrade head
 
       - name: Apontar a funcao para a imagem nova
         run: |
