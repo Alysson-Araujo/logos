@@ -467,7 +467,7 @@ describe('o passo do cadastro abre a janela', () => {
     expect(onCloseCreate).not.toHaveBeenCalled();
   });
 
-  it('no passo do cadastro o véu sai de cena e o anel do alvo continua', async () => {
+  it('no passo do cadastro saem o véu e o anel do alvo', async () => {
     const user = userEvent.setup();
     renderTriage();
 
@@ -479,8 +479,9 @@ describe('o passo do cadastro abre a janela', () => {
     // O formulário fica legível: nada de véu escuro sobre a janela aberta.
     expect(screen.getByText('Passo 4 de 8')).toBeInTheDocument();
     expect(document.querySelectorAll('div.bg-overlay')).toHaveLength(0);
-    // O anel continua marcando o botão "Novo incidente".
-    expect(document.querySelectorAll('.ring-2')).toHaveLength(1);
+    // E o anel também sai: o alvo é o botão "Novo incidente", que a janela
+    // cobre — o contorno ficaria solto por cima do formulário (bug visual).
+    expect(document.querySelectorAll('.ring-2')).toHaveLength(0);
 
     await user.click(screen.getByRole('button', { name: 'Próximo' }));
 

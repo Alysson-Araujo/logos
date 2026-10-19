@@ -18,6 +18,7 @@ import { useChangeIncidentStatus } from '../features/incidents/hooks/useIncident
 import { useIncidentUiStore } from '../features/incidents/hooks/useIncidentUiStore';
 import { useIncidentCounters, useIncidentList } from '../features/incidents/hooks/useIncidents';
 import { WelcomeTour } from '../features/tour/WelcomeTour';
+import { TOUR_STEPS } from '../features/tour/steps';
 import { useTourStore } from '../features/tour/useTour';
 
 const EMPTY_ID_SET: ReadonlySet<string> = new Set<string>();
@@ -51,6 +52,15 @@ export function App() {
   const closeDrawer = useIncidentUiStore((state) => state.closeDrawer);
   const requestSearchFocus = useUiStore((state) => state.requestSearchFocus);
   const isTourOpen = useTourStore((state) => state.isOpen);
+  /**
+   * O guia está no passo que **abre** a janela de cadastro.
+   *
+   * Nesse passo a janela vira não-modal (ver `CreateIncidentSheet`): o cartão do
+   * guia precisa continuar clicável por cima dela.
+   */
+  const isTourCreateStep = useTourStore(
+    (state) => state.isOpen && TOUR_STEPS[state.stepIndex]?.target === 'create',
+  );
 
   const items = useMemo(
     () => listQuery.data?.pages.flatMap((page) => page.items) ?? [],
@@ -121,6 +131,12 @@ export function App() {
 
   const handleCloseCreate = useCallback((): void => {
     setIsCreating(false);
+    // Fechar a janela no passo do cadastro não pode deixar o guia preso nele:
+    // o passo 4 é o que abre a janela, então fechá-la avança o passeio. Quando
+    // quem fecha é o próprio guia (ao trocar de passo), o índice já mudou e a
+    // condição abaixo é falsa — sem laço.
+    const tour = useTourStore.getState();
+    if (tour.isOpen && TOUR_STEPS[tour.stepIndex]?.target === 'create') tour.next();
   }, []);
 
   const total = listQuery.data?.pages[0]?.meta.total ?? null;
@@ -170,7 +186,13 @@ export function App() {
         onClearFilters={clearFilters}
       />
       <IncidentDrawer incidentId={selectedId} mutation={statusMutation} onClose={closeDrawer} />
-      <CreateIncidentSheet open={isCreating} onClose={handleCloseCreate} />
+      <CreateIncidentSheet
+        open={isCreating}
+        onClose={handleCloseCreate}
+        // No passo 4 do guia a janela abre junto com o cartão explicativo: ela
+        // não pode ser modal, senão trava o foco e mata os botões do cartão.
+        modal={!isTourCreateStep}
+      />
       <ConflictDialog />
       <WelcomeTour
         ready={isTriageReady}

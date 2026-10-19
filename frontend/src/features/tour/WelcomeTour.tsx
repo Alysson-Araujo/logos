@@ -105,8 +105,10 @@ export function WelcomeTour({ ready = true, onOpenCreate, onCloseCreate }: Welco
         </>
       )}
 
-      {/* Contorno do alvo: `pointer-events-none` para o clique atravessar. */}
-      {hole === null ? null : (
+      {/* Contorno do alvo: `pointer-events-none` para o clique atravessar. No
+          passo do cadastro a janela cobre o botão-alvo: o anel ficaria solto
+          sobre o formulário, então ele sai junto com o véu. */}
+      {hole === null || isCreateSheetStep ? null : (
         <div
           aria-hidden="true"
           className="pointer-events-none fixed z-[60] rounded-md ring-2 ring-accent"
