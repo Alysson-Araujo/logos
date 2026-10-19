@@ -35,7 +35,11 @@ ERROR_RESPONSES: Final[dict[int | str, dict[str, Any]]] = {
     },
     409: {
         "model": ErrorResponse,
-        "description": "E-mail já cadastrado ou tentativa de desativar a própria conta.",
+        "description": (
+            "E-mail já cadastrado, tentativa de desativar a própria conta, ou "
+            "conta criada mas e-mail do convite não entregue "
+            "(`INVITE_DELIVERY_FAILED`)."
+        ),
     },
     429: {
         "model": ErrorResponse,
@@ -79,7 +83,11 @@ def list_users(actor: CurrentActor, service: UserServiceDep) -> list[UserSummary
         "Cria a conta **inativa**, gera a senha temporária e envia por e-mail. "
         "A senha **não** aparece nesta resposta e o administrador não a escolhe: "
         "a credencial é de quem vai usá-la. A conta só passa a valer quando a "
-        "pessoa conclui o primeiro acesso."
+        "pessoa conclui o primeiro acesso.\n\n"
+        "Se o envio do e-mail falhar, a conta **permanece criada** e a resposta "
+        "é `409 INVITE_DELIVERY_FAILED`, com o motivo em `details.reason`. "
+        "Tentar criar de novo com o mesmo e-mail encontraria a conta já "
+        "existente: a saída é `POST /users/{id}/invite`."
     ),
 )
 def create_user(
@@ -110,7 +118,10 @@ def create_user(
     description=(
         "Gera uma senha temporária **nova** e um prazo novo. A senha anterior "
         "deixa de valer no mesmo instante: dois convites válidos ao mesmo tempo "
-        "seriam duas credenciais circulando por e-mail."
+        "seriam duas credenciais circulando por e-mail.\n\n"
+        "Responde `204` **somente** quando a entrega acontece. Se o envio falhar, "
+        "a resposta é `409 INVITE_DELIVERY_FAILED` — repetir a operação é seguro, "
+        "porque cada tentativa emite uma credencial nova e invalida a anterior."
     ),
 )
 def resend_invite(

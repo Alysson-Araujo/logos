@@ -192,6 +192,27 @@ class PasswordChangeRequiredError(DomainError):
     default_message = "Defina sua senha para liberar o acesso."
 
 
+class InviteDeliveryFailedError(DomainError):
+    """A conta foi criada, mas o e-mail do convite não saiu.
+
+    É um erro de negócio, não um `500`: o problema não é um defeito na
+    aplicação, é um serviço externo recusando a entrega. O `409` diz "a conta
+    existe e está em conflito com o que você tentou fazer" — tentar criar de
+    novo com o mesmo e-mail vai bater em `EMAIL_ALREADY_EXISTS`. A saída é
+    "Reenviar convite", que é exatamente o que a mensagem orienta.
+
+    Antes de existir esta exceção, a falha era engolida e a tela dizia "Convite
+    enviado" sem que nada tivesse sido enviado.
+    """
+
+    code = "INVITE_DELIVERY_FAILED"
+    status_code = 409
+    default_message = (
+        "A conta foi criada, mas o e-mail do convite não pôde ser enviado. "
+        "Use 'Reenviar convite' para tentar de novo."
+    )
+
+
 class CannotDeactivateSelfError(DomainError):
     """Um administrador tentou desativar a própria conta."""
 

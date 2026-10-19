@@ -30,6 +30,17 @@ def test_health_ready_valida_banco(client: TestClient) -> None:
     assert body["database"] == "ok"
 
 
+def test_health_ready_informa_o_transporte_de_email(client: TestClient) -> None:
+    """A resposta diz se os convites saem por SMTP ou ficam no log.
+
+    "O convite não chegou" e "o envio está desligado" parecem a mesma coisa na
+    tela e não são. Aqui o ambiente de teste não tem SMTP, então o esperado é
+    `log` — e é justamente esse valor que denuncia uma produção mal configurada.
+    """
+    body = client.get("/api/v1/health/ready").json()
+    assert body["email"] == "log"
+
+
 def test_meta_enums_traz_categorias_criticidades_e_status(client: TestClient) -> None:
     response = client.get("/api/v1/meta/enums")
     assert response.status_code == 200

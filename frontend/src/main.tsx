@@ -9,8 +9,13 @@ import './styles/globals.css';
 
 /**
  * Regra do mock: `VITE_USE_MOCK=false` desliga; `true` liga em qualquer build;
- * sem a variável, o modo de desenvolvimento sobe com a API simulada para que
- * a tela nunca fique em branco quando o backend não está no ar.
+ * sem a variável, o modo de desenvolvimento sobe com a API simulada.
+ *
+ * O padrão de desenvolvimento é o mock para a tela nunca ficar em branco sem o
+ * backend. O efeito colateral, porém, era caro: convidar alguém não enviava
+ * e-mail nenhum, porque a requisição nunca saía do navegador — e a tela dizia
+ * "Convite enviado" do mesmo jeito. Por isso a faixa do `MockApiBanner`: o
+ * recurso continua disponível, mas agora se anuncia.
  */
 function shouldUseMockApi(): boolean {
   const flag = import.meta.env.VITE_USE_MOCK;

@@ -280,6 +280,44 @@ describe('AccountsScreen — nova conta', () => {
     expect(document.getElementById('conta-form-erro')).toBeNull();
   });
 
+  it('conta criada com e-mail não entregue: fecha o painel e manda reenviar', async () => {
+    // O `409 INVITE_DELIVERY_FAILED` é o caso que se perdia em silêncio: a conta
+    // nasce no banco, o SMTP recusa e o administrador achava que estava tudo bem.
+    // Aqui a tela precisa ser honesta sobre as duas metades.
+    const user = userEvent.setup();
+    serveAccounts();
+    server.use(
+      http.post('*/users', () =>
+        apiErrorResponse(
+          409,
+          'INVITE_DELIVERY_FAILED',
+          'A conta foi criada, mas o e-mail do convite não pôde ser enviado.',
+          { email: NEW_EMAIL },
+        ),
+      ),
+    );
+
+    renderScreen();
+    const sheet = await openCreateSheet();
+
+    await user.type(within(sheet).getByLabelText(/e-mail/i), NEW_EMAIL);
+    await user.click(within(sheet).getByRole('button', { name: /enviar convite/i }));
+
+    const alerta = await screen.findByTestId('invite-delivery-failed-alert');
+    expect(alerta).toHaveAttribute('role', 'alert');
+    expect(alerta).toHaveTextContent(NEW_EMAIL);
+    expect(alerta).toHaveTextContent(/o e-mail do convite não saiu/i);
+    expect(alerta).toHaveTextContent(/Reenviar convite/i);
+
+    // Nada de "Convite enviado" — é justamente o que era mentira antes.
+    expect(screen.queryByTestId('invite-sent-alert')).toBeNull();
+    // O painel fecha: deixá-lo aberto convidaria a repetir o envio, que bateria
+    // em EMAIL_ALREADY_EXISTS porque a conta já existe.
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+  });
+
   it('mostra o 422 da API no campo que ela apontou', async () => {
     const user = userEvent.setup();
     serveAccounts();

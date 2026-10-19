@@ -11,9 +11,10 @@ from uuid import UUID
 from app.core.errors import (
     CannotDeactivateSelfError,
     EmailAlreadyExistsError,
+    InviteDeliveryFailedError,
     UserNotFoundError,
 )
-from app.core.mailer import Mailer
+from app.core.mailer import MailDeliveryError, Mailer
 from app.core.tokens import hash_password
 from app.domain.accounts import (
     INVITE_TTL_HOURS,
@@ -144,12 +145,23 @@ class UserService:
         return user
 
     def _send_invite(self, user: User, *, temp_password: str, expires_at: datetime) -> None:
-        """Envia o e-mail do convite, sem deixar a falha derrubar a requisição.
+        """Envia o e-mail do convite, e propaga a falha.
 
-        O convite já está gravado quando isto roda. Se o e-mail falhar, a conta
-        existe e o administrador tem o botão "Reenviar" — transformar a falha de
-        um serviço externo em erro de cadastro faria o administrador achar que
-        nada foi criado, e tentar de novo criaria um conflito de e-mail.
+        A versão anterior engolia qualquer exceção aqui e registrava um
+        `logger.exception`. O resultado foi o pior modo de falha possível: o
+        SMTP recusava a credencial, a API respondia `201`, a tela dizia "Convite
+        enviado" e **o e-mail não chegava**. Nada quebrado para investigar, só
+        uma linha de log de ERROR que ninguém lê.
+
+        A conta continua criada quando o envio falha — desfazê-la geraria um
+        problema pior: o administrador tentaria de novo, bateria em
+        `EMAIL_ALREADY_EXISTS` e ficaria sem entender por quê. O que muda é que
+        a falha agora **aparece**, como `INVITE_DELIVERY_FAILED`, e a saída é
+        "Reenviar convite".
+
+        Um e-mail que falha **não** deve derrubar a requisição com um `500`: o
+        problema é de um serviço externo, e a mensagem de erro precisa dizer isso
+        e o que fazer a seguir.
         """
         mensagem = build_invite_email(
             to=user.email,
@@ -161,5 +173,13 @@ class UserService:
         )
         try:
             self._mailer.send(mensagem)
-        except Exception:
-            logger.exception("falha_ao_enviar_convite email=%s", user.email)
+        except MailDeliveryError as exc:
+            logger.error(
+                "falha_ao_enviar_convite email=%s detalhe=%s",
+                user.email,
+                exc,
+            )
+            raise InviteDeliveryFailedError(
+                details={"email": user.email, "reason": str(exc)},
+            ) from exc
+        logger.info("convite_enviado email=%s", user.email)

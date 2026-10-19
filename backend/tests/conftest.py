@@ -35,6 +35,26 @@ os.environ["SEED_ON_STARTUP"] = "false"
 os.environ["LOG_LEVEL"] = "ERROR"
 os.environ["ENVIRONMENT"] = "test"
 os.environ["CORS_ORIGINS"] = "http://localhost:5173"
+# A suíte NUNCA fala com um servidor de e-mail.
+#
+# Sem isto, o `backend/.env` de quem desenvolve decide o resultado dos testes: com
+# `SMTP_HOST` configurado, `get_mailer()` devolve o `SmtpMailer` de verdade e cada
+# convite criado nos testes abre uma conexão SMTP real. Isso é ruim de três
+# formas: depende da rede, é lento, e a credencial de quem roda a suíte é usada
+# para mandar e-mail para endereços fictícios.
+#
+# Passava despercebido enquanto o serviço engolia a falha de envio. Quando a falha
+# passou a ser propagada (`INVITE_DELIVERY_FAILED`), os testes que criam conta sem
+# trocar o mailer começaram a falhar com `SMTPServerDisconnected` — na máquina de
+# quem tem SMTP configurado, e não no CI.
+#
+# Esvaziar `SMTP_HOST` faz o padrão ser o `LoggingMailer`. Quem precisa observar
+# o conteúdo do e-mail usa a fixture `mailer_espiao`; quem testa o SMTP de verdade
+# instancia `SmtpMailer` com `Settings` explícito.
+os.environ["SMTP_HOST"] = ""
+os.environ["SMTP_USER"] = ""
+os.environ["SMTP_PASSWORD"] = ""
+os.environ["SMTP_FROM"] = "Logos <nao-responda@logos.test>"
 # O teto de requisições fica desligado na suíte: os testes não são carga, e a
 # cota é compartilhada por IP — os últimos testes do arquivo passariam a receber
 # 429 e a falhar por um motivo que não é o que eles verificam. O comportamento do

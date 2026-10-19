@@ -3,11 +3,13 @@ import { describe, expect, it } from 'vitest';
 import { ApiError } from '@/lib/http';
 
 import {
+  INVITE_DELIVERY_FAILED_MESSAGE,
   accountSituation,
   describeAccountsError,
   describeCreateAccountError,
   formatAccountsSummary,
   formatLastLogin,
+  isInviteDeliveryFailure,
   isPermissionError,
 } from './labels';
 import type { AccountSummary } from './types';
@@ -88,6 +90,27 @@ describe('describeCreateAccountError', () => {
     ).toEqual({ field: 'email', message: 'Já existe uma conta com este e-mail.' });
     // O `409 CONFLICT` genérico cai no mesmo lugar.
     expect(describeCreateAccountError(apiError(409, 'CONFLICT')).field).toBe('email');
+  });
+
+  it('não confunde "e-mail não entregue" com "e-mail já cadastrado"', () => {
+    // Os dois são `409`. Dizer "já existe uma conta com este e-mail" seria
+    // falso — a conta é a que acabou de ser criada — e mandaria a pessoa
+    // trocar o endereço, quando o problema está no envio.
+    const falha = apiError(409, 'INVITE_DELIVERY_FAILED');
+
+    expect(isInviteDeliveryFailure(falha)).toBe(true);
+    expect(describeCreateAccountError(falha)).toEqual({
+      field: null,
+      message: INVITE_DELIVERY_FAILED_MESSAGE,
+    });
+    expect(describeCreateAccountError(falha).field).not.toBe('email');
+    expect(describeAccountsError(falha)).toBe(INVITE_DELIVERY_FAILED_MESSAGE);
+  });
+
+  it('só trata como falha de entrega o código certo', () => {
+    expect(isInviteDeliveryFailure(apiError(409, 'EMAIL_ALREADY_EXISTS'))).toBe(false);
+    expect(isInviteDeliveryFailure(apiError(500, 'INTERNAL_ERROR'))).toBe(false);
+    expect(isInviteDeliveryFailure(new Error('boom'))).toBe(false);
   });
 
   it('usa o campo apontado pelo 422 da API', () => {
