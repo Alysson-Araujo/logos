@@ -2,6 +2,7 @@ import { startTransition, useCallback, useEffect, useMemo, useState } from 'reac
 
 import { OfflineBanner } from '@/components/feedback/OfflineBanner';
 import { AppShell } from '@/components/layout/AppShell';
+import { useFilaDeMutacoes } from '@/hooks/useFilaDeMutacoes';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { useTheme } from '@/hooks/useTheme';
@@ -31,6 +32,9 @@ export function App() {
   const { toggleTheme } = useTheme();
   const density = useDensity();
   const isOnline = useOnlineStatus();
+  // Quantas alterações estão paradas esperando conexão — o banner mostra o
+  // número para que ninguém repita uma transição por não saber se ela entrou.
+  const filaDeMutacoes = useFilaDeMutacoes();
   const [isCreating, setIsCreating] = useState(false);
 
   const { filters, patchFilters, clearFilters, toggleStatus, activeFilterCount } =
@@ -145,7 +149,7 @@ export function App() {
 
   return (
     <AppShell>
-      <OfflineBanner isOnline={isOnline} />
+      <OfflineBanner isOnline={isOnline} pendingCount={filaDeMutacoes} />
       <KpiCards
         counters={counters}
         activeStatuses={filters.statuses}

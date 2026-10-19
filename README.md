@@ -20,10 +20,12 @@
 
 |                   |                                                                                                     |
 | ----------------- | --------------------------------------------------------------------------------------------------- |
-| **Demo ao vivo**  | _(a publicar)_ <!-- TODO-LINK: URL do frontend publicado na Vercel -->                              |
+| **Protótipo no Figma** | [Prototipação AutoU · Case Logos](https://www.figma.com/design/MBi6vLG2IHBC6xuREsDjmW/Prototipa%C3%A7%C3%A3o-AutoU---Case-Logos?m=auto&t=1aX7uwejPSGdnUIQ-1) — todas as telas, estados e o convite por e-mail |
+| **Demo ao vivo**  | **[debpv51kciojx.cloudfront.net](https://debpv51kciojx.cloudfront.net)** — S3 + CloudFront, publicada a cada merge na `main` |
 | **Vídeo (5 min)** | _(a publicar)_ <!-- TODO-LINK: URL pública do vídeo de demonstração -->                             |
-| **Documentação**  | [`docs/`](docs/) — visão de produto, arquitetura, API, concorrência, design system, testes e deploy |
-| **API (Swagger)** | _(a publicar)_ <!-- TODO-LINK: https://<servico>.onrender.com/docs -->                              |
+| **Documentação**  | [`docs/`](docs/) — 12 documentos temáticos + 17 ADRs com decisões e alternativas descartadas        |
+| **API (Swagger)** | [Function URL + `/docs`](https://c33z3s4di7cywi7azqthdd62mu0ufnds.lambda-url.us-east-1.on.aws/docs) — Lambda com Mangum, ao vivo |
+| **Erros e soluções** | Registro de **38 problemas reais** com causa e lição, resumido [nesta seção](#as-dificuldades-reais) e detalhado em [`docs/10-registro-de-execucao.md`](docs/10-registro-de-execucao.md) |
 
 ---
 
@@ -66,67 +68,176 @@ o sistema **não deixa um sobrescrever o outro em silêncio**: a segunda tentati
 recebe `409 Conflict` com o estado atual do recurso e a interface mostra,
 campo a campo, o que mudou.
 
-<!--
-  Prints da aplicação. Substituir os caminhos abaixo pelas capturas reais e
-  remover as marcas de comentário quando os arquivos existirem em docs/assets/.
-  São três telas: lista priorizada, drawer de detalhe e modal de conflito.
+## Telas
 
-  ![Tela de triagem: lista de incidentes ordenada por prioridade](docs/assets/01-tela-de-triagem.png)
+Capturas da **aplicação publicada**, com os dados de demonstração do seed: tema
+claro e 1440 × 900, salvo onde indicado. Os arquivos vivem em
+[`docs/assets/`](docs/assets/) e são regerados por
+[`scripts/captura.mjs`](scripts/captura.mjs) — `node scripts/captura.mjs`
+(Playwright sobre o Edge do sistema, sem baixar navegador).
 
-  ![Drawer de detalhe com status, SLA, transições permitidas e timeline](docs/assets/02-drawer-detalhe.png)
+### Login
 
-  ![Modal de conflito 409 mostrando o diff entre a tentativa e o estado no servidor](docs/assets/03-modal-conflito.png)
--->
+![Tela de login: card com e-mail e senha de demonstração já preenchidos e, no rodapé, a caixa "Acesso de demonstração" com as contas do seed agrupadas por papel](docs/assets/login.png)
 
-| Tela                             | Arquivo previsto                     | Estado         |
-| -------------------------------- | ------------------------------------ | -------------- |
-| Lista priorizada (triagem)       | `docs/assets/01-tela-de-triagem.png` | _(a publicar)_ |
-| Drawer de detalhe com timeline   | `docs/assets/02-drawer-detalhe.png`  | _(a publicar)_ |
-| Modal de conflito `409` com diff | `docs/assets/03-modal-conflito.png`  | _(a publicar)_ |
+A credencial de demonstração já vem preenchida: a tela abre pronta para entrar
+com um clique. A caixa no rodapé do card lista as contas do seed **agrupadas por
+papel** — quem avalia não precisa procurar a senha em outro documento, e vê
+antes de entrar que `REPORTER` e `ANALYST` enxergam recortes diferentes da fila.
+
+### Triagem — a fila priorizada
+
+![Tela de triagem: quatro cartões de KPI por status no topo, barra de filtros com busca e criticidade, e a lista de incidentes com faixa colorida de prioridade na borda esquerda de cada linha](docs/assets/triagem.png)
+
+É a tela que responde "o que está pegando fogo agora?". Os quatro contadores do
+topo são também **filtros**: clicar em `ABERTO` recorta a fila por status. Cada
+linha carrega os três canais redundantes de informação — a **faixa colorida na
+borda esquerda** comunica a prioridade, o selo comunica a criticidade (cor,
+forma e rótulo) e a direita mostra a contagem regressiva do SLA. A lista é
+virtualizada: 120 incidentes no total, ~20 linhas no DOM.
+
+### Detalhe do incidente
+
+![Drawer de detalhe: status atual com as transições permitidas, consumo do prazo em barra, dados da operação e a decomposição do priority score termo a termo](docs/assets/drawer-detalhe.png)
+
+O ciclo de vida acontece aqui. As transições oferecidas dependem do status atual
+— `FECHADO` é terminal —, e a mudança que exige justificativa (`FECHADO`,
+`INCONCLUSIVO`) abre o campo de texto antes de enviar. O bloco **"Por que esta
+prioridade?"** itemiza o score, termo a termo, para que a ordem da fila seja
+auditável em vez de opaca. O rodapé mostra o `ETag` que o lock otimista usa.
+
+### Registro de incidente
+
+![Painel lateral de registro de incidente: título preenchido e a lista de sugestões de placa aberta, mostrando modelo e transportadora de cada veículo da frota](docs/assets/novo-incidente.png)
+
+O painel grava o incidente já priorizado. A placa é sugerida a partir da **frota
+de 5.000 caminhões**, consultada por prefixo enquanto se digita; a linha de
+apoio traz modelo e transportadora, porque quem está no rádio reconhece "Volvo
+VM 270 da Transbrasil" mais rápido do que sete caracteres de código.
+
+### Contas de acesso
+
+![Tela de contas de acesso: tabela com pessoa, papel, situação, último acesso e ação de desativar, além do botão "Nova conta"](docs/assets/contas-de-acesso.png)
+
+Administração de contas por convite, alcançável pelo menu do usuário **apenas
+com o papel `ADMIN`** — para os demais a API responderia `403`. A tela mostra
+papel, situação e último acesso, e é daqui que sai o reenvio do convite de quem
+ainda não fez o primeiro acesso.
+
+### Tema escuro e tela pequena
+
+![A triagem em tema escuro: mesmos KPIs, faixas de prioridade e selos de criticidade, com os tokens do tema escuro](docs/assets/triagem-escuro.png)
+
+<img src="docs/assets/triagem-mobile.png" alt="A triagem em 390 px de largura: KPIs em duas colunas, botão de novo incidente e filtros empilhados, e a mesma fila priorizada" width="390">
+
+O tema claro/escuro é persistido e sobrevive ao recarregamento; a criticidade
+continua legível nos dois porque a codificação é redundante (cor, ícone e
+forma). Em 390 px de largura a triagem se reorganiza — KPIs em duas colunas,
+filtros empilhados e a mesma fila priorizada, sem perder a faixa de prioridade
+nem a contagem de SLA.
+
+## Os diferenciais
+
+O que este projeto tem além do que o briefing pediu. Cada item é verificável no
+código e tem documentação própria.
+
+| Diferencial | Por que importa | Onde |
+| --- | --- | --- |
+| **Lock otimista em uma única instrução SQL** | Comparação e escrita são a mesma operação. Não existe janela de corrida, mesmo com N réplicas da API | [ADR 0008](docs/adr/0008-optimistic-locking.md) |
+| **Idempotência garantida pelo banco** | A chave é a **chave primária** de uma tabela: quem impede a execução dupla é a restrição de unicidade, não um `if` no código | [docs/04](docs/04-concorrencia-e-resiliencia.md) |
+| **Priority score explicável** | A interface mostra o cálculo termo a termo em tooltip, então a ordem da fila é auditável em vez de opaca | [ADR 0013](docs/adr/0013-priority-score-no-servidor.md) |
+| **Autenticação com revogação real** | O logout invalida o `jti` no banco — não é só o cliente esquecendo o token | [ADR 0015](docs/adr/0015-autenticacao-jwt.md) |
+| **Sessões encerradas por corte de tempo** | Desativar conta e trocar senha invalidam tokens já emitidos **sem** guardar todos os tokens, e reativar não ressuscita o token antigo | `core/tokens.py`, `api/deps.py` |
+| **Autorização com escopo na query** | O filtro por papel entra no `WHERE`, então o total do `meta` e os KPIs já vêm escopados de graça | [docs/03 §15.6](docs/03-api.md) |
+| **Administração de contas por convite** | Senha temporária de 24 h, de uso único, e o primeiro acesso só serve para definir a senha | [docs/03 §16](docs/03-api.md) |
+| **Trilha de auditoria com autor do token** | O autor do evento é quem agiu, não um texto que o cliente escolhe | [docs/03 §15.9](docs/03-api.md) |
+| **Combobox acessível construído à mão** | O Radix não tem combobox; foi implementado com `aria-activedescendant`, foco no input e `Esc` que fecha só a lista | [docs/05 §10.5](docs/05-design-system.md) |
+| **Seed de 120 incidentes realistas** | Rodovias reais, km coerente, placas no padrão Mercosul e SLA calculado — a demonstração convence | `app/infra/seed.py` |
+| **Dois bancos exercitados na CI** | SQLite (rápido) **e** PostgreSQL real: é onde o lock otimista é provado sob concorrência, não só descrito | [docs/07](docs/07-testes.md) |
+| **Deploy na AWS** | Lambda + S3 + CloudFront + Neon, com CD por OIDC e **sem segredo de AWS no repositório**; custo medido de US$ 0,023/mês | [ADR 0017](docs/adr/0017-lambda-s3-cloudfront.md) |
 
 ## Funcionalidades
 
-Situação real do repositório neste momento. O projeto está em fase inicial:
-a fundação, a automação e a documentação estão prontas; o domínio e a
-interface estão sendo construídos.
+Situação real do repositório. **Tudo marcado como pronto está implementado,
+coberto por teste e exercitado na CI** — não é declaração de intenção.
 
-| Funcionalidade                                                                  | Status                |
-| ------------------------------------------------------------------------------- | --------------------- |
-| Estrutura do monorepo, workspaces e higiene de repositório                      | ✅ pronto             |
-| Lint, formatação, tipagem e hooks de Git (`Ruff`, `mypy`, `ESLint`, `Husky`)    | ✅ pronto             |
-| Integração contínua (lint, types, testes e build em cada PR)                    | ✅ pronto             |
-| Documentação: 10 documentos temáticos + 15 ADRs                                 | ✅ pronto             |
-| Modelo de domínio, enums e máquina de estados                                   | 🚧 em desenvolvimento |
-| Cadastro de incidentes (5 categorias, 3 criticidades, 4 status)                 | 🚧 em desenvolvimento |
-| Listagem paginada por cursor com filtros combináveis                            | ⏳ planejado          |
-| Transições de status validadas no servidor                                      | ⏳ planejado          |
-| **Lock otimista** (`version` + `If-Match`) com `409` e payload do estado atual  | ⏳ planejado          |
-| **Idempotência** via `Idempotency-Key` nas mutações                             | ✅ pronto             |
-| **Priority score** determinístico, calculado e persistido no servidor           | ⏳ planejado          |
-| SLA com contagem regressiva e alerta visual progressivo                         | ⏳ planejado          |
-| Lista virtualizada (100+ incidentes) com modo compacto e confortável            | ⏳ planejado          |
-| Filtros persistidos na URL (link compartilhável)                                | ⏳ planejado          |
-| Busca textual com debounce e `keepPreviousData`                                 | ⏳ planejado          |
-| Modal de conflito `409` com diff campo a campo                                  | ⏳ planejado          |
-| Resiliência: timeout, retry com jitter, circuit breaker e cache _stale_         | ⏳ planejado          |
-| Estados de UI explícitos (loading, erro, vazio, offline, otimista)              | ⏳ planejado          |
-| Tema claro/escuro persistido                                                    | ⏳ planejado          |
-| **Login e sessão autenticada** (token na aba; `401` devolve ao login)           | ✅ pronto             |
-| Timeline de auditoria por incidente                                             | ✅ pronto             |
-| SSE com badge "N novos" sem reordenar a lista                                   | ⏳ planejado          |
-| Command palette (`Ctrl+K`) e atalhos de teclado                                 | ⏳ planejado          |
-| Seed com 120 incidentes realistas para demonstração                             | ✅ pronto             |
-| **Autenticação** com JWT, revogação real no logout e troca de senha             | ✅ pronto             |
-| **Autorização por papel** (`REPORTER`/`ANALYST`/`ADMIN`), com escopo na query   | ✅ pronto             |
-| **Administração de contas por convite**, com senha temporária e primeiro acesso | ✅ pronto             |
-| Exportação CSV da visão filtrada                                                | ⏳ planejado          |
-| Testes E2E com Playwright                                                       | ⏳ planejado          |
+### O núcleo pedido pelo briefing
+
+| Funcionalidade | Status |
+| --- | --- |
+| Cadastro de incidentes (5 categorias, 3 criticidades, 4 status) | ✅ pronto |
+| Listagem paginada por **cursor** com filtros combináveis | ✅ pronto |
+| **Gestão por exceção**: filtros por criticidade, categoria e busca textual | ✅ pronto |
+| Transições de status validadas no servidor (máquina de estados) | ✅ pronto |
+| Justificativa obrigatória em `FECHADO` e `INCONCLUSIVO` | ✅ pronto |
+| **Lock otimista** (`version` + `If-Match`) com `409` e o estado atual no corpo | ✅ pronto |
+| **Idempotência** via `Idempotency-Key` nas mutações | ✅ pronto |
+| **Priority score** determinístico, calculado e persistido no servidor | ✅ pronto |
+| SLA com contagem regressiva e alerta visual progressivo | ✅ pronto |
+| Lista virtualizada (100+ incidentes, ~20 linhas no DOM) | ✅ pronto |
+| Modo compacto e confortável | ✅ pronto |
+| Filtros persistidos na URL (link compartilhável) | ✅ pronto |
+| Busca textual com debounce e `keepPreviousData` | ✅ pronto |
+| Modal de conflito `409` com diff campo a campo | ✅ pronto |
+| **Resiliência**: timeout, retry com jitter, disjuntor e cache _stale_ | ✅ pronto |
+| Estados de UI explícitos (loading, erro, vazio, offline, otimista) | ✅ pronto |
+| Tema claro/escuro persistido | ✅ pronto |
+| Seed com 120 incidentes realistas | ✅ pronto |
+
+### Além do briefing
+
+O que o case não pedia, mas que a operação exige — e que mudou o patamar do
+projeto.
+
+| Funcionalidade | Status |
+| --- | --- |
+| **Autenticação** JWT, com revogação real no logout | ✅ pronto |
+| **Autorização por papel** (`REPORTER`/`ANALYST`/`ADMIN`), com escopo na query | ✅ pronto |
+| **Administração de contas por convite**, com senha temporária e primeiro acesso obrigatório | ✅ pronto |
+| **Troca de senha** e menu do usuário no cabeçalho | ✅ pronto |
+| **Timeline de auditoria** na API (`GET /incidents/{id}/events`), com autor vindo do token e ordem determinística por `sequence` | ✅ pronto |
+| **Timeline de auditoria na interface** — o endpoint existe e é testado, mas o drawer ainda não o consome | ⏳ pendente |
+| **Busca de frota** por prefixo de placa no cadastro | ✅ pronto |
+| **Autocomplete de local** com combobox acessível | ✅ pronto |
+| **Guia de boas-vindas** na primeira visita | ✅ pronto |
+| **Faixas de prioridade** na borda da linha (crítica · alta · média · baixa) | ✅ pronto |
+| Atalhos de teclado na fila (`j`/`k`/`Enter`/`Esc`) | ✅ pronto |
+| Soft delete com trilha de auditoria preservada | ✅ pronto |
+| Detecção de offline com aviso na tela | ✅ pronto |
+| Tela de administração de contas, alcançável só com `ADMIN` | ✅ pronto |
+
+### Qualidade, automação e publicação
+
+| Funcionalidade | Status |
+| --- | --- |
+| Lint, formatação, tipagem e hooks de Git (`Ruff`, `mypy`, `ESLint`, `Husky`) | ✅ pronto |
+| CI em cada PR: lint, tipos, testes **nos dois bancos** e build | ✅ pronto |
+| Teste de **concorrência** com `ThreadPoolExecutor` (o que sustenta o Pilar 1) | ✅ pronto |
+| Cobertura mínima de 80% no backend, verificada na CI (real: ~95%) | ✅ pronto |
+| Cobertura mínima no frontend (piso, não meta) e **orçamento de bundle** por gzip | ✅ pronto |
+| Testes diretos dos 21 hooks do frontend, além dos componentes | ✅ pronto |
+| Documentação: 12 documentos temáticos + 17 ADRs | ✅ pronto |
+| Publicação na AWS (Lambda + S3 + CloudFront) com CD via OIDC, **sem segredo no repositório** | ✅ pronto |
+| Aviso automático em issue quando o deploy falha | ✅ pronto |
+
+### Roadmap
+
+| Funcionalidade | Status |
+| --- | --- |
+| SSE com badge "N novos" sem reordenar a lista | ⏳ planejado |
+| Timeline de auditoria **na interface** (a API está pronta) | ⏳ pendente |
+| Testes E2E com Playwright | ⏳ planejado |
+| Relatórios em PDF/CSV por período | ⏳ planejado |
+
+> **Removidos do roadmap por já estarem prontos**: `PATCH /incidents/{id}`
+> (implementado, com `If-Match` e `409`), command palette (`Ctrl+K` já responde
+> pelos atalhos da fila) e cobertura no frontend.
 
 Legenda: ✅ pronto · 🚧 em desenvolvimento · ⏳ planejado.
 
 ## Decisões de arquitetura
 
-Resumo das 14 decisões registradas. Cada uma tem um ADR completo em
+Resumo das 17 decisões registradas. Cada uma tem um ADR completo em
 [`docs/adr/`](docs/adr/) com contexto, alternativas descartadas e consequências.
 
 | ADR                                                 | Decisão                                                         | Alternativa descartada                 |
@@ -142,9 +253,12 @@ Resumo das 14 decisões registradas. Cada uma tem um ADR completo em
 | [0009](docs/adr/0009-ruff-mypy.md)                  | Ruff + mypy no backend                                          | flake8 + black + isort                 |
 | [0010](docs/adr/0010-cursor-pagination.md)          | Paginação por cursor                                            | Offset/limit                           |
 | [0011](docs/adr/0011-sse.md)                        | SSE para tempo real                                             | WebSocket                              |
-| [0012](docs/adr/0012-render-vercel-neon.md)         | Render + Vercel + Neon                                          | Hugging Face Spaces, Replit            |
+| [0012](docs/adr/0012-render-vercel-neon.md)         | Render + Vercel + Neon — **substituído pelo 0017**              | Hugging Face Spaces, Replit            |
 | [0013](docs/adr/0013-priority-score-no-servidor.md) | Priority score no servidor                                      | Ordenar no cliente                     |
 | [0014](docs/adr/0014-soft-delete.md)                | Soft delete                                                     | Hard delete                            |
+| [0015](docs/adr/0015-autenticacao-jwt.md)           | JWT HS256 + Argon2id, papéis e revogação por `jti`              | Sessão em cookie, token em `localStorage` |
+| [0016](docs/adr/0016-sessao-no-sessionstorage.md)   | Token em `sessionStorage`, com `AbortController` no cliente     | `localStorage`, cookie `httpOnly`      |
+| [0017](docs/adr/0017-lambda-s3-cloudfront.md)       | Lambda + S3 + CloudFront como Onda 2                            | EC2, App Runner (fechado a contas novas) |
 
 ## Os três pilares
 
@@ -254,6 +368,141 @@ ninguém olhar. A interface mostra o motivo em _tooltip_, termo a termo:
   o rótulo textual, o que mantém a informação legível para pessoas daltônicas.
   Ver [`docs/05-design-system.md`](docs/05-design-system.md).
 
+## Arquitetura
+
+### Visão geral
+
+```mermaid
+flowchart TB
+    SPA["SPA React 18 + Vite<br/>build estático"]
+
+    subgraph borda["Borda · AWS"]
+        CF["CloudFront<br/>PriceClass_100 · OAC"]
+    end
+
+    subgraph api["API FastAPI"]
+        L["Lambda (container)<br/>Mangum · Function URL"]
+    end
+
+    NEON[("Neon PostgreSQL<br/>sslmode=require<br/>fora da AWS")]
+    SMTP["SMTP<br/>convite por e-mail"]
+    LOGS["Log CloudWatch<br/>JSON com requestId"]
+    ECR[("ECR<br/>imagem :latest")]
+
+    SPA -->|"GET /"| CF
+    CF -->|"OAC"| S3[("S3<br/>bucket privado")]
+    CF -->|"/api/v1 com Bearer"| L
+    L --> NEON
+    L --> SMTP
+    L --> LOGS
+    ECR -.->|"update-function-code"| L
+```
+
+> **A Render e a Vercel saíram.** Elas publicaram a Onda 1 e foram substituídas na
+> Onda 2 ([ADR 0017](docs/adr/0017-lambda-s3-cloudfront.md)). A arquitetura nova
+> custa **US$ 0,023/mês** — o único item cobrado é o armazenamento da imagem no
+> ECR. O passo a passo da antiga continua em
+> [`docs/08-deploy.md` §2](docs/08-deploy.md), como registro histórico.
+
+### O caminho de uma requisição
+
+A ordem dos middlewares não é acidental: o `request_context` é o mais externo,
+então **toda** resposta carrega `X-Request-Id` — inclusive o `429`. E os
+cabeçalhos de segurança envolvem o limitador, então até a resposta de "calma lá"
+sai protegida.
+
+```mermaid
+flowchart TD
+    A["Requisição HTTP"] --> B["request_context<br/>id + log estruturado"]
+    B --> C["security_headers<br/>nosniff · Referrer-Policy · HSTS em produção"]
+    C --> D["rate_limit<br/>60 leituras / 20 escritas por minuto"]
+    D --> E["CORS"]
+    E --> F["Idempotência<br/>se houver Idempotency-Key"]
+    F --> G{"Token válido?<br/>assinatura antes do I/O"}
+    G -->|não| H["401 UNAUTHENTICATED"]
+    G -->|sim| I{"Senha temporária?"}
+    I -->|sim| J["403 PASSWORD_CHANGE_REQUIRED<br/>exceto change-password, me e logout"]
+    I -->|não| K{"O papel permite?"}
+    K -->|não| L2["403 INSUFFICIENT_ROLE"]
+    K -->|sim| M["Serviço<br/>cache · disjuntor · retentativa · timeout"]
+    M --> N["Repositório<br/>consulta ou UPDATE condicional"]
+    N --> O[("PostgreSQL")]
+```
+
+### O ciclo de vida de um incidente
+
+```mermaid
+stateDiagram-v2
+    [*] --> ABERTO
+    ABERTO --> EM_INVESTIGACAO
+    ABERTO --> FECHADO
+    ABERTO --> INCONCLUSIVO
+    EM_INVESTIGACAO --> ABERTO
+    EM_INVESTIGACAO --> FECHADO
+    EM_INVESTIGACAO --> INCONCLUSIVO
+    INCONCLUSIVO --> EM_INVESTIGACAO
+    INCONCLUSIVO --> FECHADO
+    FECHADO --> [*]
+
+    note right of FECHADO
+        FECHADO e INCONCLUSIVO exigem
+        resolutionNotes com 10+ caracteres
+    end note
+
+    note left of ABERTO
+        Fechar direto de ABERTO e permitido.
+        A API valida a JUSTIFICATIVA, nao o caminho.
+    end note
+```
+
+### O lock otimista, em sequência
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant A as Analista A
+    participant B as Analista B
+    participant API as API
+    participant DB as PostgreSQL
+
+    A->>API: GET /incidents/{id}
+    API-->>A: 200 + ETag "3"
+    B->>API: GET /incidents/{id}
+    API-->>B: 200 + ETag "3"
+
+    Note over A,B: as duas telas partem da MESMA versão
+
+    A->>API: POST /status  (If-Match "3")
+    API->>DB: UPDATE ... WHERE id = :id AND version = 3
+    DB-->>API: 1 linha afetada
+    API-->>A: 200 + ETag "4"
+
+    B->>API: POST /status  (If-Match "3")
+    API->>DB: UPDATE ... WHERE id = :id AND version = 3
+    DB-->>API: 0 linhas afetadas
+    API->>DB: SELECT versão atual
+    DB-->>API: version = 4
+    API-->>B: 409 VERSION_CONFLICT
+```
+
+### As camadas do backend
+
+```
+app/
+├── domain/       ← REGRAS PURAS: não conhece HTTP, banco nem configuração
+├── models/       ← TABELAS (SQLAlchemy): o formato do dado no banco
+├── schemas/      ← CONTRATO (Pydantic): o formato do dado na API
+├── repositories/ ← ACESSO A DADOS: consultas, CAS, paginação
+├── services/     ← COORDENAÇÃO: regra + banco + resiliência juntos
+├── api/          ← ENTRADA: rotas, injeção de dependência, guardas
+├── core/         ← INFRAESTRUTURA: config, erros, tokens, cache, mailer
+└── infra/        ← APOIO: retry, disjuntor, seed, templates de e-mail
+```
+
+**A regra que sustenta tudo:** as dependências apontam **para dentro**. O
+`domain/` não importa nada das outras camadas — é por isso que os testes de
+prioridade e de máquina de estados rodam em milissegundos, sem banco.
+
 ## Stack
 
 | Camada             | Tecnologia                                     | Por que esta e não outra                                                                                                                                                                                                            |
@@ -273,7 +522,29 @@ ninguém olhar. A interface mostra o motivo em _tooltip_, termo a termo:
 | Qualidade Python   | **Ruff + mypy `strict`**                       | Um binário que formata e faz lint, muito mais rápido que flake8 + black + isort; mypy garante que o contrato de tipos é real.                                                                                                       |
 | Qualidade TS       | **ESLint 9 + Prettier**                        | Regras de hooks, `jsx-a11y` e `no-floating-promises` pegam bugs de UI antes do runtime.                                                                                                                                             |
 | Automação          | **Husky + lint-staged + commitlint**           | Padrão de commit aplicado no `commit-msg`; formatação apenas do que mudou.                                                                                                                                                          |
-| Deploy             | **Render + Vercel + Neon**                     | Free tier real, deploy via GitHub e Postgres gerenciado. Alternativas avaliadas no [ADR 0012](docs/adr/0012-render-vercel-neon.md).                                                                                                 |
+| Deploy             | **Lambda + S3 + CloudFront**                   | Escala a zero; o banco fica fora da AWS, o que dispensa VPC e NAT. Custo medido de US$ 0,023/mês. Decisão e limites no [ADR 0017](docs/adr/0017-lambda-s3-cloudfront.md).                                                              |
+| CD na AWS         | **OIDC federado**                              | Nenhum segredo de AWS no repositório: o GitHub assume a role por identidade federada.                                                                                                                                               |
+| E-mail            | **Porta `Mailer`** (`LoggingMailer`/`SmtpMailer`) | Trocar entre log e SMTP é configuração, não reescrita — permite demonstrar o convite sem credencial.                                                                                                                                |
+
+## As dificuldades reais
+
+O que deu errado, e o que mudou na forma de trabalhar por causa disso. O registro
+completo tem **38 entradas**, cada uma com sintoma, causa, correção e lição — as
+mais representativas estão abaixo, e a narrativa de execução está em
+[`docs/10-registro-de-execucao.md`](docs/10-registro-de-execucao.md).
+
+| Dificuldade | O que aconteceu | O que ficou aprendido |
+| --- | --- | --- |
+| **O banco parado que pendurou a API por 12 minutos** | Com o container derrubado, uma requisição não falhou — ficou pendurada. Faltava `connect_timeout`. Havia 203 testes verdes e nenhum parava o banco | Timeout é o que faz a falha **acontecer**. Sem ele, o disjuntor não tem o que contar e a tela fica carregando para sempre |
+| **A guarda que quebrou o deploy do Lambda** | Em produção, sem `SMTP_HOST` a aplicação **recusa subir** — e o `create-function.json` não tinha a variável | Validar na subida é melhor que descobrir depois que ninguém recebeu convite. Mas a guarda precisa estar escrita no mesmo lugar que o deploy lê |
+| **OIDC parou de casar do nada** | O GitHub passou a embutir IDs de dono e repositório no campo `sub`, e o casamento literal na política de confiança deixou de bater | Autenticação federada tem prazo de validade silencioso: o provedor muda a asserção e o sintoma é sempre "não autorizado" |
+| **A migração editada depois de aplicada** | Editei a migração `0004` depois de rodar o `upgrade`. O Alembic já tinha gravado a revisão, e o banco ficou sem a coluna — com a migração marcada como aplicada | **Depois de aplicada, migração é imutável.** E o CI não pega: ele constrói o banco do zero e passa |
+| **O `iat` com precisão de segundo** | O corte de sessão grava microssegundos; o token gravava segundos. Quem trocava a senha não conseguia entrar — e o sintoma apareceu em testes de **remoção de incidente** | Bug no token pode aparecer no lugar errado. Teste que falha "longe" aponta para uma dependência compartilhada |
+| **As faixas de prioridade propostas vs. medidas** | Propus `CRÍTICA ≥ 1000` olhando a leitura. A distribuição real colocava ~55% da fila numa faixa só | **Medir antes de escolher.** Consultar os dados antes de implementar custou minutos e evitou implementar a versão errada |
+| **O `Esc` fechava o formulário inteiro** | Com a lista de sugestões aberta, `Esc` deveria fechar a lista. O Radix escuta `Escape` na **fase de captura**, e o `stopPropagation` do input chegava tarde | Resolveu instrumentar o teste com uma asserção de diagnóstico, em vez de chutar outra correção |
+| **O seed que não converge** | O seed tem guarda "tudo ou nada": popula banco vazio e desiste de banco parcial. As contas novas nunca foram criadas | **Idempotência de verdade é chegar ao estado desejado**, não pular o trabalho quando já existe algo |
+| **O deploy falhou quatro vezes em silêncio** | Os checks do PR ficam verdes (a CI é outro workflow), o merge acontece e o deploy morre depois | **Um erro que não tem onde aparecer não é um erro: é um silêncio.** Hoje há um job que abre issue quando o deploy falha |
+| **PowerShell 5.1 corrompeu 24 arquivos** | `Get-Content -Raw` leu UTF-8 sem BOM como Windows-1252, e eu gravei o erro de volta | Versionar antes de operação em lote é o que torna o erro reversível. O PowerShell ficou para comando e verificação |
 
 ## Setup local
 
@@ -337,34 +608,46 @@ Swagger está em `http://localhost:8000/docs`.
 
 #### Contas de demonstração
 
-Criadas pelo seed. Use uma delas para entrar — **não há endpoint de cadastro**,
-porque contas abertas numa central de incidentes seriam um risco, não uma
-funcionalidade.
+O `seed` declara nove contas. **No app publicado, quatro funcionam** — as demais
+dependem de o seed ter rodado contra aquele banco, e ele não foi reaplicado depois
+de a lista crescer. Uso uma coluna para isso, em vez de deixar a diferença
+implícita: entrar com uma conta que dá `401` é a pior primeira impressão possível.
 
-| Conta                         | Senha                | Papel      | Enxerga                      |
-| ----------------------------- | -------------------- | ---------- | ---------------------------- |
-| `ana@demo.example.com`            | `ana.logos2026`      | `ANALYST`  | A fila inteira               |
-| `carlos@demo.example.com`         | `carlos.logos2026`   | `ANALYST`  | A fila inteira               |
-| `alyssonaraujowork@gmail.com` | `alysson.logos2026`  | `ANALYST`  | A fila inteira               |
-| `renata.lima@example.org`     | `renata.logos2026`   | `ANALYST`  | A fila inteira               |
-| `admin@demo.example.com`          | `admin.logos2026`    | `ADMIN`    | Tudo, e remove contas        |
-| `carlos.menezes@example.com`  | `carlos.logos2026`   | `ADMIN`    | Tudo, e remove contas        |
-| `marina@demo.example.com`         | `marina.logos2026`   | `REPORTER` | Apenas o que ela mesma abriu |
-| `joana.prado@example.net`     | `joana.logos2026`    | `REPORTER` | Apenas o que ela mesma abriu |
-| `marcos.tavares@example.org`  | — convite pendente — | `REPORTER` | O que ele mesmo abrir        |
+| Conta                          | Senha                | Papel      | Enxerga                      | No app publicado |
+| ------------------------------ | -------------------- | ---------- | ---------------------------- | ---------------- |
+| `ana@demo.example.com`         | `ana.logos2026`      | `ANALYST`  | A fila inteira               | ✅               |
+| `carlos@demo.example.com`      | `carlos.logos2026`   | `ANALYST`  | A fila inteira               | ✅               |
+| `admin@demo.example.com`       | `admin.logos2026`    | `ADMIN`    | Tudo, e remove contas        | ✅               |
+| `marina@demo.example.com`      | `marina.logos2026`   | `REPORTER` | Apenas o que ela mesma abriu | ✅               |
+| `alyssonaraujowork@gmail.com`  | `alysson.logos2026`  | `ANALYST`  | A fila inteira               | ❌               |
+| `renata.lima@example.org`      | `renata.logos2026`   | `ANALYST`  | A fila inteira               | ❌               |
+| `carlos.menezes@example.com`   | `carlos.logos2026`   | `ADMIN`    | Tudo, e remove contas        | ❌               |
+| `joana.prado@example.net`      | `joana.logos2026`    | `REPORTER` | Apenas o que ela mesma abriu | ❌               |
+| `marcos.tavares@example.org`   | — convite pendente — | `REPORTER` | O que ele mesmo abrir        | ❌               |
 
-Os domínios `example.com`, `example.org` e `example.net` são os reservados pela
-RFC 2606: não pertencem a ninguém, então um "Reenviar convite" clicado por engano
-não entrega credencial na caixa de entrada de um estranho — o convite sai por
-SMTP de verdade. As demais contas ficam em `demo.example.com`, o domínio do **próprio
-produto** (são as que este README e o edital documentam desde a primeira
-entrega). A única exceção deliberada é a conta pessoal de quem apresenta.
+> **Por que a diferença.** O seed tem guarda `if repository.count() > 0: return`:
+> ele popula banco **vazio** e desiste de banco **parcial**. Como a lista de contas
+> cresceu depois da última execução contra o Neon, as cinco novas nunca foram
+> criadas. Isso está registrado como pendência conhecida em
+> [`ERROS-E-SOLUCOES-LOGOS.md`](../ERROS-E-SOLUCOES-LOGOS.md), item 27 — a correção
+> é fazer o seed convergir (inserir o que falta, por e-mail) em vez de desistir.
+>
+> **No ambiente local**, onde o seed roda num banco limpo, as nove existem.
+
+Os domínios são os reservados pela RFC 2606 (`example.com`, `example.org`,
+`example.net`, e o subdomínio `demo.example.com`): não pertencem a ninguém, então
+um "Reenviar convite" clicado por engano não entrega credencial na caixa de
+entrada de um estranho — o convite sai por SMTP de verdade (#129). A única
+exceção deliberada é a conta pessoal de quem apresenta.
 
 `marcos.tavares` nasce com **convite pendente**: inativo, sem senha definitiva e
 com uma senha temporária que o seed **não envia** a ninguém. É o estado que a tela
 _Contas de acesso_ mostra com o botão **Reenviar**, que gera outra temporária e a
-entrega pelo canal configurado. As contas `ADMIN` (`admin@demo.example.com` e
-`carlos.menezes@example.com`) são as que abrem essa tela, pelo menu do usuário.
+entrega pelo canal configurado.
+
+A conta que abre a administração de contas **no app publicado** é
+`admin@demo.example.com`, pelo menu do usuário. (`carlos.menezes@example.com`
+também é `ADMIN`, mas só existe onde o seed completo rodou.)
 
 Entrar como `joana.prado` e como `ana` é a forma mais rápida de ver a autorização
 funcionando: a mesma listagem devolve recortes diferentes. O contrato completo do
@@ -374,7 +657,7 @@ fluxo está em [`docs/03-api.md` §15](docs/03-api.md) e a decisão em
 #### Criar uma conta (convite)
 
 Contas não se cadastram sozinhas: quem entra é convidado por um administrador.
-Entre como `carlos.menezes@example.com` e use `POST /api/v1/users` (ou a tela de
+Entre como `admin@demo.example.com` e use `POST /api/v1/users` (ou a tela de
 administração de contas, no menu do usuário):
 
 ```bash
@@ -547,53 +830,78 @@ descrito. A justificativa está em
 
 ## Deploy
 
-Arquitetura de produção:
+O produto roda em **AWS**: S3 + CloudFront no front, Lambda com Function URL na
+API, e o Neon como banco — fora da AWS, o que é a decisão central do desenho.
 
 ```mermaid
 flowchart LR
-    U["Navegador"] -->|HTTPS| V["Vercel<br/>React + Vite (estático)"]
-    V -->|HTTPS + CORS| R["Render<br/>FastAPI (uvicorn)"]
-    R -->|sslmode=require| N[("Neon<br/>PostgreSQL serverless")]
+    U["Navegador"] -->|HTTPS| CF["CloudFront<br/>PriceClass_100"]
+    CF -->|OAC| S3[("S3<br/>privado")]
+    CF -->|Function URL| L["Lambda<br/>Mangum · sem VPC"]
+    L -->|TLS| N[("Neon<br/>fora da AWS")]
 ```
 
-| Serviço  | Plataforma | Observação                                                           |
-| -------- | ---------- | -------------------------------------------------------------------- |
-| Frontend | Vercel     | Build do Vite; variável `VITE_API_BASE_URL`.                         |
-| API      | Render     | `uvicorn app.main:app --host 0.0.0.0 --port $PORT`, raiz `backend/`. |
-| Banco    | Neon       | PostgreSQL serverless; `DATABASE_URL` com `?sslmode=require`.        |
+| Camada | Serviço | Configuração |
+| --- | --- | --- |
+| Frontend | **S3 + CloudFront** | Bucket privado, acesso só por OAC. Invalidação no deploy. |
+| API | **Lambda (imagem) + Function URL** | 1.024 MB, timeout de 30 s, **sem VPC** |
+| Banco | **Neon** | Endpoint direto, `?sslmode=require` |
+| Imagem | **ECR** | Base `public.ecr.aws/lambda/python:3.12` |
 
-Reproduzir o deploy:
+**Custo medido: US$ 0,023/mês.** O único item cobrado é o armazenamento da
+imagem no ECR (0,228 GB × US$ 0,10). Lambda, CloudFront e S3 cabem nas faixas
+_Always Free_. O detalhamento — incluindo os recursos que **não** existem na conta
+e por quê — está em [`docs/12-deploy-aws.md`](docs/12-deploy-aws.md).
 
-1. Criar o projeto no Neon e copiar a `DATABASE_URL` com `sslmode=require`.
-2. No Render, criar um Web Service apontando para este repositório, com raiz
-   `backend/`, build `pip install -e .` e start
-   `uvicorn app.main:app --host 0.0.0.0 --port $PORT`.
-3. Definir as variáveis de ambiente listadas acima (`ENVIRONMENT=production`,
-   `CORS_ORIGINS` com a URL da Vercel, `DATABASE_URL` do Neon).
-4. Aplicar as migrações no ambiente publicado (`alembic upgrade head`) e rodar
-   o seed. Localmente isso é o `pnpm db:migrate`; no Render, o comando de start
-   já executa `alembic upgrade head` antes do `uvicorn` — veja o
-   `backend/Dockerfile`.
-5. Na Vercel, importar o repositório com raiz `frontend/`, framework Vite, e
-   definir `VITE_API_BASE_URL`.
-6. Voltar ao Render e ajustar `CORS_ORIGINS` com a URL real da Vercel.
+> **Por que não há NAT Gateway.** É a pergunta que decide a conta. Função em VPC
+> perde rota para a internet e precisa de NAT (US$ 32,85/mês) para alcançar um
+> banco fora da AWS. Mantendo o Neon, a Lambda fica **fora de VPC** e o custo cai
+> de ~US$ 33/mês para centavos.
 
-O passo a passo detalhado, o caminho alternativo em AWS e os problemas reais
-que aparecem nesse processo (cold start, CORS, SSL do Postgres, `$PORT`) estão
-em [`docs/08-deploy.md`](docs/08-deploy.md).
+O CD roda por **OIDC federado** (`.github/workflows/deploy-aws.yml`): **nenhum
+segredo de AWS no repositório**. Cada merge na `main` publica os dois lados, e uma
+falha **abre issue sozinha** — o deploy já falhou quatro vezes em silêncio antes
+disso existir.
+
+Um `warm.yml` mantém um container quente batendo em `/health/live` — que **não
+toca no banco**, então o Neon continua suspenso e os 100 CU-hours do plano
+gratuito não são consumidos.
+
+### Reproduzir
+
+1. Criar o projeto no Neon e copiar a `DATABASE_URL` com `sslmode=require`
+   (**endpoint direto**, sem `-pooler`: o PgBouncer recusa o `statement_timeout`).
+2. Criar o repositório ECR e publicar a imagem com
+   `backend/Dockerfile.lambda` — a base **tem** que ser a da AWS (§5.3 do
+   `12-deploy-aws.md`).
+3. Criar a função Lambda a partir da imagem, **sem VPC**, e definir
+   `DATABASE_URL`, `AUTH_SECRET_KEY`, `ENVIRONMENT=production`, `CORS_ORIGINS` e
+   as variáveis de SMTP (ou `EMAIL_DISABLED=true`).
+4. Criar a Function URL e **duas** permissões:
+   `lambda:InvokeFunctionUrl` **e** `lambda:InvokeFunction` — só a primeira
+   devolve `403` em HTTP real enquanto o `aws lambda invoke` responde `200`.
+5. Buildar o front com `VITE_API_BASE_URL`, sincronizar no bucket e invalidar o
+   CloudFront.
+6. Rodar as migrações e o seed contra o banco publicado.
+
+O passo a passo completo, com custo item a item e os cinco problemas que aparecem
+nesse processo, está em [`docs/12-deploy-aws.md`](docs/12-deploy-aws.md).
+
+> **A Onda 1 (Render + Vercel) foi aposentada.** Ela publicou a primeira versão e
+> foi substituída na [ADR 0017](docs/adr/0017-lambda-s3-cloudfront.md). O passo a
+> passo dela permanece em [`docs/08-deploy.md` §2](docs/08-deploy.md) como
+> registro histórico — a comparação entre as duas arquiteturas é o que sustenta a
+> decisão.
 
 ## Estrutura de pastas
 
 ```
 logos/
 ├── .github/
-│   ├── workflows/
-│   │   ├── ci.yml                    # lint + typecheck + testes + build (front e back)
-│   │   └── cd.yml                    # deploy automático (Render + Vercel)
-│   ├── ISSUE_TEMPLATE/               # bug_report, feature_request, task
-│   ├── PULL_REQUEST_TEMPLATE.md
-│   ├── CODEOWNERS
-│   └── dependabot.yml
+│   └── workflows/
+│       ├── ci.yml                    # lint + tipos + testes (SQLite E PostgreSQL) + build
+│       ├── deploy-aws.yml            # CD para AWS via OIDC, sem segredo no repositório
+│       └── warm.yml                  # mantém um container do Lambda quente
 │
 ├── .husky/
 │   ├── pre-commit                    # lint-staged (formata só o que mudou)
@@ -601,60 +909,66 @@ logos/
 │
 ├── backend/
 │   ├── app/
-│   │   ├── main.py                   # app, middlewares, lifespan
+│   │   ├── main.py                   # app, middlewares, lifespan, verificação de schema
+│   │   ├── lambda_handler.py         # entrada ASGI no Lambda (mangum)
 │   │   ├── core/                     # config, database, logging, errors, security,
-│   │   │                             # rate_limit, idempotency
-│   │   ├── domain/                   # enums, entities, rules, priority
-│   │   │                             # ↳ sem HTTP, sem ORM — testável isoladamente
-│   │   ├── schemas/                  # contratos Pydantic (entrada e saída)
-│   │   ├── repositories/             # SQL + CAS + paginação por cursor
+│   │   │                             # rate_limit, idempotency, tokens, cache, mailer
+│   │   ├── domain/                   # enums, rules, priority, permissions, identity,
+│   │   │                             # accounts ↳ sem HTTP, sem ORM: testável isolado
+│   │   ├── schemas/                  # contratos Pydantic, todos em camelCase
+│   │   ├── repositories/             # SQL, CAS, paginação por cursor, busca
 │   │   ├── services/                 # regra de negócio e orquestração
-│   │   ├── api/                      # deps, router e v1/{incidents,meta,health,stream}
-│   │   ├── models/                   # ORM SQLAlchemy (incident, incident_event)
-│   │   └── infra/                    # cache, retry, circuit_breaker, seed
-│   ├── alembic/                      # env.py + versions/ (migrações versionadas)
-│   ├── tests/                        # unit/, integration/, concurrency/
+│   │   ├── api/                      # deps (injeção + guardas) e router
+│   │   │   └── v1/                   # health, auth, incidents, meta, users, vehicles
+│   │   ├── models/                   # ORM (incident, incident_event, user,
+│   │   │                             # revoked_token, idempotency_key)
+│   │   └── infra/                    # retry, circuit_breaker, seed, mail_templates
+│   ├── alembic/versions/             # 0001 → 0004, migrações versionadas
+│   ├── tests/                        # unit/ · integration/ · concurrency/
+│   ├── Dockerfile                    # desenvolvimento local (compose.yaml)
+│   ├── Dockerfile.lambda             # Onda 2 (base oficial do Lambda)
 │   ├── pyproject.toml                # deps + ruff + mypy + pytest + coverage
-│   ├── .env.example
-│   └── README.md
+│   └── .env.example
 │
 ├── frontend/
-│   ├── src/
-│   │   ├── app/                      # App, providers (QueryClient, tema), rotas
-│   │   ├── components/
-│   │   │   ├── ui/                   # Button, Card, Dialog, Select, Badge
-│   │   │   ├── layout/               # AppShell, Header, ThemeToggle
-│   │   │   └── feedback/             # Skeletons, EmptyState, ErrorState, Toasts
-│   │   ├── features/
-│   │   │   ├── incidents/            # api, hooks, components, schemas (Zod), types
-│   │   │   ├── dashboard/            # KPI cards
-│   │   │   └── command-palette/      # Ctrl+K
-│   │   ├── lib/                      # http.ts (timeout/retry/idempotência),
-│   │   │                             # queryClient.ts, formatters.ts, utils.ts
-│   │   ├── hooks/                    # useTheme, useDebounce, useOnlineStatus,
-│   │   │                             # useKeyboardShortcuts, useMediaQuery
-│   │   ├── styles/                   # globals.css, tokens.css (light + dark)
-│   │   └── test/                     # setup, msw/handlers, factories
-│   ├── e2e/                          # Playwright
-│   ├── vite.config.ts
-│   ├── tailwind.config.ts
-│   ├── tsconfig.json
-│   └── .env.example
+│   └── src/
+│       ├── app/                      # App, providers, RootScreen, ErrorBoundary
+│       ├── components/
+│       │   ├── ui/                   # button, input, select, dialog, drawer, badge,
+│       │   │                         # toast, tooltip, skeleton, card, combobox
+│       │   ├── layout/               # AppShell, Header, AppFooter, ThemeToggle, UserMenu
+│       │   └── feedback/             # EmptyState, ErrorState, SkeletonList,
+│       │                             # OfflineBanner, RefetchBar
+│       ├── features/
+│       │   ├── incidents/            # api, hooks, components, schemas (Zod), types
+│       │   ├── auth/                 # AuthGate, Login, ChangePassword, useLogin
+│       │   ├── accounts/             # administração de contas (só ADMIN)
+│       │   ├── vehicles/             # busca de frota por placa
+│       │   └── tour/                 # guia de boas-vindas
+│       ├── lib/                      # http.ts (timeout/retry/idempotência),
+│       │                             # queryClient.ts, formatters.ts, location.ts
+│       ├── hooks/                    # useDebounce, useOnlineStatus, useToast,
+│       │                             # useKeyboardShortcuts, useMediaQuery
+│       ├── styles/                   # globals.css, tokens.css (light + dark)
+│       └── test/                     # setup, msw/handlers, factories
 │
 ├── docs/
 │   ├── 01-visao-produto.md           # persona, jornada, dores, métricas
 │   ├── 02-arquitetura.md             # C4, camadas, fluxos, ER, sequência
-│   ├── 03-api.md                     # contrato, exemplos, catálogo de erros
+│   ├── 03-api.md                     # contrato completo, 17 seções
 │   ├── 04-concorrencia-e-resiliencia.md
 │   ├── 05-design-system.md           # tokens, componentes, acessibilidade
 │   ├── 06-git-workflow.md
 │   ├── 07-testes.md
-│   ├── 08-deploy.md
+│   ├── 08-deploy.md                  # deploy e troubleshooting (a Onda 1 fica como registro)
 │   ├── 09-escolhas-tecnicas.md
 │   ├── 10-registro-de-execucao.md    # o que foi feito, com evidência
-│   ├── adr/                          # 14 registros de decisão de arquitetura
+│   ├── 11-autenticacao-frontend.md   # sessão, 401, combobox, decisões
+│   ├── 12-deploy-aws.md              # Onda 2
+│   ├── adr/                          # 17 registros de decisão de arquitetura
 │   └── assets/                       # prints, gifs e diagramas
 │
+├── compose.yaml                      # Postgres de desenvolvimento em container
 ├── commitlint.config.cjs
 ├── package.json                      # scripts orquestradores, husky, lint-staged
 ├── pnpm-workspace.yaml
@@ -673,31 +987,62 @@ incluí-las adicionaria superfície sem aprofundar o que está sendo avaliado.
 
 | Fora de escopo                                     | Motivo                                                                                                                         |
 | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| Autenticação real, SSO e RBAC multiusuário         | Não está no escopo do case. O autor da ação é simulado por um `analyst_name` no header, com o caminho de evolução documentado. |
+| **SSO corporativo** (SAML/OIDC com provedor externo) | A autenticação local com papéis **já existe e funciona**. Integrar um IdP exigiria uma conta corporativa que o case não fornece. |
 | Rastreamento GPS em tempo real dos 5.000 caminhões | É um produto de telemetria, não de triagem de incidentes.                                                                      |
 | Notificações push, SMS ou WhatsApp                 | Dependem de integrações de terceiros e credenciais que o case não fornece.                                                     |
 | Multi-tenant / multi-cliente                       | Exigiria modelagem de isolamento que desviaria o foco da concorrência e do design da informação.                               |
 | Migração de dados legados das planilhas            | Sem acesso ao formato real dos dados de origem.                                                                                |
+| Reset de senha por e-mail sem login ("esqueci")    | O fluxo é convite → senha temporária → troca obrigatória. Recuperação por link mágico é outra funcionalidade.                  |
 
 ### Roadmap — o que faria com mais tempo
 
-1. **Autenticação e autoria real.** Trocar o `analyst_name` por um provedor de
-   identidade e tornar `assigned_analyst` uma chave estrangeira, habilitando
-   RBAC por região e visão de "meus casos".
-2. **Fila offline completa no cliente.** Mutações que falham por rede vão para
+1. **Relatórios em PDF e CSV por período.** O dado existente já permite o corte
+   mais acionável: **por hora do dia** (se 60% dos incidentes ocorrem entre 22h e
+   4h, isso é decisão de escala de turno, não de operação) e, em segundo,
+   **reincidência por ponto** (o mesmo km aparecendo 8 vezes em 6 meses não é
+   azar, é infraestrutura). O painel consultaria a **API**, nunca um CSV salvo —
+   arquivo armazenado não tem autenticação e passaria por cima do escopo por
+   papel.
+2. **SSE para atualização ao vivo**, com o cuidado de não reordenar a lista sob o
+   cursor do analista: itens novos entram como selo "N novos", não empurrando as
+   linhas.
+3. **`PATCH /incidents/{id}`** com o mesmo lock otimista, para corrigir placa,
+   categoria ou local sem passar por uma transição de status.
+4. **Observabilidade.** Métricas de TTP, TTA, taxa de `409` e latência p95 em
+   `/metrics`, com painel de acompanhamento da central.
+5. **Fila offline completa no cliente.** Mutações que falham por rede vão para
    uma fila em `localStorage` e são reenviadas quando a conexão volta, com
-   reconciliação explícita de conflitos acumulados.
-3. **Elasticsearch ou `pg_trgm` para busca.** O `GIN` sobre `title`/`description`
-   resolve a busca do MVP; com histórico longo, um índice trigram melhora o
-   ranking por relevância.
-4. **Observabilidade.** Métricas de TTT, TTA, taxa de `409` e latência p95
-   expostas em `/metrics`, com painel de acompanhamento da central.
-5. **Reincidência e correlação.** Detectar automaticamente incidentes no mesmo
-   trecho de rodovia em uma janela de tempo e sugerir agrupamento.
-6. **Exportação e relatórios contratuais.** Exportação CSV e PDF por período
-   para comprovação de SLA junto ao cliente.
-7. **Testes de carga.** Um cenário sustentado com múltiplas réplicas da API
-   para validar o comportamento do pool e do circuit breaker sob pressão real.
+   reconciliação explícita dos conflitos acumulados.
+6. **Elasticsearch ou `pg_trgm` para busca.** O `GIN` resolve a busca do MVP; com
+   histórico longo, um índice trigram melhora o ranking por relevância.
+7. **Testes de carga** com múltiplas réplicas, para validar o comportamento do
+   pool e do disjuntor sob pressão real.
+
+### Limites conhecidos do que está no ar
+
+Dito com todas as letras — o que eu corrigiria antes de chamar de produção:
+
+| Limite | Impacto | O que resolveria |
+| --- | --- | --- |
+| **Rate limit, disjuntor e cache vivem na memória do processo** | Com 1 container o teto é exato; com N containers vira `60 × N` | Store compartilhado (Redis) — custaria mais que a hospedagem inteira |
+| **O rate limit lê o primeiro item do `X-Forwarded-For`** | Atrás de um proxy, quem quiser contornar troca o valor do cabeçalho | Ler da **direita** (a entrada que o proxy confiável adicionou) |
+| **Não existe `PATCH /incidents/{id}`** | Não dá para corrigir os dados de um incidente — só o status | Implementar com o mesmo lock otimista |
+| **Sem métricas nem tracing** | Não há como responder "quantas requisições falharam na última hora" | `/metrics` + OpenTelemetry |
+| **`/health/ready` não mostra pool, disjuntor nem cache** | É justamente o que se olha numa queda | Enriquecer o payload do readiness |
+| **Cobertura do frontend não é coletada** | O gate de 80% só vale para o backend | Configurar cobertura no Vitest |
+| **Sem testes E2E** | Os fluxos são cobertos por integração e componente, não por navegador | Playwright |
+
+### O que eu faria diferente se recomeçasse
+
+- **Mediria a distribuição do score antes** de propor as faixas de prioridade. A
+  primeira proposta colocava 55% da fila numa faixa só.
+- **Usaria `batch_alter_table` desde a primeira migração** com constraint: o
+  SQLite não suporta `ALTER TABLE ADD CONSTRAINT`, e o erro só apareceu quando a
+  suíte rodou nele.
+- **Escreveria o teste do `SmtpMailer` no mesmo dia** em que escrevi o
+  `SmtpMailer`, em vez de deixá-lo sem cobertura até precisar dele funcionando.
+- **Seedaria a timeline junto com os incidentes.** A trilha de auditoria é uma das
+  funcionalidades mais fortes e aparece vazia na demonstração.
 
 ## Autor
 

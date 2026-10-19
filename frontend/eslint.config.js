@@ -55,7 +55,19 @@ export default tseslint.config(
   },
   {
     name: 'logos/config-files',
-    files: ['*.config.{js,ts}', 'postcss.config.js', 'eslint.config.js'],
+    // Arquivos que rodam no Node e **não** passam pelo `tsconfig` do projeto.
+    //
+    // `scripts/**/*.mjs` entrou porque o lint **abortava** ao encontrá-los: o
+    // `strictTypeChecked` exige informação de tipo, e o `projectService` só está
+    // declarado para `src/**`. O sintoma era pior do que um erro — o `eslint .`
+    // parava de reportar os problemas do projeto inteiro por causa de um arquivo
+    // de script. Um script de verificação não deve derrubar o lint do produto.
+    files: [
+      '*.config.{js,ts}',
+      'postcss.config.js',
+      'eslint.config.js',
+      'scripts/**/*.{js,mjs,cjs}',
+    ],
     extends: [tseslint.configs.disableTypeChecked],
     languageOptions: {
       globals: {

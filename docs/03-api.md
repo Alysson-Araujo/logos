@@ -391,6 +391,30 @@ nulo, porque quem criou já está em `actor`; em `STATUS_CHANGED` ele traz a ver
 que o cliente declarou esperar (o que permite explicar depois por que uma
 transição foi aceita e outra recusada) e a justificativa, quando houve.
 
+### 8.1 A ordem vem de uma sequência, não do relógio
+
+Cada evento carrega uma posição `sequence`, começando em **1 e reiniciando a cada
+incidente**. A timeline é ordenada por ela.
+
+**Por que o `created_at` não bastava.** O relógio do Windows tem resolução de
+~1 ms: dois eventos gravados no mesmo milissegundo recebiam instantes
+**idênticos**. O desempate caía no `id`, que é UUID **aleatório** — ou seja, a
+ordem era sorteada justamente quando dois eventos eram simultâneos, e a narrativa
+podia sair "fechado antes de entrar em investigação".
+
+O que tornava isso perigoso era ser **invisível na CI**: no Linux o relógio tem
+resolução de microssegundos e o empate quase não ocorre. O teste passava e a tela
+mentia.
+
+A `sequence` é atribuída dentro da transação, por incidente, e não depende de
+relógio nenhum. O banco ainda garante a invariante por restrição de unicidade em
+`(incident_id, sequence)`: se a numeração produzisse repetição, a escrita falha
+em vez de gravar uma timeline ambígua.
+
+> **Nota de migração.** A `0006` numerou os eventos que já existiam na ordem que a
+> timeline **já mostrava** (`created_at`, depois `id`), para que a correção não
+> mudasse o que se vê — só tornasse essa ordem estável.
+
 ## 9. `GET /meta/enums`
 
 Devolve o contrato fechado do domínio com os rótulos em português e as cores do
