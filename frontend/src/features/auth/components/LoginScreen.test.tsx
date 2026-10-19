@@ -23,7 +23,7 @@ vi.mock('../api', () => ({
 
 const loginMock = vi.mocked(login);
 
-const DEMO_EMAIL = 'ana@autou.com.br';
+const DEMO_EMAIL = 'ana@demo.example.com';
 
 function renderLogin() {
   const client = new QueryClient({
@@ -62,8 +62,17 @@ describe('LoginScreen', () => {
     renderLogin();
 
     expect(screen.getByText('Acesso de demonstração')).toBeInTheDocument();
-    // O `getByText` normaliza espaços, então o separador tem um espaço só.
-    expect(screen.getByText('ana@autou.com.br · ana.logos2026')).toBeInTheDocument();
+
+    // A credencial é um par termo/descrição: o e-mail no `<dt>`, a senha no
+    // `<dd>` ao lado. O teste verifica o par, e não uma linha de texto única —
+    // foi justamente a linha única, alinhada por espaços fixos, que deixava a
+    // caixa torta quando os e-mails tinham comprimentos diferentes.
+    const email = screen.getByText('ana@demo.example.com');
+    expect(email.tagName).toBe('DT');
+    expect(email.nextElementSibling).toHaveTextContent('ana.logos2026');
+
+    // O convite pendente não tem senha: o lugar dela é ocupado pelo rótulo.
+    expect(screen.getByText('convite pendente')).toBeInTheDocument();
   });
 
   it('guarda a sessão quando as credenciais conferem', async () => {

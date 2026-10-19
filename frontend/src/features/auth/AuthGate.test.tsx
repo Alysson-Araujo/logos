@@ -83,7 +83,7 @@ describe('AuthGate', () => {
           mustChangePassword: true,
           user: {
             id: 'user-nova',
-            email: 'joana.prado@autou.com.br',
+            email: 'joana.prado@demo.example.com',
             name: 'Joana Prado',
             role: 'ANALYST',
             lastLoginAt: null,

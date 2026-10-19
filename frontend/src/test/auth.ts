@@ -13,7 +13,7 @@ export function createTestSession(overrides: Partial<AuthSession> = {}): AuthSes
     mustChangePassword: false,
     user: {
       id: 'user-ana',
-      email: 'ana@autou.com.br',
+      email: 'ana@demo.example.com',
       name: 'Ana Paula Ribeiro',
       role: 'ANALYST',
       lastLoginAt: null,
@@ -27,7 +27,7 @@ export function createAdminSession(overrides: Partial<AuthUser> = {}): AuthSessi
   return createTestSession({
     user: {
       id: 'user-admin',
-      email: 'admin@autou.com.br',
+      email: 'admin@demo.example.com',
       name: 'Administrador Logos',
       role: 'ADMIN',
       lastLoginAt: null,

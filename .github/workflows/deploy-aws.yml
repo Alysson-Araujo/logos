@@ -141,3 +141,44 @@ jobs:
           done
           echo "::error::A API nao respondeu apos a atualizacao."
           exit 1
+
+  # A falha deste workflow nao aparece em lugar nenhum: os checks do PR ficam
+  # verdes (a CI e outro workflow), o merge acontece e o deploy morre depois, sem
+  # ninguem ver. Foi assim que a Onda 2 passou tres commits sem publicar nada, e
+  # so apareceu porque alguem perguntou se o ar estava atualizado.
+  #
+  # Este job transforma a falha em algo que aparece na lista de trabalho. Uma
+  # issue aberta por execucao viraria spam; por isso ele reaproveita a mesma
+  # issue enquanto ela estiver aberta, comentando o commit novo. Quem conserta
+  # fecha, e a proxima falha abre outra.
+  aviso-de-falha:
+    name: Avisar que o deploy falhou
+    needs: [portao, front, api]
+    if: failure()
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Abrir (ou atualizar) a issue do deploy quebrado
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          titulo="deploy-aws falhou na main"
+
+          corpo=$(printf '%s\n\n%s\n\n%s\n\n%s\n\n%s' \
+            "O deploy automatico falhou no commit \`${GITHUB_SHA:0:7}\`." \
+            "- **Run:** $RUN_URL" \
+            "- **Disparo:** $GITHUB_EVENT_NAME" \
+            "A \`main\` pode estar a frente do que esta publicado na AWS. O log do run diz qual passo quebrou." \
+            "<sub>Aberto automaticamente pelo \`deploy-aws.yml\`.</sub>")
+
+          existente=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
+            --search "$titulo in:title" --json number --jq '.[0].number // empty')
+
+          if [ -n "$existente" ]; then
+            gh issue comment "$existente" --repo "$GITHUB_REPOSITORY" --body "$corpo"
+            echo "Comentado na issue #$existente."
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$titulo" --body "$corpo"
+          fi

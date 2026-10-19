@@ -1,9 +1,10 @@
 import { CircleAlert, LoaderCircle, LogIn } from 'lucide-react';
-import { useRef, useState, type FormEvent } from 'react';
+import { Fragment, useRef, useState, type FormEvent } from 'react';
 
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 
 import { DEMO_ACCOUNTS_BY_ROLE, DEMO_CREDENTIALS, DEMO_INVITE_LABEL } from '../demo';
 import { useLogin } from '../hooks/useLogin';
@@ -168,17 +169,37 @@ export function LoginScreen() {
             </p>
             {DEMO_ACCOUNTS_BY_ROLE.map((group) => (
               <div key={group.role} className="flex flex-col gap-1">
-                <p className="text-2xs font-semibold uppercase tracking-[0.025em] text-fg-muted">
+                <p className="text-2xs font-semibold uppercase tracking-[0.025em] text-fg-subtle">
                   {group.role}
                 </p>
-                {group.accounts.map((account) => (
-                  <p key={account.email} className="whitespace-pre font-mono text-2xs text-fg">
-                    {`${account.email}  ·  ${account.password ?? DEMO_INVITE_LABEL}`}
-                  </p>
-                ))}
+                {/* Grid de duas colunas, e não uma linha com espaços fixos: o
+                    alinhamento não pode depender do comprimento do e-mail, que
+                    varia de 15 a 28 caracteres. A coluna do e-mail absorve a
+                    sobra e trunca; a da senha fica com a largura do conteúdo —
+                    igual para todas as linhas do grupo.
+
+                    `<dl>`/`<dt>`/`<dd>` porque é exatamente isto: um termo e a
+                    sua descrição — credencial e senha. */}
+                <dl className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 gap-y-1">
+                  {group.accounts.map((account) => (
+                    <Fragment key={account.email}>
+                      <dt className="truncate font-mono text-2xs text-fg-muted">{account.email}</dt>
+                      <dd
+                        className={cn(
+                          'text-right font-mono text-2xs',
+                          account.password === null
+                            ? 'italic text-fg-subtle'
+                            : 'font-medium text-fg',
+                        )}
+                      >
+                        {account.password ?? DEMO_INVITE_LABEL}
+                      </dd>
+                    </Fragment>
+                  ))}
+                </dl>
               </div>
             ))}
-            <p className="text-2xs text-fg-muted">
+            <p className="text-2xs leading-relaxed text-fg-muted">
               A conta ADMIN abre &quot;Contas de acesso&quot; no menu do usuário. A do convite
               pendente entra com a senha temporária, que o &quot;Reenviar&quot; gera de novo.
             </p>

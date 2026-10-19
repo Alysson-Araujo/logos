@@ -34,13 +34,13 @@ describe('API simulada — contas de acesso', () => {
 
     expect(accounts).toHaveLength(9);
     expect(accounts.map((account) => account.email)).toEqual([
-      'ana@autou.com.br',
-      'carlos@autou.com.br',
+      'ana@demo.example.com',
+      'carlos@demo.example.com',
       'alyssonaraujowork@gmail.com',
       'renata.lima@example.org',
-      'admin@autou.com.br',
+      'admin@demo.example.com',
       'carlos.menezes@example.com',
-      'marina@autou.com.br',
+      'marina@demo.example.com',
       'joana.prado@example.net',
       'marcos.tavares@example.org',
     ]);
@@ -220,7 +220,7 @@ describe('API simulada — primeiro acesso', () => {
   });
 
   it('credencial desconhecida continua dando 401', async () => {
-    const error = await login({ email: 'ninguem@autou.com.br', password: 'x' }).catch(
+    const error = await login({ email: 'ninguem@demo.example.com', password: 'x' }).catch(
       (caught: unknown) => caught,
     );
 

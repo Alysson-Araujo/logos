@@ -33,7 +33,7 @@ DOMINIOS_RESERVADOS = ("example.com", "example.org", "example.net")
 #:
 #: Não conta como "domínio de gente real" — o destinatário de um convite é a
 #: própria central, e não a caixa de entrada de um terceiro.
-DOMINIO_DO_PRODUTO = "autou.com.br"
+DOMINIO_DO_PRODUTO = "demo.example.com"
 
 #: A única exceção deliberada: a conta pessoal de quem apresenta.
 EMAIL_PESSOAL = "alyssonaraujowork@gmail.com"
@@ -105,7 +105,7 @@ def test_seed_deixa_a_conta_do_convite_pendente_com_o_admin_como_autor() -> None
         email, nome, papel = INVITED_DEMO_USER
         convidado = repository.get_by_email(email)
         # Quem assina é o primeiro `ADMIN` de `DEMO_USERS`.
-        admin = repository.get_by_email("admin@autou.com.br")
+        admin = repository.get_by_email("admin@demo.example.com")
         assert convidado is not None
         assert admin is not None
 
@@ -136,7 +136,7 @@ def test_contas_de_demonstracao_nao_usam_dominio_de_gente_real() -> None:
 
     O convite sai por SMTP de verdade (#129), então uma conta de demonstração num
     domínio de terceiro entregaria credencial na caixa de entrada de um estranho
-    no primeiro "Reenviar" clicado. `autou.com.br` é o domínio do **próprio
+    no primeiro "Reenviar" clicado. `demo.example.com` é o domínio do **próprio
     produto** — é para lá que o convite de demonstração vai, se for o caso —, e
     não o de gente real.
     """

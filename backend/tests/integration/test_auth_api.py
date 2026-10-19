@@ -126,8 +126,8 @@ class TestLogin:
         ("email", "senha", "motivo"),
         [
             (EMAIL, "senha-errada-mesmo", "senha incorreta"),
-            ("ninguem@autou.com.br", SENHA, "e-mail inexistente"),
-            ("inativo@autou.com.br", "inativo.logos2026", "conta desativada"),
+            ("ninguem@demo.example.com", SENHA, "e-mail inexistente"),
+            ("inativo@demo.example.com", "inativo.logos2026", "conta desativada"),
         ],
     )
     def test_falha_de_login_e_indistinguivel(

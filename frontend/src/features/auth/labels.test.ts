@@ -18,7 +18,7 @@ function buildError(status: number, code: string, kind: ApiErrorKind = 'http'): 
 function buildUser(overrides: Partial<AuthUser> = {}): AuthUser {
   return {
     id: 'user-ana',
-    email: 'ana@autou.com.br',
+    email: 'ana@demo.example.com',
     name: 'Ana Paula Ribeiro',
     role: 'ANALYST',
     lastLoginAt: null,

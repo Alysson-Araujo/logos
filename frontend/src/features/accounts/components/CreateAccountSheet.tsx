@@ -175,7 +175,7 @@ export function CreateAccountSheet({ open, onClose, onCreated }: CreateAccountSh
                   autoComplete="off"
                   autoCapitalize="none"
                   spellCheck={false}
-                  placeholder="nome.sobrenome@autou.com.br"
+                  placeholder="nome.sobrenome@demo.example.com"
                   value={email}
                   disabled={isPending}
                   required

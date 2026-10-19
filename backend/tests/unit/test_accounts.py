@@ -19,10 +19,10 @@ class TestNormalizacaoDeEmail:
     @pytest.mark.parametrize(
         ("entrada", "esperado"),
         [
-            ("ana@autou.com.br", "ana@autou.com.br"),
-            ("Ana@AutoU.com.br", "ana@autou.com.br"),
-            ("  ana@autou.com.br  ", "ana@autou.com.br"),
-            ("ANA@AUTOU.COM.BR", "ana@autou.com.br"),
+            ("ana@demo.example.com", "ana@demo.example.com"),
+            ("Ana@Demo.Example.com", "ana@demo.example.com"),
+            ("  ana@demo.example.com  ", "ana@demo.example.com"),
+            ("ANA@DEMO.EXAMPLE.COM", "ana@demo.example.com"),
         ],
     )
     def test_normaliza(self, entrada: str, esperado: str) -> None:

@@ -20,7 +20,7 @@ function account(overrides: Partial<AccountSummary> = {}): AccountSummary {
   return {
     id: 'conta-1',
     name: 'Joana Prado',
-    email: 'joana.prado@autou.com.br',
+    email: 'joana.prado@demo.example.com',
     role: 'REPORTER',
     isActive: true,
     invitePending: false,

@@ -44,7 +44,7 @@ describe('UserMenu', () => {
     await user.click(screen.getByRole('button', { name: 'Abrir menu do usuário' }));
 
     expect(await screen.findByText('Ana Paula Ribeiro')).toBeInTheDocument();
-    expect(screen.getByText('ana@autou.com.br')).toBeInTheDocument();
+    expect(screen.getByText('ana@demo.example.com')).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: /Trocar senha/ })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: /Sair/ })).toBeInTheDocument();
   });

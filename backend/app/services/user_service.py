@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 def derive_name_from_email(email: str) -> str:
     """Deriva um nome apresentável a partir do e-mail.
 
-    `joana.prado@autou.com.br` vira `Joana Prado`. Serve para a lista de
+    `joana.prado@demo.example.com` vira `Joana Prado`. Serve para a lista de
     administração não mostrar o e-mail cru enquanto ninguém ajusta o nome —
     e é o padrão quando o corpo da criação não traz um.
     """
