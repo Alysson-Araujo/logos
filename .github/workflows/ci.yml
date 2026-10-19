@@ -129,6 +129,69 @@ jobs:
       - name: Build
         run: pnpm --filter web build
 
+  e2e:
+    name: e2e · navegador real (Cypress)
+    runs-on: ubuntu-latest
+
+    # Terceiro nível da pirâmide: o que os testes de componente e de integração
+    # não alcançam — a página montada, o clique de verdade e o `409` chegando na
+    # tela. `pnpm e2e` sobe banco SQLite descartável, API e front compilado; ver
+    # `scripts/e2e.mjs`.
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+
+      # A versao do pnpm vem do campo packageManager do package.json.
+      # Declarar tambem aqui causa ERR_PNPM_BAD_PM_VERSION por conflito.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Instalar dependencias
+        run: |
+          pnpm install --frozen-lockfile
+          python -m pip install --upgrade pip
+          pip install -e "backend[dev]"
+
+      # Electron precisa destas bibliotecas mesmo sem tela. O nome do pacote de
+      # audio muda entre 22.04 e 24.04 (`libasound2` / `libasound2t64`), e o
+      # runner pode ser qualquer um dos dois.
+      - name: Bibliotecas do Electron
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libnss3 libgbm1 libxss1 libxtst6
+          sudo apt-get install -y --no-install-recommends libasound2t64 || sudo apt-get install -y --no-install-recommends libasound2
+
+      # O binário do Cypress sai do cache do usuário; a chave carrega o lockfile
+      # para que uma atualização do Cypress invalide o cache.
+      - name: Guardar o binario do Cypress
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/Cypress
+          key: cypress-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - name: Subir a aplicacao e rodar o E2E
+        run: pnpm e2e
+
+      - name: Publicar videos e prints da falha
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cypress-artefatos
+          path: |
+            frontend/cypress/videos
+            frontend/cypress/screenshots
+          retention-days: 7
+          if-no-files-found: ignore
+
   commits:
     name: conventional commits
     # Fica de fora dos PRs do Dependabot: a mensagem do commit e gerada pela

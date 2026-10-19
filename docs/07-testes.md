@@ -12,7 +12,7 @@ execução**. No Logos, ela se traduz assim:
 
 ```mermaid
 flowchart TB
-    E2E["E2E — Playwright<br/>3 fluxos críticos<br/><i>lento, frágil, alto valor de confiança</i>"]
+    E2E["E2E — Cypress<br/>8 arquivos, navegador real<br/><i>lento, frágil, alto valor de confiança</i>"]
     INT["Integração — pytest + TestClient<br/>rotas, filtros, cursor, envelope de erro<br/><i>HTTP real contra banco real</i>"]
     CONC["Concorrência — pytest + ThreadPoolExecutor<br/>o teste que sustenta o Pilar 1"]
     UNIT["Unitário — pytest<br/>máquina de estados, priority score, validadores<br/><i>sem banco, sem servidor, milissegundos</i>"]
@@ -28,7 +28,7 @@ flowchart TB
 | Integração   | pytest + `TestClient`         | Moderado         | Décimos de segundo      |
 | Concorrência | pytest + `ThreadPoolExecutor` | Alguns, marcados | Segundos                |
 | Frontend     | Vitest + Testing Library      | Moderado         | Décimos de segundo      |
-| E2E          | Playwright                    | 3 fluxos         | Minutos                 |
+| E2E          | Cypress                       | 8 arquivos       | Minutos                 |
 
 ### 1.1 O desvio deliberado da pirâmide
 
@@ -231,35 +231,56 @@ em `frontend/package.json`. O portão de 80% vale para o backend (ver
 **#60** (`ci: adiciona cobertura, badge e checagem de bundle`, milestone
 `M4 — Qualidade`).
 
-## 6. Testes ponta a ponta — `frontend/e2e/`
+## 6. Testes ponta a ponta — `frontend/cypress/`
 
-Playwright, com **três fluxos** e nada além disso. E2E é caro, lento e frágil;
-ele só se paga quando cobre um caminho que, se quebrar, quebra o produto
-inteiro.
+**Cypress**, com oito arquivos. E2E é caro, lento e frágil; ele só se paga
+quando cobre um caminho que, se quebrar, quebra o produto inteiro — e quando o
+que ele prova **não pode** ser provado por baixo: o `jsdom` não avalia CSS, não
+rola a lista virtualizada e não navega; o teste de concorrência fala com o
+repositório, não com a tela.
 
-| Fluxo             | Roteiro                                                                                                                                                                        |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Triagem**       | Abrir a lista, filtrar por `ALTA` + `Acidente com Vítimas`, conferir que a URL muda, que a lista reflete o filtro e que o estado vazio filtrado aparece com o botão de limpar. |
-| **Ciclo de vida** | Abrir o drawer de um incidente, mudar o status para `EM_INVESTIGACAO`, fechar o caso com nota de resolução e conferir a timeline de auditoria.                                 |
-| **Conflito**      | Abrir o mesmo incidente em dois contextos, fechar em um, tentar mudar o status no outro e verificar que o modal de conflito aparece com o diff.                                |
+| Arquivo               | O que prova                                                                                                                                                  |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `login.cy.ts`         | Credencial de demonstração já preenchida, rótulos ligados aos campos, erro de credencial anunciado como região viva e entrada na triagem                     |
+| `triagem.cy.ts`       | Ordem da fila pelo score, virtualização, filtro por criticidade + URL recarregável, KPI de status, busca por código, `j`/`k`/`Enter`/`Esc` e tema persistido |
+| `cadastro.cy.ts`      | Validação que barra o envio incompleto (com foco no primeiro campo) e o registro que entra na fila já priorizado                                             |
+| `ciclo-de-vida.cy.ts` | Transições permitidas, justificativa obrigatória de 10 caracteres, `FECHADO` terminal e o evento gravado na auditoria                                        |
+| `conflito.cy.ts`      | **O Pilar 1 no navegador**: a versão muda por fora, a tentativa pela tela recebe `409` e o diff aparece campo a campo                                        |
+| `guia.cy.ts`          | Guia na primeira visita, os oito passos, o passo do cadastro sem prender o foco (#146) e o botão **Guia** reabrindo                                          |
+| `contas.cy.ts`        | `ADMIN` convida e vê o convite pendente; `REPORTER` não alcança a tela **nem pela API**; a fila do repórter é só o que ele abriu                             |
+| `sessao.cy.ts`        | Logoff que revoga o token de verdade e `401` que devolve à tela de login avisando que a sessão expirou                                                       |
 
-A suíte E2E ainda **não existe no repositório**: não há `frontend/e2e/`, nem
-script `e2e` em `frontend/package.json`, nem Playwright instalado. A
-implementação está planejada na issue **#59**
-(`test(web): adiciona E2E dos fluxos de triagem e conflito`, milestone
-`M4 — Qualidade`). Quando ela entrar, os comandos serão
-`pnpm --filter web exec playwright install --with-deps` e `pnpm --filter web e2e`.
+### 6.1 Como a suíte se sustenta
 
-### 6.1 O que fica de fora do E2E, e por quê
+- **Um comando, três serviços na ordem certa.** `pnpm e2e` (raiz) chama
+  `scripts/e2e.mjs`, que cria um SQLite descartável (`backend/e2e.db`), roda
+  `alembic upgrade head`, popula com o seed, sobe a API, **compila** o front
+  (`vite build` + `vite preview`) e só então chama o Cypress. O artefato testado
+  é o mesmo que vai ao ar — não o servidor de desenvolvimento.
+- **Limite de requisições desligado nesse ambiente.** O teto de 20 escritas por
+  minuto existe para proteger a operação; deixá-lo ligado aqui reprovaria testes
+  por um comportamento correto do produto. Ele continua ligado na API publicada,
+  e o teste unitário do limitador cobre a regra.
+- **Preparação pela API, verificação pela tela.** `cy.request` cria o incidente
+  do cenário e, no teste do conflito, muda a versão **sem passar pela interface**
+  — é a única forma de reproduzir dois navegadores com a mesma versão em cache.
+- **`cy.session` para o login.** O token vive em `sessionStorage`; o comando
+  guarda a sessão (e a marca de "guia já visto") e a devolve pronta. Specs que
+  **encerram** a sessão usam um `sessionId` próprio para não invalidar o cache
+  dos outros.
+- **Artefatos na falha.** Vídeo e print saem do próprio runner e o job da CI os
+  publica como artefato quando o teste falha.
 
-| Fora do E2E                             | Onde é coberto                                                                       |
-| --------------------------------------- | ------------------------------------------------------------------------------------ |
-| Validação de campos e mensagens de erro | Testes unitários de schema e de componente.                                          |
-| Todas as combinações de filtro          | Testes de integração da API.                                                         |
-| Estados de loading, erro e offline      | Testes de componente com MSW, controlando a resposta.                                |
-| Corrida de status com threads           | `tests/concurrency` — E2E não consegue produzir simultaneidade confiável no browser. |
-| Paginação por cursor completa           | Integração da API; o E2E só confirma que o scroll infinito carrega a segunda página. |
-| Tema claro/escuro                       | Teste de componente; a persistência é verificada manualmente.                        |
+### 6.2 O que fica de fora do E2E, e por quê
+
+| Fora do E2E                         | Onde é coberto                                                                    |
+| ----------------------------------- | --------------------------------------------------------------------------------- |
+| Todas as combinações de filtro      | Testes de integração da API.                                                      |
+| Estados de loading, erro e offline  | Testes de componente com MSW, controlando a resposta.                             |
+| Corrida de status com threads       | `tests/concurrency` — E2E não consegue produzir simultaneidade confiável.         |
+| Paginação por cursor completa       | Integração da API; o E2E só confirma que a lista carrega.                         |
+| Primeiro acesso (troca obrigatória) | Componente + integração: exigiria ler a senha temporária do log do servidor.      |
+| Mensagens e códigos de erro da API  | Unitários e de integração; o E2E cobre a credencial inválida, que é o que aparece |
 
 Colocar qualquer um desses no E2E aumentaria o tempo de execução e a taxa de
 falha intermitente sem aumentar a confiança no produto.
@@ -312,7 +333,11 @@ pytest --cov-report=html        # relatório navegável em htmlcov/
 pnpm --filter web test          # watch
 pnpm --filter web test:run      # execução única
 # Cobertura do frontend: ainda não coletada (planejada na issue #60)
-# pnpm --filter web e2e         # Playwright (planejado — issue #59)
+
+# Ponta a ponta (navegador real, Cypress)
+pnpm e2e                        # banco descartável + API + front compilado + Cypress
+pnpm e2e --spec conflito        # um arquivo só
+pnpm --filter web e2e:open      # modo interativo, com a aplicação já no ar
 
 # Tudo (o que a CI roda)
 pnpm verify
