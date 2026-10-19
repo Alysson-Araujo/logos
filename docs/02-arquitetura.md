@@ -184,7 +184,36 @@ erDiagram
         json payload
         datetime created_at
     }
+    USER {
+        uuid id PK
+        string email UK
+        string name
+        enum role
+        bool is_active
+        string password_hash
+        string temp_password_hash
+        datetime temp_password_expires_at
+        datetime sessions_valid_from
+        datetime last_login_at
+        datetime created_at
+    }
+    VEHICLE {
+        uuid id PK
+        string plate UK "unico e indexado"
+        string model
+        string carrier
+    }
 ```
+
+**`INCIDENT` não tem chave estrangeira para `VEHICLE`, e é deliberado.** O
+`truck_plate` é texto: um incidente pode envolver caminhão de terceiro, que nunca
+estará na frota, e um veículo vendido sai do cadastro enquanto o incidente que ele
+teve continua sendo um fato. A frota **sugere** a placa no formulário; não a
+autoriza.
+
+**`USER` também não aparece em nenhuma relação**, porque a autoria é gravada como
+texto no evento (`actor`) e no incidente (`assigned_analyst`): o histórico precisa
+sobreviver à exclusão da conta.
 
 Os índices do modelo e a razão de cada um:
 
@@ -197,6 +226,8 @@ Os índices do modelo e a razão de cada um:
 | `(sla_due_at)`                               | Alerta de SLA vencendo.                                                                |
 | `(assigned_analyst)`                         | Visão "meus casos".                                                                    |
 | `GIN` em `title`/`description` (PostgreSQL)  | Busca textual; no SQLite cai para `LIKE`.                                              |
+| `UNIQUE (users.email)`                       | Login e identificação da conta.                                                        |
+| `UNIQUE (vehicles.plate)`                    | Busca por prefixo no formulário; a unicidade é o que permite tratar a placa como identidade. |
 
 ## 5. Fluxo de uma requisição ponta a ponta
 

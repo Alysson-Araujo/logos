@@ -41,9 +41,10 @@ erro e cabeçalhos HTTP da API v1 do Logos.
 | `POST`   | `/users`                 | Cria a conta inativa e envia o convite. **`ADMIN`.**         | `201`, `401`, `403`, `409`, `422`, `429`, `503`               |
 | `POST`   | `/users/{id}/invite`     | Reenvia o convite. **`ADMIN`.**                              | `204`, `401`, `403`, `404`, `429`, `503`                      |
 | `PATCH`  | `/users/{id}`            | Ativa ou desativa a conta. **`ADMIN`.**                      | `200`, `401`, `403`, `404`, `409`, `422`, `429`, `503`        |
+| `GET`    | `/vehicles`              | Busca veículos da frota por prefixo de placa.                | `200`, `401`, `422`, `429`, `503`                             |
+| `PATCH`  | `/incidents/{id}`        | Edita os dados do incidente. Exige `If-Match`.               | `200`, `401`, `404`, `409`, `412`, `422`, `428`, `429`, `503` |
+| `GET`    | `/incidents/stream`      | SSE com eventos em tempo real. **Não funciona em produção** (§17.3). | `200`, `401`, `429`                                    |
 | `GET`    | `/docs` · `/redoc`       | Swagger UI e ReDoc.                                          | `200`                                                         |
-| `PATCH`  | `/incidents/{id}`        | _planejado_ — editar dados do incidente.                     | —                                                             |
-| `GET`    | `/incidents/stream`      | _planejado_ — SSE com eventos em tempo real.                 | —                                                             |
 
 ## 3. `GET /incidents`
 
@@ -118,6 +119,32 @@ de offset está no [ADR 0010](adr/0010-cursor-pagination.md).
 A listagem devolve um **subconjunto enxuto** do recurso: os campos que a linha
 da lista precisa para ser escaneada. `description`, `driver_name`,
 `resolution_notes` e a timeline ficam no detalhe.
+
+### 3.3 As sugestões de local reusam esta rota
+
+O campo **Local** do formulário de novo incidente sugere locais já usados em
+incidentes anteriores, e não tem rota própria: ele chama esta mesma listagem com
+`search=<texto>&limit=5` e lê `locationLabel` dos itens devolvidos.
+
+**O ganho é o recorte por papel vir de graça.** A busca já aplica o
+`visibility_scope` (§15.6), então um `REPORTER` recebe sugestões apenas dos
+próprios incidentes — sem uma linha de código no front para isso, e valendo para o
+histórico inteiro, não só para a página aberta. Um endpoint dedicado teria que
+reimplementar o recorte, e reimplementação de regra de visibilidade é onde o
+vazamento mora.
+
+**O que o cliente faz para não abusar da cota.** O limite é de 60 leituras por
+minuto por cliente (§14), e autocomplete é o padrão que mais dispara. Do lado do
+front: debounce de 300 ms, mínimo de dois caracteres, `limit=5` e um `staleTime`
+de um minuto — o último é o que faz repetir o mesmo texto não custar requisição
+nenhuma.
+
+> **Sobre ordem de chegada.** A proteção contra resposta fora de ordem é a
+> **chave de cache por termo**, e não um `AbortController`: cada termo tem a sua
+> entrada, e a tela lê apenas a do termo atual, então a resposta atrasada de
+> `BR-1` grava numa entrada que ninguém está lendo. Um abort sozinho deixaria a
+> janela entre o abort e o `fetch` chegar ao servidor. Há teste servindo uma
+> resposta atrasada de propósito.
 
 ## 4. `POST /incidents`
 
@@ -1052,3 +1079,68 @@ interface deve pedir um novo login depois.
 > parecia anterior a um corte de `12:00:00.500`, e a pessoa que acabou de definir
 > a senha não conseguia entrar. O `iat` passou a ser emitido com fração de
 > segundo.
+
+## 17. Frota de veículos
+
+O case descreve uma transportadora com **5.000 caminhões em rota**. Sem a frota, o
+formulário de incidente pediria a placa digitada de memória — e placa errada é um
+registro que não serve para nada depois.
+
+### 17.1 `GET /vehicles`
+
+```
+GET /api/v1/vehicles?q=ABC&limit=8
+Authorization: Bearer <token>
+```
+
+| Parâmetro | Tipo   | Padrão | Limite   | Descrição                                  |
+| --------- | ------ | ------ | -------- | ------------------------------------------ |
+| `q`       | string | `""`   | 8 chars  | Prefixo da placa. Normalizado para maiúsculas. |
+| `limit`   | int    | `8`    | 1 a 25   | Quantas sugestões devolver.                |
+
+```json
+{
+  "items": [
+    {
+      "id": "0f2c7a10-…",
+      "plate": "ABC1D23",
+      "model": "Volvo FH 460",
+      "carrier": "Transnorte Cargas"
+    }
+  ],
+  "total": 5000
+}
+```
+
+**A busca é por prefixo, e não por trecho.** `ABC` encontra `ABC1D23`, e `1D23`
+não encontra nada. É o que a digitação faz: a pessoa começa pela placa, não pelo
+meio dela.
+
+**`LIKE` sensível a caixa sobre coluna que guarda tudo em maiúsculas** — é o que
+permite ao índice ser aproveitado. Um `ILIKE` varreria as 5.000 linhas a cada
+tecla.
+
+**Os curingas são neutralizados no texto digitado.** O `escape=` do SQLAlchemy diz
+*qual* caractere escapar; ele **não** escapa a entrada. Sem `escape_like`,
+digitar `%` devolveria a frota inteira.
+
+**Qualquer papel autenticado consulta a frota**, inclusive `REPORTER` — ele só tem
+`CREATE_INCIDENT`, e é justamente quem digita a placa no formulário.
+
+### 17.2 Por que o incidente não tem chave estrangeira para o veículo
+
+Um incidente pode envolver caminhão de terceiro, que nunca estará na frota. E um
+veículo vendido sai do cadastro enquanto o incidente que ele teve continua sendo
+um fato. A frota **sugere**, não autoriza: placa fora da lista continua sendo
+aceita, porque travar isso impediria registrar o que o operador de rádio viu.
+
+### 17.3 A frota e o SSE em produção
+
+`GET /incidents/stream` está implementado ([ADR 0011](adr/0011-sse.md)) e funciona
+no ambiente local. **Em produção ele não funciona:** a arquitetura migrou para
+Lambda com Function URL em modo `BUFFERED`
+([ADR 0017](adr/0017-lambda-s3-cloudfront.md)), que não mantém a resposta aberta.
+O front trata a ausência do stream e continua atualizando por consulta.
+
+É o único ponto em que a arquitetura nova é pior que a anterior, e está declarado
+aqui e no ADR em vez de escondido.

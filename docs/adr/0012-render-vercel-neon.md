@@ -1,8 +1,14 @@
 # ADR 0012 — Render, Vercel e Neon como plataforma de produção
 
-- **Status:** Aceito
+- **Status:** **Substituído pelo [ADR 0017](0017-lambda-s3-cloudfront.md)**
 - **Data:** 2026-02-11
 - **Contexto relacionado:** E8 — Deploy & Observabilidade (issues #63 e #64)
+
+> **Por que este ADR continua aqui.** Um ADR aceito não se reescreve: ele registra
+> o que se sabia e se decidiu naquele momento. A decisão mudou — a AWS entrou no
+> lugar da Render e da Vercel — e a mudança está no ADR 0017, que aponta para
+> cá. Reescrever este arquivo apagaria a alternativa que foi de fato escolhida, e
+> com ela a comparação que sustenta a decisão nova.
 
 ## Contexto
 
