@@ -25,7 +25,7 @@
 | **Vídeo (5 min)**      | _(a publicar)_ <!-- TODO-LINK: URL pública do vídeo de demonstração -->                                                                                                                                       |
 | **Documentação**       | [`docs/`](docs/) — 12 documentos temáticos + 18 ADRs com decisões e alternativas descartadas                                                                                                                  |
 | **API (Swagger)**      | [Function URL + `/docs`](https://c33z3s4di7cywi7azqthdd62mu0ufnds.lambda-url.us-east-1.on.aws/docs) — Lambda com Mangum, ao vivo                                                                              |
-| **Erros e soluções**   | Registro de **38 problemas reais** com causa e lição, resumido [nesta seção](#as-dificuldades-reais) e detalhado em [`docs/10-registro-de-execucao.md`](docs/10-registro-de-execucao.md)                      |
+| **Erros e soluções**   | Registro de **42 problemas reais** com causa e lição, resumido [nesta seção](#as-dificuldades-reais) e detalhado em [`docs/10-registro-de-execucao.md`](docs/10-registro-de-execucao.md)                      |
 
 ---
 
@@ -536,7 +536,7 @@ prioridade e de máquina de estados rodam em milissegundos, sem banco.
 ## As dificuldades reais
 
 O que deu errado, e o que mudou na forma de trabalhar por causa disso. O registro
-completo tem **38 entradas**, cada uma com sintoma, causa, correção e lição — as
+completo tem **42 entradas**, cada uma com sintoma, causa, correção e lição — as
 mais representativas estão abaixo, e a narrativa de execução está em
 [`docs/10-registro-de-execucao.md`](docs/10-registro-de-execucao.md).
 
@@ -551,6 +551,8 @@ mais representativas estão abaixo, e a narrativa de execução está em
 | **O `Esc` fechava o formulário inteiro**             | Com a lista de sugestões aberta, `Esc` deveria fechar a lista. O Radix escuta `Escape` na **fase de captura**, e o `stopPropagation` do input chegava tarde              | Resolveu instrumentar o teste com uma asserção de diagnóstico, em vez de chutar outra correção                                                 |
 | **O seed que não converge**                          | O seed tem guarda "tudo ou nada": popula banco vazio e desiste de banco parcial. As contas novas nunca foram criadas                                                     | **Idempotência de verdade é chegar ao estado desejado**, não pular o trabalho quando já existe algo                                            |
 | **O deploy falhou quatro vezes em silêncio**         | Os checks do PR ficam verdes (a CI é outro workflow), o merge acontece e o deploy morre depois                                                                           | **Um erro que não tem onde aparecer não é um erro: é um silêncio.** Hoje há um job que abre issue quando o deploy falha                        |
+| **A migração foi para a `main` e não para o banco**  | A `0006` (coluna `sequence`) foi mergeada e a imagem subiu, mas a Lambda **não migra na subida**. `GET /incidents/{id}/events` passou a dar `500` com os 353 testes verdes | Deploy que publica código sem aplicar o schema é incompleto — e o modo de falha é o pior: `500` numa rota só, com o resto respondendo `200`. O CI nunca pega, porque constrói o banco do zero |
+| **A timeline existia e não tinha o que mostrar**     | 120 incidentes e **zero** linha em `incident_events`: o seed usa `add_all` e não passa pelo repositório que grava o evento `CREATED`. O drawer mostrava a seção em branco | **"Tem teste" e "tem dado" são coisas diferentes.** O teste de unidade cria o próprio dado, então passa. Só o endpoint real contra o banco real apareceu com a lista vazia |
 | **PowerShell 5.1 corrompeu 24 arquivos**             | `Get-Content -Raw` leu UTF-8 sem BOM como Windows-1252, e eu gravei o erro de volta                                                                                      | Versionar antes de operação em lote é o que torna o erro reversível. O PowerShell ficou para comando e verificação                             |
 
 ## Setup local
@@ -610,8 +612,39 @@ o que evita o cenário de a API e as migrações divergirem sem ninguém percebe
 A migração inicial (`backend/alembic/versions/0001_esquema_inicial.py`) cria as
 duas tabelas e todos os índices.
 
-Verificação: `GET http://localhost:8000/health/ready` deve responder `200` e o
-Swagger está em `http://localhost:8000/docs`.
+Verificação: `GET http://localhost:8000/health/ready` deve responder `200`.
+
+#### Documentação da API (Swagger)
+
+A documentação é gerada pelo FastAPI a partir dos modelos Pydantic, então ela
+**não sai de sincronia** com o código.
+
+| Onde | URL |
+| --- | --- |
+| Swagger UI (interativo) | `http://localhost:8000/docs` |
+| ReDoc (leitura) | `http://localhost:8000/redoc` |
+| Especificação OpenAPI | `http://localhost:8000/openapi.json` |
+| **Publicado** | [Function URL + `/docs`](https://c33z3s4di7cywi7azqthdd62mu0ufnds.lambda-url.us-east-1.on.aws/docs) |
+
+> **Fica na raiz, não sob `/api/v1`.** Os endpoints da API vivem em `/api/v1/...`,
+> mas `/docs`, `/redoc` e `/openapi.json` são montados pelo próprio FastAPI na
+> raiz da aplicação — `…/api/v1/docs` responde `404`. Vale para os dois
+> ambientes.
+>
+> **O que dá para fazer ali.** Explorar o contrato inteiro — schemas, códigos de
+> resposta, exemplos — e chamar as rotas **públicas** (`/health/*`, `/auth/login`)
+> pelo *Try it out*.
+>
+> **O que não dá: chamar rota autenticada pelo Swagger.** O botão **Authorize**
+> não aparece, porque a API extrai o token de um `Header` manual em vez de usar
+> `HTTPBearer` como dependência de segurança — e é isso que faz o FastAPI publicar
+> o esquema `securitySchemes` em `/openapi.json`. Na prática, o Swagger serve
+> para **ler o contrato**; para chamar rotas protegidas, use `curl` com o token do
+> login (exemplo na seção de contas, abaixo) ou a própria interface da central.
+>
+> Trocar a extração por `Security(HTTPBearer(auto_error=False))` resolveria e
+> faria o *Authorize* aparecer; não foi feito para não mexer no caminho de
+> autenticação na véspera da entrega.
 
 #### Contas de demonstração
 
@@ -667,8 +700,15 @@ Entre como `admin@demo.example.com` e use `POST /api/v1/users` (ou a tela de
 administração de contas, no menu do usuário):
 
 ```bash
+# 1. pegue o token (vale 8 horas)
+TOKEN=$(curl -s -X POST http://localhost:8000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "admin@demo.example.com", "password": "admin.logos2026"}' \
+  | python -c "import json,sys; print(json.load(sys.stdin)['accessToken'])")
+
+# 2. use o token na rota protegida
 curl -X POST http://localhost:8000/api/v1/users \
-  -H "Authorization: Bearer <token do admin>" \
+  -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"email": "paula.mendes@example.com", "role": "REPORTER"}'
 ```
