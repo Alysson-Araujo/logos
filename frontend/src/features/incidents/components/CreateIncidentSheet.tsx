@@ -39,6 +39,17 @@ import {
 export interface CreateIncidentSheetProps {
   open: boolean;
   onClose: () => void;
+  /**
+   * `false` deixa a janela **não-modal**.
+   *
+   * O guia de boas-vindas abre esta janela no passo 4 e mantém o próprio cartão
+   * por cima. Um `Dialog` modal do Radix trava o foco e aplica
+   * `pointer-events: none` no `body` — o cartão do guia fica fora do diálogo e
+   * portanto **morto**: não dá para clicar em "Próximo", "Anterior" nem
+   * "Pular". Sem modalidade, esses cliques voltam a funcionar e o clique fora
+   * continua fechando a janela.
+   */
+  modal?: boolean;
 }
 
 /**
@@ -46,7 +57,7 @@ export interface CreateIncidentSheetProps {
  * salvando`): duas colunas para categoria/criticidade e placa/motorista, o
  * resto em largura cheia, com o prazo real de SLA no rodapé.
  */
-export function CreateIncidentSheet({ open, onClose }: CreateIncidentSheetProps) {
+export function CreateIncidentSheet({ open, onClose, modal = true }: CreateIncidentSheetProps) {
   const mutation = useCreateIncident();
   const isPending = mutation.isPending;
 
@@ -183,6 +194,7 @@ export function CreateIncidentSheet({ open, onClose }: CreateIncidentSheetProps)
   return (
     <Drawer
       open={open}
+      modal={modal}
       onOpenChange={(next) => {
         if (!next) onClose();
       }}
