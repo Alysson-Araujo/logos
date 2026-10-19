@@ -70,29 +70,35 @@ describe('AccountsScreen — tabela', () => {
 
     await screen.findByText('Joana Prado');
 
-    expect(screen.getAllByRole('row')).toHaveLength(5);
+    // A mesma tabela é lida como grade na mesa e como blocos no celular, por
+    // CSS. As consultas ficam escopadas nela para não colidir com outros textos
+    // da tela que repetem nomes ou contagens.
+    const tabela = screen.getByRole('table');
+
+    expect(within(tabela).getAllByRole('row')).toHaveLength(5);
     for (const label of ['Pessoa', 'Papel', 'Situação', 'Último acesso', 'Ações']) {
-      expect(screen.getByRole('columnheader', { name: label })).toBeInTheDocument();
+      expect(within(tabela).getByRole('columnheader', { name: label })).toBeInTheDocument();
     }
 
-    const joana = screen.getByRole('row', { name: /joana prado/i });
+    const joana = within(tabela).getByRole('row', { name: /joana prado/i });
     expect(within(joana).getByText('joana.prado@demo.example.com')).toBeInTheDocument();
     expect(within(joana).getByText('REPORTER')).toBeInTheDocument();
     // Convite pendente vence "desativado": é o estado que pede ação.
     expect(within(joana).getByText('Convite pendente')).toBeInTheDocument();
 
-    const ana = screen.getByRole('row', { name: /ana paula ribeiro/i });
+    const ana = within(tabela).getByRole('row', { name: /ana paula ribeiro/i });
     expect(within(ana).getByText('ADMIN')).toBeInTheDocument();
     expect(within(ana).getByText('Ativo')).toBeInTheDocument();
 
-    const bruno = screen.getByRole('row', { name: /bruno tavares/i });
+    const bruno = within(tabela).getByRole('row', { name: /bruno tavares/i });
     expect(within(bruno).getByText('ANALYST')).toBeInTheDocument();
     expect(within(bruno).getByText('Ativo')).toBeInTheDocument();
 
-    const carla = screen.getByRole('row', { name: /carla mendes/i });
+    const carla = within(tabela).getByRole('row', { name: /carla mendes/i });
     expect(within(carla).getByText('Desativado')).toBeInTheDocument();
 
-    expect(screen.getByText('4 contas · 1 convite pendente')).toBeInTheDocument();
+    // O resumo aparece no cabeçalho da lista e no da tabela; qualquer um serve.
+    expect(screen.getAllByText('4 contas · 1 convite pendente').length).toBeGreaterThan(0);
   });
 
   it('mostra "—" no último acesso quando lastLoginAt é null', async () => {

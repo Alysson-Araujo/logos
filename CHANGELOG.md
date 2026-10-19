@@ -55,7 +55,8 @@ versionamento segue o [Semantic Versioning](https://semver.org/lang/pt-BR/).
   como opção de servidor para valerem desde a primeira consulta (#28).
 - **Timeline de auditoria** (`GET /incidents/{id}/events`): eventos `CREATED`,
   `STATUS_CHANGED` e `DELETED` gravados na mesma transação da mudança que
-  descrevem, com autor, status de origem e destino (#24).
+  descrevem, com autor, status de origem e destino, e ordem determinística por
+  uma coluna `sequence` por incidente (#24, #116).
 - **Autenticação e autorização**: `POST /auth/login` com JWT de TTL curto, os
   papéis `REPORTER`, `ANALYST` e `ADMIN`, e a matriz de permissões centralizada
   em `app/domain/permissions.py` ([ADR 0015](docs/adr/0015-autenticacao-jwt.md)).
@@ -72,6 +73,10 @@ versionamento segue o [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 - **Tela de triagem**: barra de filtros com busca e debounce, KPIs por status,
   lista virtualizada (`@tanstack/react-virtual`) e _drawer_ de detalhe.
+- **Histórico de auditoria no drawer**: o endpoint de eventos passou a ser
+  consumido pela interface — antes existia, era testado e ninguém o via. Ordem
+  vinda do servidor (coluna `sequence`), com transição de origem e destino, autor
+  e a versão esperada.
 - **Formulário de novo incidente** validado com Zod, com sugestão de placas da
   frota e de locais já usados em incidentes anteriores.
 - **Sugestões de local** no campo Local: reusa `GET /incidents?search=`, então o

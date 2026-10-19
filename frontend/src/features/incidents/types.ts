@@ -128,3 +128,25 @@ export interface NewIncidentInput {
   driverName?: string;
   reportedBy: string;
 }
+
+/**
+ * Um evento da timeline de auditoria (`GET /incidents/{id}/events`).
+ *
+ * `eventType` é string e não união de literais: os códigos são **estáveis** no
+ * contrato — renomear quebraria a leitura do histórico já gravado — e um evento
+ * novo no servidor não pode fazer a tela inteira falhar na validação.
+ */
+export interface IncidentEvent {
+  id: string;
+  eventType: string;
+  fromStatus: IncidentStatus | null;
+  toStatus: IncidentStatus | null;
+  actor: string | null;
+  payload: Record<string, unknown> | null;
+  createdAt: string;
+}
+
+/** Timeline de um incidente, em ordem cronológica. */
+export interface IncidentTimelineResponse {
+  items: IncidentEvent[];
+}
