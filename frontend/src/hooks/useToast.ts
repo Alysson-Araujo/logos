@@ -10,6 +10,14 @@ export interface ToastItem {
   description: string | null;
   variant: ToastVariant;
   durationMs: number;
+  /**
+   * Marcado quando o aviso começa a sair.
+   *
+   * O item **não** é removido na hora: quem remove é a view, depois que a
+   * animação de saída termina (`remove`). Sem esta separação o toast sumia no
+   * mesmo instante em que expirava, e a animação nunca aparecia.
+   */
+  closing: boolean;
 }
 
 export interface ToastInput {
@@ -23,6 +31,7 @@ interface ToastStore {
   toasts: ToastItem[];
   push: (input: ToastInput) => void;
   dismiss: (id: string) => void;
+  remove: (id: string) => void;
   clear: () => void;
 }
 
@@ -39,10 +48,16 @@ export const useToastStore = create<ToastStore>()((set) => ({
       description: input.description ?? null,
       variant: input.variant ?? 'info',
       durationMs: input.durationMs ?? TOAST_DURATION_MS,
+      closing: false,
     };
     set((state) => ({ toasts: [...state.toasts, toast].slice(-MAX_VISIBLE_TOASTS) }));
   },
   dismiss: (id) => {
+    set((state) => ({
+      toasts: state.toasts.map((toast) => (toast.id === id ? { ...toast, closing: true } : toast)),
+    }));
+  },
+  remove: (id) => {
     set((state) => ({ toasts: state.toasts.filter((toast) => toast.id !== id) }));
   },
   clear: () => {
