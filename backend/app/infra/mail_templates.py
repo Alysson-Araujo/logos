@@ -170,7 +170,8 @@ Sua conta no Logos foi criada. A senha temporária expira em {INVITE_TTL_HOURS} 
     <td align="center">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
              style="max-width:560px;background:{COLOR_CARD};border:1px solid {COLOR_BORDER};
-                    border-radius:12px;overflow:hidden;font-family:Inter,'Segoe UI',Arial,sans-serif;">
+                    border-radius:12px;overflow:hidden;
+                    font-family:Inter,'Segoe UI',Arial,sans-serif;">
 
         <!-- Cabecalho -->
         <tr>

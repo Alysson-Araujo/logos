@@ -1,4 +1,4 @@
-import { ArrowLeft, CircleCheckBig, UserCheck } from 'lucide-react';
+import { ArrowLeft, CircleCheckBig, TriangleAlert, UserCheck } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 
 import { useAppView } from '@/app/useAppView';
@@ -47,6 +47,8 @@ export function AccountsScreen() {
   const [inviteNotice, setInviteNotice] = useState<{ accountId: string; email: string } | null>(
     null,
   );
+  // Conta criada, e-mail não entregue: um aviso próprio, e não um "enviado".
+  const [deliveryFailure, setDeliveryFailure] = useState<{ email: string } | null>(null);
 
   const debouncedSearch = useDebounce(search);
   const accounts = useMemo(() => accountsQuery.data ?? [], [accountsQuery.data]);
@@ -90,6 +92,15 @@ export function AccountsScreen() {
 
   const handleCreated = useCallback((invited: InvitedAccount): void => {
     setInviteNotice({ accountId: invited.id, email: invited.email });
+    setDeliveryFailure(null);
+    setIsSheetOpen(false);
+  }, []);
+
+  const handleDeliveryFailed = useCallback((email: string): void => {
+    // A conta existe: o alerta verde seria mentira, e o formulário aberto
+    // convidaria a repetir o envio — que bateria em `EMAIL_ALREADY_EXISTS`.
+    setInviteNotice(null);
+    setDeliveryFailure({ email });
     setIsSheetOpen(false);
   }, []);
 
@@ -123,6 +134,20 @@ export function AccountsScreen() {
             <UserCheck className="h-4 w-4" aria-hidden="true" />+ Nova conta
           </Button>
         </header>
+
+        {deliveryFailure === null ? null : (
+          <div
+            role="alert"
+            data-testid="invite-delivery-failed-alert"
+            className="flex items-start gap-2 rounded-md bg-warning-soft px-3 py-3 text-sm text-warning-text"
+          >
+            <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            <p>
+              A conta de {deliveryFailure.email} foi criada, mas o e-mail do convite não saiu.
+              Use <strong>Reenviar convite</strong> na linha da conta para tentar de novo.
+            </p>
+          </div>
+        )}
 
         {inviteNotice === null ? null : (
           <div
@@ -194,7 +219,12 @@ export function AccountsScreen() {
         )}
       </section>
 
-      <CreateAccountSheet open={isSheetOpen} onClose={closeSheet} onCreated={handleCreated} />
+      <CreateAccountSheet
+        open={isSheetOpen}
+        onClose={closeSheet}
+        onCreated={handleCreated}
+        onDeliveryFailed={handleDeliveryFailed}
+      />
     </AppShell>
   );
 }

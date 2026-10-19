@@ -470,7 +470,8 @@ class TestContratoDoFrameDeConvite:
             to="joana.prado@demo.example.com",
             name="Joana Prado",
             role="REPORTER",
-            temp_password="kQ7mPx4R9tD2wZ8n",
+            # O mesmo código que aparece no frame do Figma. Não é segredo.
+            temp_password="kQ7mPx4R9tD2wZ8n",  # noqa: S106 - valor do desenho
             expires_at=datetime(2026, 10, 18, 9, 18, tzinfo=UTC),
             frontend_url="https://logoscase.com.br",
         )
@@ -539,7 +540,7 @@ class TestContratoDoFrameDeConvite:
             to="x@demo.example.com",
             name="<script>alert(1)</script>",
             role="REPORTER",
-            temp_password="kQ7mPx4R9tD2wZ8n",
+            temp_password="kQ7mPx4R9tD2wZ8n",  # noqa: S106 - valor de teste
             expires_at=datetime(2026, 10, 18, tzinfo=UTC),
             frontend_url="https://x.app",
         )

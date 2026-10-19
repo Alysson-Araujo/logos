@@ -23,6 +23,7 @@ import {
   ACCOUNT_ROLE_OPTIONS,
   ROLE_HELP_TEXT,
   describeCreateAccountError,
+  isInviteDeliveryFailure,
   roleOptionLabel,
 } from '../labels';
 import { createAccountFormSchema, type AccountFieldIssue } from '../schemas';
@@ -32,6 +33,15 @@ export interface CreateAccountSheetProps {
   open: boolean;
   onClose: () => void;
   onCreated: (invited: InvitedAccount) => void;
+  /**
+   * A conta foi criada e o e-mail não saiu.
+   *
+   * Acontece depois do `201` do ponto de vista do banco, então a tela precisa
+   * tratar como um estado próprio: fechar o painel, mostrar a conta na lista e
+   * oferecer "Reenviar convite". Deixar o formulário aberto com um erro
+   * convidaria a enviar de novo, e isso bateria em `EMAIL_ALREADY_EXISTS`.
+   */
+  onDeliveryFailed: (email: string) => void;
 }
 
 const DEFAULT_ROLE: AccountRole = 'REPORTER';
@@ -49,7 +59,12 @@ const FORM_ERROR_ID = 'conta-form-erro';
  * endereço.") diz exatamente isso — a versão anterior, que falava em e-mail
  * corporativo, foi corrigida no design.
  */
-export function CreateAccountSheet({ open, onClose, onCreated }: CreateAccountSheetProps) {
+export function CreateAccountSheet({
+  open,
+  onClose,
+  onCreated,
+  onDeliveryFailed,
+}: CreateAccountSheetProps) {
   const emailRef = useRef<HTMLInputElement>(null);
 
   const [email, setEmail] = useState<string>('');
@@ -104,7 +119,17 @@ export function CreateAccountSheet({ open, onClose, onCreated }: CreateAccountSh
           resetForm();
           onCreated(invited);
         },
-        // O erro vira campo do formulário no próximo render (acima).
+        onError: (error) => {
+          // A conta foi criada e só o e-mail falhou: não é erro de formulário.
+          // Fecha o painel e deixa a lista mostrar a conta, com o caminho de
+          // recuperação ("Reenviar convite") na linha dela.
+          if (isInviteDeliveryFailure(error)) {
+            const falhou = parsed.data.email;
+            resetForm();
+            onDeliveryFailed(falhou);
+          }
+          // Os demais erros viram campo do formulário no próximo render.
+        },
       },
     );
   };

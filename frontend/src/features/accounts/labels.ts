@@ -137,6 +137,32 @@ export const EMAIL_ALREADY_EXISTS_MESSAGE = 'Já existe uma conta com este e-mai
 export const INSUFFICIENT_ROLE_MESSAGE =
   'Seu perfil não tem permissão para administrar contas de acesso.';
 
+/** Códigos da API que a tela trata de forma diferente da mensagem genérica. */
+const USER_NOT_FOUND_CODE = 'USER_NOT_FOUND';
+const EMAIL_ALREADY_EXISTS_CODE = 'EMAIL_ALREADY_EXISTS';
+
+/**
+ * A conta foi criada e o e-mail do convite não saiu.
+ *
+ * Copiada da API de propósito: a mesma frase aparece na resposta e na tela, e
+ * ter uma só fonte evita as duas divergirem. A diferença é que aqui ela vem
+ * acompanhada do caminho de recuperação — "Reenviar convite".
+ */
+export const INVITE_DELIVERY_FAILED_CODE = 'INVITE_DELIVERY_FAILED';
+export const INVITE_DELIVERY_FAILED_MESSAGE =
+  'A conta foi criada, mas o e-mail do convite não saiu. Use "Reenviar convite" na linha da conta para tentar de novo.';
+
+/**
+ * O `409` que **não** é e-mail repetido.
+ *
+ * Sem esta distinção a tela dizia "Já existe uma conta com este e-mail" — o que
+ * é falso (a conta é a que acabou de ser criada) e aponta para o campo errado:
+ * trocar o endereço não resolve um problema de envio.
+ */
+export function isInviteDeliveryFailure(error: unknown): boolean {
+  return isApiError(error) && error.code === INVITE_DELIVERY_FAILED_CODE;
+}
+
 /** `403` de papel — não confundir com o `403` de senha temporária, que troca a tela. */
 export function isPermissionError(error: unknown): boolean {
   return isApiError(error) && error.status === 403 && error.code !== PASSWORD_CHANGE_REQUIRED_CODE;
@@ -152,7 +178,8 @@ export function describeAccountsError(error: unknown): string {
   if (error.code === 'CANNOT_DEACTIVATE_SELF') {
     return 'Você não pode desativar a própria conta.';
   }
-  if (error.code === 'USER_NOT_FOUND') return 'A conta não existe mais. Recarregue a lista.';
+  if (error.code === USER_NOT_FOUND_CODE) return 'A conta não existe mais. Recarregue a lista.';
+  if (isInviteDeliveryFailure(error)) return INVITE_DELIVERY_FAILED_MESSAGE;
   // 4xx de domínio já vêm em pt-BR da API ("Você não pode…", "Já existe…").
   return error.message;
 }
@@ -161,8 +188,15 @@ export function describeAccountsError(error: unknown): string {
 export function describeCreateAccountError(error: unknown): AccountFieldIssue {
   if (!isApiError(error)) return { field: null, message: ACCOUNTS_UNKNOWN };
 
+  // A conta **foi** criada e só o e-mail não saiu. Não é erro de e-mail
+  // repetido: apontar o campo de e-mail aqui mandaria a pessoa trocar o
+  // endereço, e o problema está no envio. Fica como mensagem do formulário.
+  if (isInviteDeliveryFailure(error)) {
+    return { field: null, message: INVITE_DELIVERY_FAILED_MESSAGE };
+  }
+
   // 409 é e-mail repetido no contrato; o código da API é mais específico.
-  if (error.status === 409 || error.code === 'EMAIL_ALREADY_EXISTS') {
+  if (error.status === 409 || error.code === EMAIL_ALREADY_EXISTS_CODE) {
     return { field: 'email', message: EMAIL_ALREADY_EXISTS_MESSAGE };
   }
   if (error.status === 422) {
