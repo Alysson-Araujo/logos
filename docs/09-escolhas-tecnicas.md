@@ -231,12 +231,20 @@ não há geração automática de tipos nesta entrega. O custo é manter os dois
 sincronia; o benefício é que o front valida em runtime. A geração a partir do
 OpenAPI é a evolução natural e está no roadmap.
 
-### 21.3 Sem autenticação real
+### 21.3 Autenticação existe, e a fronteira dela é outra
 
-A autoria das ações é um `analyst_name` vindo do cliente, o que significa que
-ela **não é confiável**. É adequado para um ambiente de demonstração e
-inaceitável para produção. Está declarado no README, no próprio ADR e aqui,
-porque um limite não declarado é um defeito.
+> **Esta seção dizia "sem autenticação real" e estava desatualizada.** A
+> autenticação foi construída depois: `POST /auth/login`, JWT com TTL curto, os
+> três papéis (`REPORTER`, `ANALYST`, `ADMIN`) e a matriz de permissões em
+> `app/domain/permissions.py`. O contrato está em [`03-api.md`](03-api.md) §15.
+
+O limite que permanece não é a ausência de autenticação, e sim **onde ela é
+verificada**: o papel vem do token e é conferido no servidor a cada requisição,
+mas as contas de demonstração têm senha publicada no bundle do front — de
+propósito, porque o edital pede a orientação de acesso na tela inicial.
+
+Isso é adequado para um ambiente de demonstração e inaceitável para produção. Um
+limite não declarado é um defeito; declarado, é uma escolha.
 
 ### 21.4 Otimista em vez de pessimista significa mais conflitos visíveis
 
@@ -265,12 +273,16 @@ O primeiro carregamento depende do JavaScript e não há HTML pronto para
 indexação. Para uma aplicação interna de operação, é um custo irrelevante — e
 evita a complexidade de um framework com SSR e um modelo de deploy acoplado.
 
-### 21.8 Cold start do plano gratuito
+### 21.8 Cold start — e por que ele mudou de forma
 
-A hospedagem escolhida suspende o serviço por inatividade. É um defeito de
-experiência do provedor, e não da aplicação, mas a analista sente de qualquer
-forma. A mitigação é aquecer o serviço antes do uso e manter o timeout do
-cliente compatível, com o comportamento declarado na documentação de deploy.
+> **Esta seção falava do Render, que saiu do caminho.** O produto roda em Lambda
+> desde o [ADR 0017](adr/0017-lambda-s3-cloudfront.md), e o cold start lá é outro
+> fenômeno: em vez de ~30 s de hibernação do serviço, são **1,5 a 2,5 s** de
+> inicialização do contêiner, e só na primeira invocação de cada ambiente.
+
+O que não mudou é o princípio: é um custo do provedor, não da aplicação, mas
+quem usa sente. A mitigação continua sendo aquecer antes do uso — e, do lado do
+cliente, um timeout compatível com a pior latência esperada em vez do melhor caso.
 
 ### 21.9 Cobertura de 80% como piso, não como meta
 

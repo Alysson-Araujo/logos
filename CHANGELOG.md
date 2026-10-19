@@ -56,8 +56,49 @@ versionamento segue o [Semantic Versioning](https://semver.org/lang/pt-BR/).
 - **Timeline de auditoria** (`GET /incidents/{id}/events`): eventos `CREATED`,
   `STATUS_CHANGED` e `DELETED` gravados na mesma transação da mudança que
   descrevem, com autor, status de origem e destino (#24).
+- **Autenticação e autorização**: `POST /auth/login` com JWT de TTL curto, os
+  papéis `REPORTER`, `ANALYST` e `ADMIN`, e a matriz de permissões centralizada
+  em `app/domain/permissions.py` ([ADR 0015](docs/adr/0015-autenticacao-jwt.md)).
+- **Administração de contas**: convite por e-mail com senha temporária, reenvio,
+  ativação e desativação, e troca obrigatória de senha no primeiro acesso
+  (`GET/POST/PATCH /users`, §16 de `docs/03-api.md`).
+- **Frota de veículos**: tabela `vehicles` com 5.000 placas fictícias no padrão
+  Mercosul (migration `0005`), `GET /vehicles?q=` com busca por prefixo e
+  `escape_like` neutralizando os curingas do `LIKE`.
+- **Sessão no `sessionStorage`**, e não em cookie ou `localStorage`
+  ([ADR 0016](docs/adr/0016-sessao-no-sessionstorage.md)).
+
+#### Frontend
+
+- **Tela de triagem**: barra de filtros com busca e debounce, KPIs por status,
+  lista virtualizada (`@tanstack/react-virtual`) e _drawer_ de detalhe.
+- **Formulário de novo incidente** validado com Zod, com sugestão de placas da
+  frota e de locais já usados em incidentes anteriores.
+- **Sugestões de local** no campo Local: reusa `GET /incidents?search=`, então o
+  recorte por papel vem do backend sem código novo no front. A proteção contra
+  resposta fora de ordem é a chave de cache por termo, e não um `AbortController`.
+- **Componente `Combobox`** construído à mão: o Radix não tem combobox, e o
+  `Select` não serve porque o campo aceita valor fora da lista. Segue o padrão
+  ARIA de combobox, com `aria-activedescendant` e o foco sempre no input.
+- **Faixas de prioridade** (`▲ Crítica`, `◆ Alta`, `● Média`, `○ Baixa`) com
+  tokens próprios e borda lateral colorida, para que a prioridade seja lida de
+  relance em vez de comparada como número.
+- **Diálogo de conflito** com diff campo a campo, e mutação otimista na mudança
+  de status ([ADR 0008](docs/adr/0008-optimistic-locking.md)).
+- **Tela de contas de acesso** para o papel `ADMIN`, com convite, reenvio e
+  ativação — responsiva por CSS, sem duplicar o DOM.
+- **API simulada com MSW**, que mantém a demonstração utilizável sem backend.
 - `docs/10-registro-de-execucao.md`: registro do que foi construído, com o
   raciocínio e a evidência de cada decisão.
+- **Deploy na AWS** ([ADR 0017](docs/adr/0017-lambda-s3-cloudfront.md)):
+  S3 + CloudFront no front, Lambda com Function URL na API, Neon mantido como
+  banco. Custo medido de **US$ 0,023/mês**, com o único item cobrado sendo o
+  armazenamento da imagem no ECR.
+- **Deploy contínuo por OIDC**: cada merge na `main` publica os dois lados sem
+  nenhuma credencial AWS de longa duração no repositório. A confiança da role é
+  restrita a `repo:…:ref:refs/heads/main`.
+- **Aviso automático de deploy quebrado**: em falha, o workflow abre uma issue e
+  reaproveita a aberta enquanto ela existir.
 - Documentação do projeto:
   - `README.md` raiz com problema, solução, os três pilares técnicos, stack,
     setup local, variáveis de ambiente, testes, deploy e roadmap.
@@ -70,9 +111,14 @@ versionamento segue o [Semantic Versioning](https://semver.org/lang/pt-BR/).
   - `docs/05-design-system.md` — tokens, acessibilidade e design da informação.
   - `docs/06-git-workflow.md` — branching, commits, PRs e proteção da `main`.
   - `docs/07-testes.md` — pirâmide de testes e estratégia de execução.
-  - `docs/08-deploy.md` — deploy em Render + Vercel + Neon e troubleshooting.
+  - `docs/08-deploy.md` — arquitetura de produção, passo a passo e
+    troubleshooting. A Onda 1 (Render + Vercel) permanece como registro
+    histórico.
   - `docs/09-escolhas-tecnicas.md` — o porquê de cada biblioteca escolhida.
-  - `docs/adr/0001` a `docs/adr/0014` — os 14 registros de decisão de
+  - `docs/11-autenticacao-frontend.md` — sessão, guarda de rota e renovação.
+  - `docs/12-deploy-aws.md` — recursos, custo medido, automação por OIDC e
+    limites conhecidos da arquitetura em uso.
+  - `docs/adr/0001` a `docs/adr/0017` — os 17 registros de decisão de
     arquitetura do projeto.
 - Licença MIT (`LICENSE`).
 
@@ -96,6 +142,16 @@ versionamento segue o [Semantic Versioning](https://semver.org/lang/pt-BR/).
   migração não foi aplicada (#11).
 - O PostgreSQL de desenvolvimento passou a rodar em container, na porta 5433,
   para não disputar a porta com um servidor nativo (#88).
+- **A plataforma de produção passou de Render + Vercel para AWS**
+  ([ADR 0017](docs/adr/0017-lambda-s3-cloudfront.md)), substituindo o
+  [ADR 0012](docs/adr/0012-render-vercel-neon.md). O Neon continua sendo o banco.
+- **A borda lateral da linha da triagem passou a codificar a prioridade**, e não
+  a criticidade: é a prioridade que ordena a fila, e a borda é o canal lido na
+  periferia. A criticidade permanece no selo, com cor, forma e rótulo.
+- **O domínio das contas de demonstração passou de `autou.com.br` para
+  `demo.example.com`**, subdomínio reservado pela RFC 2606. O convite sai por
+  SMTP de verdade, e uma conta de demonstração no domínio de terceiro entregaria
+  credencial na caixa de entrada de um estranho.
 
 ### Deprecated
 
@@ -113,6 +169,25 @@ versionamento segue o [Semantic Versioning](https://semver.org/lang/pt-BR/).
   exceção, impedindo o cliente de corrigir o pedido e tentar de novo (#22).
 - O `conftest` sobrescrevia a URL do banco, fazendo o job de PostgreSQL do CI
   testar SQLite — um falso positivo que escondia incompatibilidades (#90).
+- **`GET /vehicles?q=%` devolvia a frota inteira.** O parâmetro `escape=` do
+  SQLAlchemy diz *qual* caractere escapar; ele não escapa a entrada digitada.
+  Curingas passaram a ser neutralizados por `escape_like`, com a barra invertida
+  tratada primeiro.
+- **A Function URL devolvia `403` enquanto `aws lambda invoke` devolvia `200`.**
+  Desde outubro de 2025, Function URLs exigem `lambda:InvokeFunctionUrl` **e**
+  `lambda:InvokeFunction`; criar a URL só adiciona a primeira.
+- **O deploy falhou quatro vezes seguidas sem ninguém ver.** A confiança OIDC
+  exigia casamento literal do claim `sub`, e o GitHub passou a incluí-lo com os
+  IDs de dono e repositório. O workflow também ganhou o job que abre issue em
+  falha — o erro existia e não tinha onde aparecer.
+- **A tabela de contas era ilegível no celular.** Passou a virar blocos abaixo de
+  768 px por CSS, e não por uma segunda árvore de elementos: duplicar o DOM
+  tornaria ambígua toda consulta por texto, nos testes e para leitor de tela.
+- **O `Esc` fechava o formulário inteiro** em vez de apenas a lista de sugestões.
+  O Radix escuta `Escape` no documento em fase de captura; a solução é um
+  listener de captura registrado antes de qualquer diálogo montar.
+- **O `Combobox` forçava caixa alta**, correto para placa e errado para local.
+  O comportamento virou a prop `uppercase`, ligada só onde o valor é código.
 
 ### Security
 

@@ -1,28 +1,43 @@
 # Deploy
 
 Este documento descreve como publicar o Logos, quais variáveis cada serviço
-precisa, como reproduzir o mesmo ambiente em AWS e como resolver os problemas
-que realmente aparecem nesse processo.
+precisa e como resolver os problemas que realmente aparecem nesse processo.
+
+> **Qual arquitetura está no ar.** O produto roda em **AWS** — S3 + CloudFront no
+> front, Lambda com Function URL na API, Neon no banco. A Onda 1 (Render + Vercel)
+> foi aposentada; o passo a passo dela permanece em §2 **como registro histórico**,
+> não como caminho a seguir. O detalhamento da AWS está em
+> [`12-deploy-aws.md`](12-deploy-aws.md) e no [ADR 0017](adr/0017-lambda-s3-cloudfront.md).
 
 ## 1. Arquitetura de produção
 
 ```mermaid
 flowchart LR
-    U["Navegador da analista"] -->|HTTPS| V["Vercel<br/>build estático do Vite"]
-    V -->|"HTTPS + CORS"| R["Render<br/>FastAPI (uvicorn)"]
-    R -->|"sslmode=require"| N[("Neon<br/>PostgreSQL serverless")]
-    U -.->|"SSE /incidents/stream"| R
+    U["Navegador da analista"] -->|HTTPS| CF["CloudFront<br/>PriceClass_100"]
+    CF -->|OAC| S3[("S3<br/>build estático do Vite")]
+    CF -->|"Function URL"| LM["Lambda<br/>FastAPI + Mangum"]
+    LM -->|"sslmode=require"| N[("Neon<br/>PostgreSQL serverless")]
 ```
 
-| Serviço  | Plataforma           | Papel                                                |
-| -------- | -------------------- | ---------------------------------------------------- |
-| Frontend | Vercel               | Serve o build estático do Vite pela CDN.             |
-| API      | Render (Web Service) | Roda o uvicorn com a aplicação FastAPI.              |
-| Banco    | Neon                 | PostgreSQL serverless, com _branching_ por ambiente. |
+| Serviço  | Plataforma               | Papel                                                          |
+| -------- | ------------------------ | -------------------------------------------------------------- |
+| Frontend | S3 + CloudFront          | Serve o build estático do Vite; bucket privado, acesso só por OAC. |
+| API      | Lambda (imagem) + Function URL | Roda a aplicação FastAPI via Mangum. Fora de VPC, 1.024 MB. |
+| Banco    | Neon                     | PostgreSQL serverless, com _branching_ por ambiente.           |
 
-A escolha está justificada no [ADR 0012](adr/0012-render-vercel-neon.md).
+A escolha está justificada no [ADR 0017](adr/0017-lambda-s3-cloudfront.md), que
+substitui o [ADR 0012](adr/0012-render-vercel-neon.md).
 
-## 2. Passo a passo
+> **A conexão SSE não sobrevive à Lambda.** `GET /incidents/stream` é o único
+> ponto em que a arquitetura nova é pior que a antiga: a Function URL é
+> `BUFFERED` e não mantém a resposta aberta. Está declarado em §4.5 e no ADR.
+
+## 2. Passo a passo — Onda 1 (aposentada)
+
+> **Não siga esta seção para publicar.** Ela descreve o caminho Render + Vercel,
+> que foi usado na primeira entrega e depois substituído. Fica registrada porque
+> a comparação entre as duas arquiteturas é parte da decisão do ADR 0017 — e
+> porque o Neon, que nasceu aqui, continua sendo o banco em uso (§2.1).
 
 ### 2.1 Neon (banco)
 
@@ -184,60 +199,86 @@ tem duas consequências diretas:
 
 ### 3.3 Banco (Neon)
 
-| Item                   | Valor                            |
-| ---------------------- | -------------------------------- |
-| SSL                    | Obrigatório (`sslmode=require`). |
-| Endpoint da aplicação  | Pooled (`…-pooler.…`)            |
-| Endpoint das migrações | Direto (sem `-pooler`)           |
+| Item                   | Valor                                           |
+| ---------------------- | ----------------------------------------------- |
+| SSL                    | Obrigatório (`sslmode=require`).                |
+| Endpoint da aplicação  | **Direto** (sem `-pooler`) — ver a nota abaixo. |
+| Endpoint das migrações | Direto (sem `-pooler`)                          |
 
-## 4. Caminho alternativo em AWS
+> **O endpoint com `-pooler` não serve para esta aplicação.** O PgBouncer do Neon
+> recusa o parâmetro de _startup_ que o driver envia:
+> `unsupported startup parameter in options: statement_timeout`. A aplicação usa
+> o endpoint **direto** nos dois casos. O caminho pooled foi medido e descartado —
+> não é preferência, é incompatibilidade.
 
-Esta seção descreve como replicar o mesmo produto em AWS. Ela existe porque a
-escolha da plataforma foi uma **decisão**, e decisão sem alternativa descrita é
-preferência.
+## 4. AWS — a arquitetura em uso
+
+> **Esta seção foi reescrita.** Até a entrega da Onda 1, a AWS era o caminho
+> alternativo e a Render era o escolhido. **A decisão mudou:** o produto roda em
+> AWS, e a Render saiu do caminho. O que está descrito abaixo é o que está no ar,
+> não uma hipótese.
+>
+> O detalhamento — decisões, custo medido item a item, automação de deploy e o
+> que deu errado no caminho — está em [`12-deploy-aws.md`](12-deploy-aws.md).
 
 ### 4.1 Arquitetura
 
 ```mermaid
 flowchart LR
-    U["Navegador"] --> CF["CloudFront<br/>+ certificado ACM"]
+    U["Navegador"] --> CF["CloudFront<br/>PriceClass_100"]
     CF -->|OAC| S3[("S3<br/>build estático do Vite")]
-    CF -->|"/api/*"| AR["App Runner<br/>container FastAPI"]
-    AR -->|"5432, subnet privada"| RDS[("RDS PostgreSQL<br/>db.t4g.micro")]
-    AR --> SM["Secrets Manager<br/>DATABASE_URL"]
+    CF -->|"Function URL"| LM["Lambda<br/>container FastAPI + Mangum"]
+    LM -->|"5432, TLS"| NEON[("Neon PostgreSQL<br/>fora da AWS")]
 ```
+
+**A peça que mudou o desenho foi o banco.** O plano original previa RDS numa
+subnet privada, o que arrasta VPC, _security groups_, Secrets Manager e RDS Proxy
+— e um NAT Gateway de US$ 32,85/mês só para a Lambda alcançar o banco. Mantendo o
+Neon (que já existia e é gratuito), a Lambda roda **fora de VPC**, sem NAT, sem
+RDS e sem Secrets Manager. O custo medido caiu para **US$ 0,023/mês**.
 
 ### 4.2 Componentes
 
-| Camada            | Serviço AWS                  | Configuração                                                                                        |
-| ----------------- | ---------------------------- | --------------------------------------------------------------------------------------------------- |
-| Frontend estático | **S3 + CloudFront**          | Bucket privado, acesso apenas via CloudFront Origin Access Control. Invalidação de cache no deploy. |
-| API (opção A)     | **App Runner**               | Build de container; escala automática; health check em `/health/ready`. Mais próximo do Render.     |
-| API (opção B)     | **Lambda + API Gateway**     | FastAPI adaptada com Mangum; escala a zero, com cold start por requisição.                          |
-| Banco             | **RDS PostgreSQL**           | `db.t4g.micro`, subnet privada, sem IP público, acesso restrito ao _security group_ da API.         |
-| Segredos          | **Secrets Manager**          | `DATABASE_URL` e demais valores sensíveis, injetados como variável de ambiente.                     |
-| Observabilidade   | **CloudWatch Logs + Alarms** | Log estruturado JSON já enviado por `stdout`, com alarme de taxa de `5xx`.                          |
+| Camada            | Serviço AWS                  | Configuração                                                                       |
+| ----------------- | ---------------------------- | ---------------------------------------------------------------------------------- |
+| Frontend estático | **S3 + CloudFront**          | Bucket privado, acesso só via Origin Access Control. Invalidação de cache no deploy. |
+| API               | **Lambda (imagem) + Function URL** | FastAPI adaptada com Mangum. 1.024 MB, timeout de 30 s, fora de VPC.           |
+| Imagem            | **ECR**                      | Base `public.ecr.aws/lambda/python:3.12` — a única que traz o `aws-lambda-ric`.      |
+| Banco             | **Neon PostgreSQL**          | Fora da AWS. Endpoint direto, TLS obrigatório.                                     |
+| Segredos          | **Variáveis de ambiente da função** | `DATABASE_URL` e `AUTH_SECRET_KEY`, injetadas na criação da função.          |
+| Observabilidade   | **CloudWatch Logs**          | Retenção de 14 dias. Log estruturado JSON já emitido em `stdout`.                  |
+| Deploy            | **GitHub Actions + OIDC**    | Sem segredo de longa duração no repositório. Ver [`12-deploy-aws.md`](12-deploy-aws.md). |
 
-### 4.3 Por que a opção B exige cuidado extra
+### 4.3 Por que a Lambda não entra em VPC
 
-Lambda escala a zero e não mantém estado entre invocações. Com PostgreSQL, isso
-significa que cada _cold start_ abre uma conexão nova — e um pico de invocações
-paralelas pode esgotar o limite de conexões do RDS. A mitigação não é aumentar o
-pool: é usar **RDS Proxy** (que multiplexa conexões) e `NullPool` no
-SQLAlchemy, deixando o proxy fazer o trabalho de pool. Sem isso, o padrão
-"serverless + banco relacional" falha no primeiro pico real.
+É a decisão que mais economiza e a que mais surpreende.
+
+Lambda escala a zero e não mantém estado entre invocações: cada _cold start_ abre
+uma conexão nova com o banco. Com RDS numa subnet privada, isso obrigaria a
+função a entrar na VPC — e **função em VPC não tem rota para a internet sem NAT
+Gateway**, que custa US$ 32,85/mês, mais que todo o resto somado.
+
+Mantendo o Neon como serviço externo, a função fica fora de VPC, alcança o banco
+pela internet com TLS e usa `NullPool` no SQLAlchemy — cada invocação abre e fecha
+a sua conexão, e o pool fica do lado do Neon. Foi verificado no recurso publicado:
+`VpcConfig` é `null`.
 
 ### 4.4 Comparação das opções de hospedagem
 
-| Opção                                        | Prós                                                                               | Contras                                                                                  | Veredito                          |
-| -------------------------------------------- | ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | --------------------------------- |
-| **Render + Vercel + Neon**                   | Free tier real, deploy via GitHub em minutos, Postgres gerenciado, logs acessíveis | Cold start de aproximadamente 30 s no plano gratuito                                     | **Escolhido**                     |
-| **AWS (S3 + CloudFront + App Runner + RDS)** | Controle total, IAM, escalabilidade real, RDS Proxy                                | Configuração longa, custo não trivial, muito mais superfície para errar no prazo do case | Alternativa descrita, não adotada |
-| Fly.io                                       | Excelente rede e runtime                                                           | Exige Docker instalado no ambiente de desenvolvimento                                    | Reserva                           |
-| Railway                                      | Boa experiência de desenvolvimento                                                 | O free tier deixou de ser generoso                                                       | Reserva                           |
-| Hugging Face Spaces                          | Simples para Python                                                                | Feito para demonstração de modelo, não para API REST com Postgres; hiberna               | Descartado                        |
-| Replit                                       | Rápido para começar                                                                | Recursos expiram e o ambiente é instável para demo                                       | Descartado                        |
-| Vercel Serverless Python                     | Um provedor só                                                                     | Limitações de runtime e cold start no acesso a banco                                     | Descartado                        |
+| Opção                                        | Prós                                                                               | Contras                                                                                  | Veredito                            |
+| -------------------------------------------- | ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ----------------------------------- |
+| **AWS (S3 + CloudFront + Lambda + Neon)**    | Controle total, IAM, escala a zero, custo medido de US$ 0,023/mês                  | Configuração longa, superfície grande para errar                                          | **Em uso**                          |
+| **Render + Vercel + Neon**                   | Free tier real, deploy via GitHub em minutos, Postgres gerenciado, logs acessíveis | Cold start de aproximadamente 30 s no plano gratuito; front nunca subiu (ver nota)         | **Aposentado na Onda 2**            |
+| Fly.io                                       | Excelente rede e runtime                                                           | Exige Docker instalado no ambiente de desenvolvimento                                    | Reserva                             |
+| Railway                                      | Boa experiência de desenvolvimento                                                 | O free tier deixou de ser generoso                                                       | Reserva                             |
+| Hugging Face Spaces                          | Simples para Python                                                                | Feito para demonstração de modelo, não para API REST com Postgres; hiberna                | Descartado                          |
+| Replit                                       | Rápido para começar                                                                | Recursos expiram e o ambiente é instável para demo                                        | Descartado                          |
+| Vercel Serverless Python                     | Um provedor só                                                                     | Limitações de runtime e cold start no acesso a banco                                     | Descartado                          |
+
+> **Por que a Onda 1 saiu de cena.** O `deploy-aws.yml` publica os dois lados a
+> cada merge na `main`, sem intervenção, e o custo é de centavos. Manter duas
+> arquiteturas no ar significaria manter duas para sempre — e a que ninguém usa é
+> a que quebra sem ninguém ver.
 
 ## 5. Troubleshooting
 

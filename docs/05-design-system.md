@@ -47,6 +47,12 @@ o rótulo textual. A tabela é a fonte da verdade para o `CriticalityBadge`.
 | **MÉDIA**   | ◆ losango   | 3 px           | `#FFFBEB`           | `#D97706`   | `#FBBF24`    |
 | **BAIXA**   | ● círculo   | 2 px           | transparente        | `#2563EB`   | `#60A5FA`    |
 
+> **Não confundir criticidade com prioridade.** Criticidade é um **campo** que
+> quem relata escolhe. Prioridade é um **cálculo** que o servidor faz (§7) e que
+> **ordena a fila**. As duas têm cor própria e vivem em famílias de token
+> separadas — `crit-*` e `prio-*` —, justamente para que a borda da linha e o
+> selo não digam a mesma coisa com significados diferentes. Ver §2.6.
+
 ### 2.3 Status
 
 Pills com fundo suave e texto forte. **Sempre com rótulo textual**, nunca só a
@@ -71,84 +77,133 @@ cor.
 
 ### 2.5 Implementação
 
-```css
-/* frontend/src/styles/tokens.css */
-:root {
-  --bg: #f8fafc;
-  --surface: #ffffff;
-  --surface-raised: #ffffff;
-  --border: #e2e8f0;
-  --border-strong: #cbd5e1;
-  --text: #0f172a;
-  --text-muted: #475569;
-  --text-subtle: #64748b;
+O bloco abaixo é um **extrato fiel** de `frontend/src/styles/tokens.css`. A regra
+que o arquivo declara no topo vale para todo componente: **nenhuma cor literal**,
+tudo passa por estas variáveis, e o tema escuro sobrescreve os mesmos nomes.
 
-  --criticality-alta: #dc2626;
-  --criticality-media: #d97706;
-  --criticality-baixa: #2563eb;
+```css
+/* frontend/src/styles/tokens.css (extrato) */
+:root {
+  color-scheme: light;
+
+  /* Superfícies */
+  --color-bg: #f5f6f8;
+  --color-surface: #ffffff;
+  --color-surface-raised: #ffffff;
+  --color-surface-sunken: #eceff3;
+  --color-border: #d5dae2;
+  --color-border-strong: #aeb7c4;
+
+  /* Texto */
+  --color-fg: #12171f;
+  --color-fg-muted: #55606f;
+  --color-fg-subtle: #6b7684;
+
+  /* Marca / foco */
+  --color-accent: #1d4ed8;
+  --color-accent-fg: #ffffff;
+  --color-accent-soft: #e3ecfd;
+
+  /* Criticidade — o campo declarado por quem relata */
+  --color-crit-alta: #dc2626;
+  --color-crit-alta-soft: #fee2e2;
+  --color-crit-alta-text: #b91c1c;
+  /* … media e baixa seguem o mesmo padrão de três variáveis */
+
+  /* Prioridade — as faixas do score calculado (§2.6) */
+  --color-prio-critica: #b91c1c;
+  --color-prio-critica-soft: #fee2e2;
+  --color-prio-critica-text: #991b1b;
+  /* … alta, media e baixa seguem o mesmo padrão */
 
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-full: 999px;
 
-  --shadow-1: 0 1px 2px rgb(15 23 42 / 0.06);
-  --shadow-2: 0 4px 12px rgb(15 23 42 / 0.08);
-  --shadow-3: 0 12px 32px rgb(15 23 42 / 0.14);
-
-  --duration-fast: 150ms;
-  --duration-base: 200ms;
-  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --shadow-e1: 0 1px 2px rgb(8 12 18 / 0.06);
+  --shadow-e2: 0 4px 12px rgb(8 12 18 / 0.08);
+  --shadow-e3: 0 12px 32px rgb(8 12 18 / 0.14);
 }
 
 .dark {
-  --bg: #0b1120;
-  --surface: #111827;
-  --surface-raised: #1f2937;
-  --border: #1f2937;
-  --border-strong: #374151;
-  --text: #f1f5f9;
-  --text-muted: #94a3b8;
-
-  --criticality-alta: #f87171;
-  --criticality-media: #fbbf24;
-  --criticality-baixa: #60a5fa;
+  color-scheme: dark;
+  /* Sobrescreve os MESMOS nomes. Nenhum componente sabe qual tema está ativo. */
 }
 ```
 
 ```ts
 // frontend/tailwind.config.ts (trecho)
 export default {
-  darkMode: 'class',
+  darkMode: ['class'],
   theme: {
     extend: {
       colors: {
-        bg: 'var(--bg)',
-        surface: 'var(--surface)',
-        border: 'var(--border)',
-        content: { DEFAULT: 'var(--text)', muted: 'var(--text-muted)' },
-        severity: {
-          alta: 'var(--criticality-alta)',
-          media: 'var(--criticality-media)',
-          baixa: 'var(--criticality-baixa)',
+        bg: 'var(--color-bg)',
+        surface: {
+          DEFAULT: 'var(--color-surface)',
+          raised: 'var(--color-surface-raised)',
+          sunken: 'var(--color-surface-sunken)',
         },
+        border: { DEFAULT: 'var(--color-border)', strong: 'var(--color-border-strong)' },
+        fg: {
+          DEFAULT: 'var(--color-fg)',
+          muted: 'var(--color-fg-muted)',
+          subtle: 'var(--color-fg-subtle)',
+        },
+        'crit-alta': 'var(--color-crit-alta)',
+        'prio-critica': 'var(--color-prio-critica)',
+        // …
       },
-      spacing: {
-        1: '4px',
-        2: '8px',
-        3: '12px',
-        4: '16px',
-        5: '20px',
-        6: '24px',
-        8: '32px',
-        12: '48px',
-        16: '64px',
-      },
-      borderRadius: { sm: '6px', md: '10px', full: '999px' },
-      transitionTimingFunction: { out: 'cubic-bezier(0.2, 0.8, 0.2, 1)' },
     },
   },
 } satisfies import('tailwindcss').Config;
 ```
+
+> **Por que o prefixo `--color-`.** Ele não é decorativo: separa as variáveis que
+> o Tailwind mapeia para classes utilitárias das que são só valores internos
+> (`--radius-*`, `--shadow-*`, `--motion-*`). Uma variável sem o prefixo nunca
+> vira classe, e é assim que se sabe onde cada uma pode ser usada.
+
+### 2.6 Prioridade — as faixas do score
+
+O score de prioridade (§7) **ordena a fila**. Durante muito tempo ele foi a coisa
+menos visível da linha: um número em `text-2xs`, fundo neutro e cor apagada.
+Quem tinha cor e ícone era a criticidade — que é um campo, não o resultado do
+cálculo.
+
+O problema não é estético. Para ordenar 100 itens por um número, é preciso **ler e
+comparar**: cognição serial, centenas de milissegundos por item. O olho processa
+antes de ler — posição, cor, forma, tamanho. Um número em texto não está em nenhum
+desses canais.
+
+| Faixa       | Score      | Ícone | Borda esquerda | Fundo (claro) | Cor (claro) | Cor (escuro) |
+| ----------- | ---------- | ----- | -------------- | ------------- | ----------- | ------------ |
+| **CRÍTICA** | ≥ 1100     | ▲     | 4 px           | `#FEE2E2`     | `#B91C1C`   | `#FCA5A5`    |
+| **ALTA**    | 900–1099   | ◆     | 3 px           | `#FFEDD5`     | `#EA580C`   | `#FDBA74`    |
+| **MÉDIA**   | 700–899    | ●     | 2 px           | `#CFFAFE`     | `#0891B2`   | `#67E8F9`    |
+| **BAIXA**   | < 700      | ○     | 1 px           | `#F1F5F9`     | `#64748B`   | `#94A3B8`    |
+
+**As fronteiras não são redondas por estética.** As primeiras que tentamos
+(1000/700/400) jogavam **~55% da fila numa faixa só**, e faixa que concentra mais
+da metade não ajuda a triar. As finais vieram da distribuição real da base
+(120 incidentes — p10=740, p25=780, p50=910, p75=1030, p90=1160, máx=1400) e caem
+perto dos quartis.
+
+São **quatro números num lugar só** (`PRIORITY_TIER_THRESHOLDS`, em
+`frontend/src/features/incidents/priority.ts`): recalibrar é mudar ali, e o teste
+de fronteira diz exatamente o que muda.
+
+**A borda esquerda da linha carrega a prioridade, e não a criticidade.** Ela é o
+canal que o olho lê na periferia ao varrer a fila, e a pergunta que a analista faz
+é *"onde eu paro?"* — que é a ordem, e a ordem vem do score. A criticidade
+continua no selo, com cor, forma e rótulo próprios.
+
+As duas divergem de verdade: um problema mecânico envelhecido passa na frente de
+um acidente com vítimas recém-aberto. Há teste guardando exatamente essa
+divergência.
+
+**Cor nunca sozinha** (§6): cada faixa tem símbolo geométrico, rótulo textual e
+cor — três canais para a mesma informação, e o número ao lado como desempate fino.
 
 ## 3. Tipografia
 
@@ -530,3 +585,80 @@ página é o defeito de acessibilidade mais comum em listas densas.
 - [ ] Nenhuma informação transmitida exclusivamente por cor.
 - [ ] Zoom de 200% sem quebra de layout.
 - [ ] `prefers-reduced-motion` desligando animações não essenciais.
+- [ ] No combobox: `↑` `↓` navegam, `Enter` escolhe, `Esc` fecha **a lista** sem
+      limpar o campo, e o foco nunca sai do input.
+- [ ] Nenhum painel de sugestão aparece quando não há sugestões.
+
+### 10.5 O combobox
+
+Dois campos do formulário de incidente sugerem enquanto se digita: a **placa**
+(da frota) e o **local** (dos incidentes já registrados). Os dois usam o mesmo
+componente, `frontend/src/components/ui/combobox.tsx`.
+
+**Por que não o `Select` do Radix.** O `Select` só aceita as opções que já
+existem: é uma escolha entre alternativas conhecidas. Aqui a pessoa pode digitar
+uma placa que **não está** na frota — um caminhão de terceiro — e um local que
+nunca foi registrado, e o valor digitado precisa sobreviver. Um `Select` obrigaria
+a inventar uma opção "outro" e devolver o texto por fora dele.
+
+**O padrão ARIA seguido:**
+
+| Elemento | Atributo                                   |
+| -------- | ------------------------------------------ |
+| Input    | `role="combobox"`, `aria-expanded`, `aria-controls`, `aria-autocomplete="list"` |
+| Input    | `aria-activedescendant` apontando para a opção destacada |
+| Lista    | `role="listbox"`                           |
+| Item     | `role="option"`                            |
+
+**O foco nunca sai do input.** A opção destacada é comunicada por
+`aria-activedescendant`, e não movendo o foco — sem isso, quem navega por teclado
+ou leitor de tela não teria como saber qual sugestão o `Enter` vai escolher.
+
+**Sem sugestões, nenhum painel.** Não existe "nenhum resultado" embaixo do campo:
+enquanto a pessoa digita um local que não está no histórico, um aviso piscando
+atrapalha mais do que ajuda. Onde a lista é a única fonte possível — a placa da
+frota — a mensagem entra e explica o vazio.
+
+> **Dois defeitos reais que os testes pegaram.**
+>
+> **O componente forçava caixa alta.** Correto para placa (`ABC1D23`), errado para
+> local: "sentido São Paulo" virava "SENTIDO SÃO PAULO". A suposição estava
+> embutida no componente e só apareceu no segundo uso — **reusar expõe o que
+> ninguém declarou**. O comportamento virou a prop `uppercase`, ligada só onde o
+> valor é código.
+>
+> **O `Esc` fechava o formulário inteiro** em vez de apenas a lista. O Radix fecha
+> diálogos com um listener de `Escape` no documento em **fase de captura** —
+> qualquer `onKeyDown` no input chega tarde demais, e `stopPropagation` nele não
+> faz nada. A solução é um listener de captura registrado em **escopo de módulo**
+> (portanto antes de qualquer diálogo montar), com um conjunto de fechadores das
+> listas abertas. Com nenhuma lista aberta o conjunto fica vazio, e o `Esc` volta
+> a fechar o drawer — que é o esperado.
+
+### 10.6 Layout responsivo
+
+**Uma árvore de elementos, e não duas.** A tabela de contas vira blocos
+empilhados abaixo de 768 px, mas o `<table>` continua sendo um `<table>`: quem
+muda é o `display`, não o DOM.
+
+A alternativa comum — renderizar cartões no celular e tabela na mesa — foi
+implementada primeiro e **reprovada pelos próprios testes**: com as duas versões
+no DOM, toda consulta por texto passou a encontrar dois elementos iguais, e três
+casos falharam por ambiguidade. O custo não era do teste: era de qualquer leitor
+— teste, leitor de tela ou script — que precisasse saber escopar.
+
+**A semântica sobrevive à mudança de layout.** `<tr>` continua sendo `row` e `<th>`
+continua sendo `columnheader` em qualquer largura, então leitor de tela e testes
+enxergam a mesma estrutura.
+
+**O rótulo que some no celular vem do CSS, e não do DOM.** O cabeçalho da tabela
+não aparece em telas estreitas, então a célula de "Último acesso" ganha o rótulo
+por `::before`. Pôr o texto num `<span>` escondido teria mudado o conteúdo da
+célula — e um teste que compara o valor exato da célula quebraria por causa de uma
+decisão de layout. **O que é apresentação não deve entrar no DOM.**
+
+> **O que foi verificado, e o que não foi.** A revisão foi feita por leitura de
+> código, arquivo por arquivo. `FiltersBar`, `Header`, `UserMenu`, `Drawer` e
+> `Dialog` já estavam corretos (`flex-wrap`, largura cheia, `hidden sm:inline-flex`)
+> e não precisaram de mudança. **A verificação em aparelho real não foi feita** —
+> é o item que continua aberto, e está registrado como tal.
