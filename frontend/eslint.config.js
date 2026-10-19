@@ -75,5 +75,24 @@ export default tseslint.config(
       },
     },
   },
+  {
+    // O E2E roda no navegador (dentro do runner) e fala com a API pelo `cy`,
+    // então enxerga os dois conjuntos de globais. O `projectService` aponta para
+    // `cypress/tsconfig.json`: sem ele as regras que exigem tipo abortam o
+    // `eslint .` inteiro, e o lint deixa de reportar o projeto todo por causa de
+    // um arquivo de teste.
+    name: 'logos/e2e',
+    files: ['cypress/**/*.ts'],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+      },
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+  },
   prettier,
 );

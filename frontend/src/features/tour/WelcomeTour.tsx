@@ -128,6 +128,9 @@ export function WelcomeTour({ ready = true, onOpenCreate, onCloseCreate }: Welco
         aria-labelledby={titleId}
         aria-describedby={bodyId}
         tabIndex={-1}
+        // Âncora do E2E: no passo do cadastro o cartão e a janela de novo
+        // incidente convivem, e os dois são `role="dialog"`.
+        data-testid="tour-card"
         className={`fixed ${CARD_Z_CLASS} flex flex-col gap-3 overflow-y-auto rounded-md bg-surface-raised p-4 shadow-e3 outline-none`}
         style={{
           top: layout.top,

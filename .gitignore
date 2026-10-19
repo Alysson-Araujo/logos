@@ -55,6 +55,12 @@ coverage/
 Thumbs.db
 desktop.ini
 
+# ---------------------------------------------------------------- Cypress (E2E)
+# Artefatos de execução: o vídeo e os prints são evidência de falha, não código.
+frontend/cypress/videos/
+frontend/cypress/screenshots/
+frontend/cypress/downloads/
+
 # ---------------------------------------------------------------- Logs e temporarios
 *.log
 npm-debug.log*

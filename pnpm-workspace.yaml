@@ -29,8 +29,12 @@ nodeLinker: hoisted
 #
 # esbuild: baixa e valida o binario nativo usado pelo Vite.
 # msw:     executa o pos-instalacao que prepara o service worker de mock.
+# cypress: baixa o binario do runner (Electron) para o cache do usuario. Sem
+#          este script o `cypress run` falha com "Cypress binary is missing".
+#          O download acontece uma vez por versao, no cache compartilhado.
 # --------------------------------------------------------------------------- #
 allowBuilds:
+  cypress: true
   esbuild: true
   msw: true
 

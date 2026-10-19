@@ -15,9 +15,11 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p cypress/tsconfig.json --noEmit",
     "test": "vitest",
     "test:run": "vitest run",
+    "e2e": "cypress run",
+    "e2e:open": "cypress open",
     "msw:init": "msw init public --save"
   },
   "dependencies": {
@@ -55,6 +57,7 @@
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.20",
+    "cypress": "^16.2.0",
     "eslint": "^9.21.0",
     "eslint-config-prettier": "^10.0.2",
     "eslint-plugin-jsx-a11y": "^6.10.2",
