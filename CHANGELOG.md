@@ -159,7 +159,13 @@ versionamento segue o [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ### Removed
 
-- Nada removido até o momento.
+- **`.github/workflows/cd.yml`** — o workflow de deploy da Onda 1. Ele exigia
+  quatro secrets que nunca foram configurados e, sem eles, **saía com sucesso
+  fazendo nada** (`::warning::` e exit 0). Um check que mente é pior que um check
+  que falta: ensina a ignorar check vermelho. O `deploy-aws.yml` faz o trabalho
+  de verdade.
+- **`render.yaml`** — o blueprint da Render, aposentada no
+  [ADR 0017](docs/adr/0017-lambda-s3-cloudfront.md).
 
 ### Fixed
 
@@ -188,6 +194,13 @@ versionamento segue o [Semantic Versioning](https://semver.org/lang/pt-BR/).
   listener de captura registrado antes de qualquer diálogo montar.
 - **O `Combobox` forçava caixa alta**, correto para placa e errado para local.
   O comportamento virou a prop `uppercase`, ligada só onde o valor é código.
+- **A timeline podia sair em ordem sorteada.** A ordenação era por `created_at`
+  com desempate pelo `id`, que é UUID **aleatório** — e o relógio do Windows tem
+  resolução de ~1 ms, então dois eventos no mesmo milissegundo empatavam. No
+  Linux o empate quase não ocorre, o que fazia o defeito ser **invisível na CI e
+  visível no desenvolvimento**: o teste passava e a tela mentia. A ordem passou a
+  vir de uma coluna `sequence` atribuída na transação, com restrição de unicidade
+  em `(incident_id, sequence)` (migration `0006`).
 
 ### Security
 

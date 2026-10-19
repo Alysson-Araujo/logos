@@ -134,7 +134,33 @@ export function useChangeIncidentStatus() {
             requestId: error.requestId,
           };
           openConflict(conflict);
+          return;
         }
+
+        // Conflito **sem** o estado do servidor utilizável no corpo.
+        //
+        // Este caminho existia e não avisava nada: o `return` ficava fora do
+        // `if`, então o handler saía em silêncio. O efeito para quem usa era o
+        // pior possível — a mutação otimista era desfeita acima, a linha voltava
+        // ao status anterior, e **nada explicava por quê**. A analista clicava
+        // de novo, e é assim que se duplica uma decisão.
+        //
+        // Acontece quando o `details.current` do 409 não passa no
+        // `incidentSchema`: proxy reescrevendo o corpo, versão de API divergente
+        // ou qualquer desvio do contrato. Ou seja, o caminho de conflito ficava
+        // refém do parse da resposta.
+        //
+        // O `requestId` entra na mensagem de propósito: é o que permite abrir um
+        // chamado com algo rastreável quando o corpo veio inesperado.
+        const codigo = error.requestId;
+        pushToast({
+          variant: 'error',
+          title: 'O caso mudou enquanto você decidia',
+          description:
+            codigo === null
+              ? 'Recarregue a lista para ver o estado atual antes de tentar de novo.'
+              : `Recarregue a lista para ver o estado atual. Se persistir, informe o código ${codigo}.`,
+        });
         return;
       }
 

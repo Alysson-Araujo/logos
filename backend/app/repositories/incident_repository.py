@@ -409,16 +409,34 @@ class IncidentRepository:
         """Timeline do incidente, do mais antigo para o mais recente.
 
         A ordem é cronológica porque a timeline é lida como narrativa: primeiro o
-        que aconteceu, depois o que aconteceu por causa disso. O desempate por
-        `id` existe porque dois eventos podem compartilhar o `created_at` — uma
-        transição grava o evento com o mesmo instante que carimbou a mudança.
+        que aconteceu, depois o que aconteceu por causa disso.
+
+        **A ordenação é pela `sequence`, e não pelo `created_at`.** O relógio do
+        Windows tem resolução de ~1 ms: dois eventos gravados no mesmo
+        milissegundo recebiam instantes idênticos, e o desempate caía no `id`,
+        que é UUID **aleatório** — ou seja, a ordem era sorteada justamente no
+        caso em que importava. No Linux a resolução é de microssegundos e o
+        empate quase não ocorre, então o defeito não aparecia na CI. A `sequence`
+        é atribuída na transação, é determinística e não depende de relógio.
         """
         statement = (
             select(IncidentEvent)
             .where(IncidentEvent.incident_id == incident_id)
-            .order_by(IncidentEvent.created_at.asc(), IncidentEvent.id.asc())
+            .order_by(IncidentEvent.sequence.asc())
         )
         return list(self._session.scalars(statement).all())
+
+    def _proxima_sequencia(self, incident_id: UUID) -> int:
+        """Próxima posição livre na timeline do incidente.
+
+        O `scalar` dispara o _autoflush_, então os eventos já adicionados nesta
+        transação — e ainda não confirmados — entram na conta. Sem isso, dois
+        eventos gravados na mesma transação receberiam a mesma posição.
+        """
+        atual = self._session.scalar(
+            select(func.max(IncidentEvent.sequence)).where(IncidentEvent.incident_id == incident_id)
+        )
+        return (atual or 0) + 1
 
     def _record_event(
         self,
@@ -441,6 +459,7 @@ class IncidentRepository:
         self._session.add(
             IncidentEvent(
                 incident_id=incident_id,
+                sequence=self._proxima_sequencia(incident_id),
                 event_type=event_type,
                 from_status=from_status,
                 to_status=to_status,
