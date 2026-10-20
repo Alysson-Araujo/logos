@@ -78,7 +78,20 @@ class Settings(BaseSettings):
 
     # --- Convite e envio de e-mail -----------------------------------------
     #: URL pública do frontend, usada no link "Definir minha senha" do convite.
+    #:
+    #: Ela é **assada** no e-mail: quem recebe clica e cai em algum lugar. Em
+    #: desenvolvimento é o Vite local; em produção precisa ser o endereço
+    #: público, senão o convite leva a pessoa para `localhost` — que, na máquina
+    #: dela, não é a aplicação.
     frontend_url: str = "http://localhost:5173"
+    #: Endereço público do frontend, usado quando `FRONTEND_URL` não foi
+    #: definida em produção (ou aponta para a máquina local).
+    #:
+    #: Existe porque o convite é uma mensagem enviada **para fora**: publicar um
+    #: link `localhost` nele é sempre defeito, e depender de alguém lembrar de
+    #: configurar uma variável no console da Lambda é uma garantia fraca. Com
+    #: este padrão, um deploy sem `FRONTEND_URL` já manda o endereço certo.
+    public_frontend_url: str = "https://debpv51kciojx.cloudfront.net"
     #: Sem host configurado, o envio vai para o LOG em vez de sair pela rede.
     #: É o que permite percorrer o fluxo do convite sem credencial de e-mail.
     smtp_host: str = ""
@@ -93,6 +106,30 @@ class Settings(BaseSettings):
     #: Existe para separar "não configurei" de "configurei e quero assim": em
     #: produção, sem `SMTP_HOST` e sem esta flag, a aplicação recusa subir.
     email_disabled: bool = False
+
+    @property
+    def invite_base_url(self) -> str:
+        """URL que vai no link do convite.
+
+        Em produção nunca devolve endereço de máquina local: se `FRONTEND_URL`
+        estiver vazia, ausente ou apontando para `localhost`/`127.0.0.1`, usa o
+        endereço público configurado. Em desenvolvimento, devolve
+        `FRONTEND_URL` sem mexer, que é o que permite testar o fluxo inteiro na
+        máquina.
+        """
+        configurada = self.frontend_url.strip().rstrip("/")
+        if not self.is_production:
+            return configurada or self.public_frontend_url
+
+        local = (
+            not configurada
+            or "localhost" in configurada
+            or "127.0.0.1" in configurada
+            or "0.0.0.0" in configurada  # noqa: S104 - é comparação de texto, não um bind
+        )
+        if local:
+            return self.public_frontend_url
+        return configurada
 
     @model_validator(mode="after")
     def _require_real_secret_in_production(self) -> Settings:

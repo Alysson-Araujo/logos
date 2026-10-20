@@ -169,7 +169,9 @@ def get_user_service(
     mailer: Annotated[Mailer, Depends(provide_mailer)],
 ) -> UserService:
     """Cria o serviço de administração de contas para a requisição."""
-    return UserService(users, mailer, frontend_url=get_settings().frontend_url)
+    # `invite_base_url`, e não `frontend_url`: em produção o link do convite
+    # nunca pode apontar para a máquina local.
+    return UserService(users, mailer, frontend_url=get_settings().invite_base_url)
 
 
 UserServiceDep = Annotated[UserService, Depends(get_user_service)]

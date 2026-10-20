@@ -549,6 +549,66 @@ class TestContratoDoFrameDeConvite:
         assert "&lt;script&gt;" in mensagem.html
 
 
+class TestLinkDoConvite:
+    """O endereço que vai dentro do e-mail.
+
+    O convite é a única mensagem do sistema que sai **para fora**: o link tem de
+    funcionar na máquina de quem recebeu, não na de quem publicou. Publicar
+    `localhost` ali é sempre defeito.
+    """
+
+    def _producao(self, **overrides: object) -> Settings:
+        padrao: dict[str, object] = {
+            "environment": "production",
+            "auth_secret_key": "chave-real-de-producao-com-tamanho-suficiente",
+            "smtp_host": "smtp.exemplo.com",
+        }
+        padrao.update(overrides)
+        return Settings(**padrao)  # type: ignore[arg-type]
+
+    def test_producao_sem_frontend_url_usa_o_endereco_publico(self) -> None:
+        """Sem `FRONTEND_URL` no console, o link ainda aponta para o ar."""
+        assert self._producao().invite_base_url == "https://debpv51kciojx.cloudfront.net"
+
+    def test_producao_nunca_publica_localhost(self) -> None:
+        """`localhost` no convite é defeito, mesmo se alguém configurar assim."""
+        for local in (
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "http://0.0.0.0:8000",
+            "  ",
+        ):
+            assert self._producao(frontend_url=local).invite_base_url == (
+                "https://debpv51kciojx.cloudfront.net"
+            )
+
+    def test_producao_respeita_o_endereco_configurado(self) -> None:
+        """Um domínio próprio continua valendo, sem barra sobrando."""
+        configuracao = self._producao(frontend_url="https://logos.autou.com.br/")
+        assert configuracao.invite_base_url == "https://logos.autou.com.br"
+
+    def test_desenvolvimento_continua_usando_o_vite_local(self) -> None:
+        """Em local o fluxo inteiro é testado na própria máquina."""
+        assert Settings(environment="local").invite_base_url == "http://localhost:5173"
+
+    def test_link_do_email_usa_o_endereco_publico_em_producao(self) -> None:
+        """Fecha o caminho: da configuração até o texto do e-mail."""
+        configuracao = self._producao()
+        mensagem = build_invite_email(
+            to="joana@demo.example.com",
+            name="Joana Prado",
+            role="REPORTER",
+            temp_password="kQ7mPx4R9tD2wZ8n",  # noqa: S106 - valor de teste
+            expires_at=datetime(2026, 10, 18, tzinfo=UTC),
+            frontend_url=configuracao.invite_base_url,
+        )
+
+        assert "https://debpv51kciojx.cloudfront.net?primeiro-acesso=1" in mensagem.body
+        assert "localhost" not in mensagem.body
+        assert mensagem.html is not None
+        assert "localhost" not in mensagem.html
+
+
 class TestGuardaDeProducao:
     """Produção não sobe mal configurada.
 
