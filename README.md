@@ -976,6 +976,117 @@ ambiente — ele existe para proteger a operação, não para reprovar teste. Os
 detalhes estão em [`docs/07-testes.md` §6](docs/07-testes.md) e no
 [ADR 0018](docs/adr/0018-e2e-com-cypress.md).
 
+### Testes de ponta a ponta (Cypress)
+
+O `jsdom` monta componentes, não **páginas**. Ele não tem layout, não rola, não
+foca de verdade e não vê o que chega na tela depois de um `409`. É exatamente
+essa faixa que o Cypress cobre: **27 cenários** em 8 arquivos, rodando num
+navegador real, contra a **API de verdade**.
+
+#### Por que contra a API real, e não contra o mock
+
+O `VITE_USE_MOCK` fica de fora de propósito. Um E2E sobre a API simulada provaria
+apenas que o mock e a tela combinam entre si — e isso os testes de `jsdom` já
+provam, mais rápido e sem navegador. O que só o E2E pode provar é a **costura
+inteira**: navegador → rede → FastAPI → PostgreSQL → de volta para a tela.
+
+#### Como a suíte sobe
+
+`scripts/e2e.mjs` resolve o problema do "funciona na minha máquina" montando o
+ambiente do zero, na mesma receita em qualquer lugar:
+
+| Passo | O que faz | Por quê |
+| --- | --- | --- |
+| 1 | SQLite próprio (`backend/e2e.db`), recriado a cada execução | Isolado do banco de desenvolvimento, e o estado nunca vaza entre execuções |
+| 2 | Migrações + seed pela **mesma via** do desenvolvimento (`alembic`, `app.infra.seed`) | Se a receita de subida quebrar, o E2E quebra junto — em vez de escondê-la |
+| 3 | API com o **rate limit desligado** | O teto por cliente protege a operação; num teste, ele reprovaria por velocidade de execução |
+| 4 | Front **compilado** (`vite build` + `vite preview`), não o servidor de desenvolvimento | É o artefato que vai para o ar; o dev server injeta coisas que produção não tem |
+| 5 | Cypress, com os endereços injetados por variável de ambiente | O mesmo arquivo serve ao local, ao script e ao job da CI |
+
+```bash
+pnpm e2e                          # sobe tudo, roda e derruba
+node scripts/e2e.mjs --spec conflito   # roda só um arquivo
+node scripts/e2e.mjs --keep-db         # reaproveita o banco da execução anterior
+node scripts/e2e.mjs --headed          # com o navegador visível, para depurar
+E2E_VERBOSE=1 node scripts/e2e.mjs     # mostra a saída da API e do Vite
+```
+
+#### Configuração que é decisão, não padrão
+
+- **Viewport 1440 × 900.** É o frame de referência do projeto — a medida em que
+  a triagem mostra lista e KPIs lado a lado. Testar em outra medida seria testar
+  outra tela.
+- **`retries: { runMode: 1, openMode: 0 }`.** Na CI, uma oscilação de rede não
+  deve derrubar o job por uma falha que não existe no produto. No modo
+  interativo, repetir só esconderia o erro de quem está escrevendo o teste.
+- **`pageLoadTimeout` de 30 s.** A primeira compilação do Vite em máquina fria é
+  o passo mais lento da suíte; 30 s evitam reprovar por causa dela.
+- **Vídeo sempre, artefato só na falha.** O Cypress grava vídeo de toda
+  execução; o job da CI publica a pasta **apenas quando falha**, para o artefato
+  ser diagnóstico e não peso morto.
+- **`expose`, e não `env`.** O Cypress 16 reservou `env` para o que passa por
+  `cy.env` (tratado como dado sensível, com borrão no relatório). Os endereços e a
+  chave do guia são configuração pública — vão por `expose`.
+
+#### A regra que separa os arquivos de suporte dos testes
+
+`cypress/support/api.ts` fala com a API real, mas com uma disciplina:
+
+> **Preparação pela API, verificação pela interface.** Exceto quando o que
+> interessa é o efeito persistido — a versão que subiu, o evento de auditoria
+> gravado —, e aí a asserção também acontece pela API, porque nenhuma tela mostra
+> esse dado.
+
+Um detalhe de code review que vale destacar: os tipos do contrato em `api.ts` são
+uma **cópia deliberada** de `docs/03-api.md`, e não um `import` dos tipos da
+aplicação. Um E2E que importa o tipo do produto deixa de ser independente dele —
+se o contrato mudar, os dois lados mudam juntos e o teste continua verde
+descrevendo o passado. A cópia é o que faz o teste poder falhar quando o contrato
+muda.
+
+O login é o passo mais caro da suíte, então `support/commands.ts` usa
+`cy.session`: cookies e `sessionStorage` (onde vive o token) ficam em cache e os
+specs que não são sobre login começam na triagem. Quem encerra a sessão declara um
+`sessionId` próprio, para não invalidar o cache dos outros. O guia de boas-vindas
+é marcado como visto **antes** de qualquer script da página rodar; sem isso ele
+abriria por cima da triagem e roubaria o foco de todo teste que não é sobre ele.
+
+#### O que cada arquivo prova
+
+| Arquivo | Cenários | O que comprova |
+| --- | ---: | --- |
+| `triagem.cy.ts` | 7 | Ordem pelo score (maior para menor), virtualização (menos linhas no DOM que o total), filtro de criticidade **persistido na URL**, recorte pelo KPI de status, busca por código, navegação por `j`/`k` e `Enter`, tema sobrevivendo ao recarregamento |
+| `ciclo-de-vida.cy.ts` | 4 | Assumir a investigação pelo drawer, justificativa de 10 caracteres para fechar, **registro na auditoria** do que a tela fez, e devolver o caso à fila |
+| `guia.cy.ts` | 4 | Abertura automática na primeira visita com os 8 passos, o passo do cadastro sem prender o guia, reabertura pelo botão e **todo alvo do passeio existindo na tela** |
+| `login.cy.ts` | 3 | Credencial de demonstração preenchida, recusa de credencial inválida e entrada na triagem |
+| `contas.cy.ts` | 3 | Convite pelo `ADMIN` com estado pendente, `REPORTER` sem acesso à administração e **só enxergando os próprios incidentes** |
+| `cadastro.cy.ts` | 2 | Campos obrigatórios apontados antes do envio, e o incidente entrando na fila com a criticidade escolhida |
+| `conflito.cy.ts` | 2 | O `409` **não sobrescreve o colega**, mostra o diff campo a campo, e recarregar alinha a tela |
+| `sessao.cy.ts` | 2 | Logoff revogando o token **na API**, e token revogado devolvendo à tela de login com aviso |
+
+#### Onde isso roda na CI
+
+Um job dedicado, `e2e · navegador real (Cypress)`, que instala Python e Node,
+roda `pnpm e2e` e é um dos checks obrigatórios do PR. Ele é o terceiro nível da
+pirâmide: unitário prova a regra, integração prova a consulta, concorrência prova
+o lock, e o E2E prova o **fluxo** — inclusive o `409` chegando na tela e o
+analista decidindo.
+
+#### Sobre imagens desta suíte
+
+Não há captura estática de Cypress em `docs/assets`: os prints do repositório são
+das telas do produto. O artefato visual da suíte é o **vídeo** que o Cypress grava
+e que a CI publica quando um cenário falha — em *Actions → o run → Artifacts*. Num
+run verde não há imagem, o que é o comportamento desejado.
+
+> **Detalhes que só aparecem no Windows.** O script usa `127.0.0.1` em vez de
+> `localhost`, porque o nome pode resolver para `::1` enquanto o Vite escuta em
+> IPv4 — o sintoma seria um "connection refused" sem relação com o teste. E o
+> encerramento mata a **árvore** de processos (`taskkill /T /F`): matar só o shell
+> deixaria `uvicorn` e Vite vivos segurando a porta, e a execução seguinte
+> falharia dizendo que a porta está em uso, longe da causa real.
+
+
 Cobertura é tratada como **piso, não meta** nos dois lados:
 
 - **Backend**: mínimo de **80%**, verificado na CI com `--cov-fail-under=80`;
