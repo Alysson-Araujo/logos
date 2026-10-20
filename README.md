@@ -462,6 +462,111 @@ stateDiagram-v2
     end note
 ```
 
+### O cálculo da criticidade e do priority score
+
+A **criticidade** é o único dos fatores de prioridade que vem de uma pessoa. Categoria, tempo
+em aberto e prazo são fatos do incidente; criticidade é o julgamento de quem triagem. Por isso
+ela é um enum de três níveis e não um número livre: campo numérico aberto vira "10 para tudo" na
+primeira semana, e aí perde o poder de discriminar.
+
+Ela alimenta **duas** coisas, e vale separá-las:
+
+```mermaid
+flowchart LR
+    K["Criticidade<br/>informada na triagem"] --> U["Urgencia no score<br/>ALTA 500 · MEDIA 250 · BAIXA 80"]
+    K --> S["Prazo de SLA<br/>ALTA 2h · MEDIA 8h · BAIXA 24h"]
+    C["Categoria<br/>impacto fixo"] --> SC
+    U --> SC["priority score<br/>calculado e persistido no servidor"]
+    A["Aging<br/>12 pts/h, teto 400"] --> SC
+    P["Pressao de SLA<br/>200 pts na ultima hora"] --> SC
+    SC --> T["Faixa na tela<br/>CRITICA · ALTA · MEDIA · BAIXA"]
+```
+
+#### O que a criticidade determina
+
+| Criticidade | Urgência no score | Prazo de SLA | Leitura de operação |
+| --- | ---: | ---: | --- |
+| `ALTA` | 500 | 2 horas | Risco à vida, à via ou à carga — atender agora |
+| `MEDIA` | 250 | 8 horas | Prejudica a operação, mas tem contorno — entra na fila |
+| `BAIXA` | 80 | 24 horas | Registro e acompanhamento — sem urgência |
+
+O prazo é derivado de `created_at + horas`, e não digitado: `compute_sla_due_at` garante que o
+vencimento seja consequência da criticidade. Um prazo escolhido à mão permitiria prometer 24
+horas para um acidente com vítimas.
+
+#### O score completo
+
+```
+score = impacto(categoria) + urgência(criticidade) + aging(tempo aberto) + pressão de SLA
+```
+
+| Componente | Como é calculado | Por que existe |
+| --- | --- | --- |
+| **Impacto da categoria** | fixo por categoria: acidente com vítimas 300, bloqueio de pista 180, acidente com veículo 150, condição climática atípica 100, problema mecânico 60 | Um problema mecânico e uma vítima não podem pesar igual |
+| **Urgência da criticidade** | 500 / 250 / 80, conforme a tabela acima | Traduz o julgamento humano em peso comparável |
+| **Aging** | 12 pontos por hora em aberto, **teto de 400** | O caso esquecido sobe sozinho. Sem teto, todo incidente antigo viraria CRÍTICA e a faixa perderia sentido |
+| **Pressão de SLA** | 200 pontos quando falta **menos de 1 hora** (ou o prazo já venceu) | O quase-vencido precisa passar na frente do vencido-daqui-a-três-horas |
+
+O score varia de **140** (mecânico, baixa, recém-aberto, longe do prazo) a **1.400** (vítimas,
+alta, 33h em aberto, prazo estourando). Ele é **calculado e persistido no servidor** — a coluna
+`priority_score` é o que ordena a fila. Dois analistas, duas abas ou dois navegadores veem a
+mesma ordem, porque a ordem não é recalculada no cliente.
+
+#### As quatro faixas
+
+O número ordena. Mas ninguém lê "1.340 é pior que 1.320": o cérebro compara categorias. Por isso
+o score é apresentado em faixas, e a linha comunica a faixa **antes** de qualquer leitura.
+
+| Faixa | Score | Borda esquerda | Símbolo | Rótulo |
+| --- | --- | ---: | :---: | --- |
+| `CRITICA` | ≥ 1.100 | 4 px | ▲ | Crítica — atender agora |
+| `ALTA` | 900 – 1.099 | 3 px | ◆ | Alta — atender em seguida |
+| `MEDIA` | 700 – 899 | 2 px | ● | Média — na fila |
+| `BAIXA` | < 700 | 1 px | ○ | Baixa — sem urgência |
+
+Cada faixa tem **três canais redundantes**: cor, símbolo geométrico e rótulo textual. Cor sozinha
+falha para quem não a distingue (WCAG 1.4.1); o símbolo sobrevive à escala de cinza e ao
+daltonismo, e o rótulo resolve o resto. A espessura da borda é um quarto canal, de graça.
+
+#### Por que essas fronteiras, e não outras
+
+As faixas **não** foram escolhidas por estética. A primeira tentativa (1.000 / 700 / 400) colocava
+cerca de **55% da fila numa faixa só** — e uma faixa que concentra a maioria não ajuda a triar,
+apenas recolore a lista inteira.
+
+A calibração veio da distribuição real dos 120 incidentes de demonstração (out/2026):
+
+| Percentil | p10 | p25 | p50 | p75 | p90 | máx |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Score | 740 | 780 | 910 | 1.030 | 1.160 | 1.400 |
+
+Os limites atuais caem perto dos quartis (900 ≈ p50, 1.100 ≈ p85), o que separa a fila em blocos
+de tamanho comparável. São **quatro números num lugar só**: recalibrar é mudar
+`PRIORITY_TIER_THRESHOLDS`, e o teste de fronteira diz exatamente o que muda (1099 é ALTA; 1100 é
+CRÍTICA).
+
+#### Explicabilidade
+
+O drawer do incidente mostra o score **termo a termo**, em linguagem de operação, e não de código:
+*"Prioridade 1.048 — Acidente com vítimas (300) + Alta (500) + 4h em aberto (48) + Prazo perto do
+fim (200)"*. Uma fila que não se explica é obedecida por obediência; uma que se explica é
+auditável, e o analista consegue discordar do critério com informação.
+
+#### Onde está no código
+
+| Peça | Arquivo |
+| --- | --- |
+| Pesos, SLA por criticidade, aging e pressão de SLA | [`backend/app/domain/priority.py`](backend/app/domain/priority.py) |
+| Cálculo e persistência do score ao criar e ao listar | [`backend/app/services/incident_service.py`](backend/app/services/incident_service.py) |
+| Faixas, apresentação e explicação termo a termo | [`frontend/src/features/incidents/priority.ts`](frontend/src/features/incidents/priority.ts) |
+| Faixa na linha (cor, símbolo, borda) | [`frontend/src/features/incidents/components/IncidentRow.tsx`](frontend/src/features/incidents/components/IncidentRow.tsx) |
+| Teste de fronteira e de distribuição | [`frontend/src/features/incidents/priorityTiers.test.ts`](frontend/src/features/incidents/priorityTiers.test.ts) |
+
+> **Limite conhecido.** Os pesos vivem em dois lugares: `priority.py` (que ordena, e é a verdade)
+> e `priority.ts` (que reproduz a aritmética apenas para itemizar a explicação na tela). Um
+> ajuste de peso precisa dos dois arquivos — a duplicação é deliberada, para a tela explicar sem
+> uma chamada extra, mas é o tipo de acoplamento que pede atenção no review.
+
 ### O lock otimista, em sequência
 
 ```mermaid
@@ -533,7 +638,7 @@ prioridade e de máquina de estados rodam em milissegundos, sem banco.
 | CD na AWS          | **OIDC federado**                                 | Nenhum segredo de AWS no repositório: o GitHub assume a role por identidade federada.                                                                                                                                               |
 | E-mail             | **Porta `Mailer`** (`LoggingMailer`/`SmtpMailer`) | Trocar entre log e SMTP é configuração, não reescrita — permite demonstrar o convite sem credencial.                                                                                                                                |
 
-## As dificuldades reais
+## As dificuldades ocorridas durante o desenvolvimento
 
 O que deu errado, e o que mudou na forma de trabalhar por causa disso. O registro
 completo tem **42 entradas**, cada uma com sintoma, causa, correção e lição — as
@@ -1127,8 +1232,8 @@ Dito com todas as letras — o que eu corrigiria antes de chamar de produção:
 
 **Alysson Araújo**
 
-- E-mail: [alysson10araujo@gmail.com](mailto:alysson10araujo@gmail.com)
-- LinkedIn: _(a publicar)_ <!-- TODO-LINK: URL do perfil no LinkedIn -->
+- E-mail: [alysson10araujo@gmail.com](mailto:alyssonaraujowork@gmail.com)
+- LinkedIn: [https://www.linkedin.com/in/alysson-alexandre/](https://www.linkedin.com/in/alysson-alexandre/)
 - Repositório: [github.com/Alysson-Araujo/logos](https://github.com/Alysson-Araujo/logos)
 
 ---
